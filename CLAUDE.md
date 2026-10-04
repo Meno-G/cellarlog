@@ -52,6 +52,8 @@ docs/           n8n contract and other docs
 - **Navigation:** typed routes are on. Use object hrefs for dynamic routes: `router.push({ pathname: '/tanks/[id]', params: { id } })`.
 - **Secrets:** only in `.env` (gitignored). Every variable must be listed in `.env.example`. Anything prefixed `EXPO_PUBLIC_` ends up in the app bundle, so never put private server secrets there.
 - **Scope:** build only the MVP described in the plan. No extra features without asking.
+  Build order: (1) setup + navigation, (2) Supabase + auth, (3) tanks CRUD, (4) text entry + mock parser + review, (5) voice recording, (6) real n8n connection, (7) offline mode: tanks/timelines viewable from the last sync, and new entries queued on the phone, then synced and parsed when back online.
+  Until step 7, being offline shows a clear "No internet" message and never loses what the user typed.
 
 ## Environment variables
 
