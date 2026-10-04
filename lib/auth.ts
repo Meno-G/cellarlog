@@ -87,7 +87,15 @@ export async function signUp(email: string, password: string): Promise<SignUpRes
   try {
     const { data, error } = await getSupabase().auth.signUp({ email: cleanEmail, password });
     if (error) throw fromAuthError(error);
-    // With "Confirm email" on, Supabase returns a user but no session.
+    // With "Confirm email" on, signing up with an existing email "succeeds" without
+    // sending anything (to hide which emails exist); the only sign is a user with no identities.
+    if (data.user && data.user.identities?.length === 0) {
+      throw new AppError(
+        'auth',
+        'An account with this email already exists. Sign in with its password instead.',
+      );
+    }
+    // With "Confirm email" on, a genuinely new user gets no session until they confirm.
     return { needsEmailConfirmation: data.session === null };
   } catch (error) {
     throw toAppError(error, 'Could not create the account. Please try again.');
