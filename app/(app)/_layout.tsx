@@ -19,6 +19,7 @@ export default function AppLayout() {
       <Stack.Screen name="tanks/[id]/index" options={{ title: 'Tank' }} />
       <Stack.Screen name="tanks/[id]/edit" options={{ title: 'Edit tank', presentation: 'modal' }} />
       <Stack.Screen name="entries/new" options={{ title: 'Add entry' }} />
+      <Stack.Screen name="entries/[id]/edit" options={{ title: 'Edit entry' }} />
     </Stack>
   );
 }

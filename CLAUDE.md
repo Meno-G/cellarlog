@@ -54,7 +54,7 @@ docs/           n8n contract and other docs
 - **Scope:** build only the MVP described in the plan. No extra features without asking.
   Build order: (1) setup + navigation, (2) Supabase + auth, (3) tanks CRUD, (4) text entry + mock parser + review, (5) voice recording, (6) real n8n connection, (7) offline mode: tanks/timelines viewable from the last sync, and new entries queued on the phone, then synced and parsed when back online.
   Until step 7, being offline shows a clear "No internet" message and never loses what the user typed.
-  Added on request: deleting a timeline entry (tap entry, confirm). Still not included: deleting tanks, editing saved entries.
+  Added on request: editing and deleting a timeline entry (tap entry → Edit / Delete; delete asks twice). Editing keeps the original note (`raw_text`). Still not included: deleting tanks.
 
 ## Entry flow (note → parser → review → save)
 

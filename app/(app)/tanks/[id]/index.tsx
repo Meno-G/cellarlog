@@ -26,9 +26,23 @@ export default function TankDetailScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  function entryLabel(entry: Entry): string {
+    return `${ENTRY_TYPE_LABELS[entry.type]} · ${formatEntryTime(entry.createdAt)}`;
+  }
+
+  function openEntryActions(entry: Entry) {
+    Alert.alert(entryLabel(entry), undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => confirmDelete(entry) },
+      {
+        text: 'Edit',
+        onPress: () => router.push({ pathname: '/entries/[id]/edit', params: { id: entry.id } }),
+      },
+    ]);
+  }
+
   function confirmDelete(entry: Entry) {
-    const label = `${ENTRY_TYPE_LABELS[entry.type]} · ${formatEntryTime(entry.createdAt)}`;
-    Alert.alert('Delete this entry?', `${label}\n\nThis can't be undone.`, [
+    Alert.alert('Delete this entry?', `${entryLabel(entry)}\n\nThis can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -104,7 +118,7 @@ export default function TankDetailScreen() {
       <AppText variant="title">Timeline</AppText>
       {entries.data && entries.data.length > 0 ? (
         <AppText muted variant="caption">
-          Tap an entry to delete it.
+          Tap an entry to edit or delete it.
         </AppText>
       ) : null}
       {actionError ? <Banner message={actionError} /> : null}
@@ -141,7 +155,7 @@ export default function TankDetailScreen() {
         renderItem={({ item }) => (
           <EntryCard
             entry={item}
-            onPress={() => confirmDelete(item)}
+            onPress={() => openEntryActions(item)}
             busy={item.id === deletingId}
           />
         )}

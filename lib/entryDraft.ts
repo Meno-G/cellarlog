@@ -71,6 +71,23 @@ export function draftFromParse(
   };
 }
 
+/** For editing a saved entry. */
+export function draftFromSaved(saved: {
+  tankId: string;
+  type: EntryType;
+  rawText: string;
+  parsed: ParsedEntry;
+}): EntryDraft {
+  return {
+    tankId: saved.tankId,
+    type: saved.type,
+    items: saved.parsed.items.map(itemToDraft),
+    note: saved.parsed.note ?? '',
+    rawText: saved.rawText,
+    unmatchedTankName: null,
+  };
+}
+
 /** For "fill in yourself" when parsing failed: the text becomes the note. */
 export function manualDraft(rawText: string, fallbackTankId: string | null): EntryDraft {
   return {
