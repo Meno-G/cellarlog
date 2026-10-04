@@ -41,7 +41,9 @@ docs/           n8n contract and other docs
 ## Conventions
 
 - **Strict TypeScript, no `any`.** ESLint enforces `@typescript-eslint/no-explicit-any`. Use `unknown` and narrow it, or validate it with zod at the boundaries (network responses).
-- **API logic lives in `lib/`.** Screens never import `supabase` or call `fetch` directly; they use `lib/` functions through `hooks/`.
+- **API logic lives in `lib/`.** Screens never import `supabase` or call `fetch` directly. Loading data goes through `hooks/` (`useFocusQuery` refetches when a screen regains focus); actions (save, sign in) call `lib/` functions directly.
+- **Pure logic in separate files.** Form parsing and validation that doesn't touch the network (e.g. `lib/tankForm.ts`) lives apart from data access (`lib/tanks.ts`), so it can be tested without Supabase.
+- **lib/ returns camelCase domain types** (`Tank`), not raw database rows. Mapping happens in `lib/` (`fromRow` / `toRow`).
 - **Errors:** `lib/` functions throw a typed `AppError` (kinds: network, permission, server, invalid_response, auth, validation). Screens show `error.message` (already human-readable) and offer a retry.
 - **Every async UI has loading, error and empty states.**
 - **Large touch targets:** at least `touch.minHeight` (56 pt) for anything tappable; the record button is `touch.recordButton`. Body text is at least 18 pt. People use the app with wet or gloved hands.

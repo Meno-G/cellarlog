@@ -10,15 +10,22 @@ export type AppErrorKind =
 
 /**
  * The only error type that leaves lib/. `message` is written for the person
- * holding the phone, so screens can show it as-is.
+ * holding the phone, so screens can show it as-is. `field` names the form
+ * field the error belongs to, when there is one.
  */
 export class AppError extends Error {
   readonly kind: AppErrorKind;
+  readonly field: string | undefined;
 
-  constructor(kind: AppErrorKind, message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  constructor(
+    kind: AppErrorKind,
+    message: string,
+    options?: { cause?: unknown; field?: string },
+  ) {
+    super(message, { cause: options?.cause });
     this.name = 'AppError';
     this.kind = kind;
+    this.field = options?.field;
   }
 }
 
@@ -39,4 +46,34 @@ export function toAppError(error: unknown, fallbackMessage: string): AppError {
 /** For catch blocks in screens: always yields something showable. */
 export function errorMessage(error: unknown): string {
   return toAppError(error, 'Something went wrong. Please try again.').message;
+}
+
+/** Shape of the `error` supabase-js returns from database calls. */
+type DbError = { code: string; message: string };
+
+/**
+ * Maps a database (PostgREST) error to an AppError. supabase-js does not throw
+ * on network failures; it returns them as an error whose message mentions the fetch failure.
+ */
+export function fromDbError(error: DbError, fallbackMessage: string): AppError {
+  if (isNetworkFailure(new Error(error.message))) {
+    return new AppError('network', NETWORK_MESSAGE, { cause: error });
+  }
+  switch (error.code) {
+    case '22P02': // invalid input syntax, e.g. a malformed uuid in the URL
+    case 'PGRST116': // .single() matched no rows
+      return new AppError('not_found', 'That item no longer exists.', { cause: error });
+    case '42501': // row-level security
+      return new AppError('permission', "You don't have access to that.", { cause: error });
+    case 'PGRST301':
+    case 'PGRST303': // JWT expired / invalid
+      return new AppError('auth', 'Your session has expired. Please sign in again.', {
+        cause: error,
+      });
+    case '23514': // check constraint
+      return new AppError('validation', 'Some values are out of range. Please check the form.', {
+        cause: error,
+      });
+  }
+  return new AppError('server', fallbackMessage, { cause: error });
 }

@@ -1,19 +1,25 @@
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { HeaderButton } from '@/components/HeaderButton';
 import { Screen } from '@/components/Screen';
+import { ErrorState, LoadingState } from '@/components/StateViews';
+import { TankCard } from '@/components/TankCard';
 import { useSession } from '@/hooks/useSession';
+import { useTanks } from '@/hooks/useTanks';
 import { signOut } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
+import { spacing, useTheme } from '@/theme';
 
 export default function TanksScreen() {
   const session = useSession();
-  const [error, setError] = useState<string | null>(null);
+  const tanks = useTanks();
+  const { colors } = useTheme();
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const email = session.status === 'signedIn' ? session.session.user.email : undefined;
 
@@ -24,26 +30,76 @@ export default function TanksScreen() {
         text: 'Sign out',
         style: 'destructive',
         onPress: () => {
-          setError(null);
-          signOut().catch((err: unknown) => setError(errorMessage(err)));
+          setSignOutError(null);
+          signOut().catch((err: unknown) => setSignOutError(errorMessage(err)));
         },
       },
     ]);
   }
 
+  function renderBody() {
+    if (tanks.loading) return <LoadingState label="Loading tanks…" />;
+    if (!tanks.data) {
+      return (
+        <ErrorState
+          message={tanks.error ?? 'Could not load your tanks.'}
+          onRetry={tanks.refresh}
+          retrying={tanks.refreshing}
+        />
+      );
+    }
+    return (
+      <FlatList
+        data={tanks.data}
+        keyExtractor={(tank) => tank.id}
+        renderItem={({ item }) => (
+          <TankCard
+            tank={item}
+            onPress={() => router.push({ pathname: '/tanks/[id]', params: { id: item.id } })}
+          />
+        )}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={tanks.refreshing}
+            onRefresh={tanks.refresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+        ListHeaderComponent={
+          tanks.error ? (
+            <Banner message={tanks.error} onRetry={tanks.refresh} />
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <AppText variant="title">No tanks yet</AppText>
+            <AppText muted style={styles.emptyText}>
+              Add your first tank to start logging additions, temperatures and tastings.
+            </AppText>
+          </View>
+        }
+      />
+    );
+  }
+
   return (
-    <Screen footer={<Button title="+ New tank" onPress={() => router.push('/tanks/new')} />}>
+    <Screen
+      scroll={false}
+      footer={<Button title="+ New tank" onPress={() => router.push('/tanks/new')} />}
+    >
       <Stack.Screen
         options={{ headerRight: () => <HeaderButton title="Sign out" onPress={confirmSignOut} /> }}
       />
-      {error ? <Banner message={error} /> : null}
-      <AppText variant="title">No tanks yet</AppText>
-      <AppText muted>Your tanks will be listed here (step 3).</AppText>
-      <Button
-        variant="secondary"
-        title="Open sample tank"
-        onPress={() => router.push({ pathname: '/tanks/[id]', params: { id: 'sample' } })}
-      />
+      {signOutError ? <Banner message={signOutError} /> : null}
+      {renderBody()}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  list: { gap: spacing.sm, paddingBottom: spacing.md, flexGrow: 1 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  emptyText: { textAlign: 'center' },
+});
