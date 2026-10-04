@@ -19,6 +19,11 @@ export type ParseContext = {
 };
 
 const MAX_TEXT = 5000;
+
+/** True when notes are parsed by the built-in mock instead of n8n. */
+export function isMockParser(): boolean {
+  return getEnv().parserMode === 'mock';
+}
 const MIN_AUDIO_MS = 700;
 
 function validateInput(input: ParseInput): ParseInput {

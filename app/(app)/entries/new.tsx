@@ -22,7 +22,7 @@ import {
   type EntryDraft,
 } from '@/lib/entryDraft';
 import { AppError, errorMessage } from '@/lib/errors';
-import { parseNote, type ParseInput } from '@/lib/parser';
+import { isMockParser, parseNote, type ParseInput } from '@/lib/parser';
 import { spacing, useTheme } from '@/theme';
 
 type Review = {
@@ -30,6 +30,8 @@ type Review = {
   errors: DraftErrors;
   saveError: string | null;
   saving: boolean;
+  /** A voice note "parsed" by the mock: the content is a sample, not what was said. */
+  sampleFromVoice: boolean;
 };
 
 const EXAMPLE = 'Tank 12, added 20 g/hl SO2, temp 22°C';
@@ -64,6 +66,7 @@ export default function NewEntryScreen() {
         errors: {},
         saveError: null,
         saving: false,
+        sampleFromVoice: input.kind === 'audio' && isMockParser(),
       });
     } catch (err) {
       setParseError(errorMessage(err));
@@ -112,7 +115,13 @@ export default function NewEntryScreen() {
     const typed = failedInput?.kind === 'text' ? failedInput.text : text;
     setParseError(null);
     setFailedInput(null);
-    setReview({ draft: manualDraft(typed, startTankId), errors: {}, saveError: null, saving: false });
+    setReview({
+      draft: manualDraft(typed, startTankId),
+      errors: {},
+      saveError: null,
+      saving: false,
+      sampleFromVoice: false,
+    });
   }
 
   async function handleSave(current: Review) {
@@ -164,6 +173,12 @@ export default function NewEntryScreen() {
         >
           <OfflineBanner message="You're offline. Saving needs internet. Your entry stays here." />
           <AppText variant="title">Check and save</AppText>
+          {review.sampleFromVoice ? (
+            <Banner
+              tone="info"
+              message="Test mode: speech isn't transcribed yet, so this is a sample note, not what you said. Real transcription comes with the n8n connection (step 6). Edit it or go back."
+            />
+          ) : null}
           {review.saveError ? (
             <Banner message={review.saveError} onRetry={() => handleSave(review)} />
           ) : null}
