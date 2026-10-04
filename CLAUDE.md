@@ -9,6 +9,7 @@ Stack: Expo SDK 57 (React Native 0.86), TypeScript (strict), Expo Router, Supaba
 ```bash
 npm install                 # install dependencies
 npx expo start              # dev server; scan the QR code with Expo Go
+npm run start:tunnel        # dev server over an ngrok tunnel, when the phone can't reach the PC on the LAN
 npx expo start --clear      # same, with Metro cache cleared (after env or config changes)
 npm run typecheck           # tsc --noEmit
 npm run lint                # expo lint
@@ -56,4 +57,6 @@ See `.env.example`. After changing `.env`, restart with `npx expo start --clear`
 
 ## Dependency notes
 
+- `@expo/ngrok` is a local devDependency. Expo CLI fails to find a globally installed copy on Windows ("Install @expo/ngrok@^4.1.0 and try again").
+- If `expo start` prints "Networking has been disabled", one request to api.expo.dev failed at startup and the CLI stays offline (no tunnel) for that run. Just restart it.
 - `react-dom` is pinned to the same version as `react` (19.2.3). `expo-router` pulls in `react-dom` as a peer, and without the pin npm installs a newer one that conflicts with `react`.
