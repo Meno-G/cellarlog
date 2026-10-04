@@ -55,6 +55,13 @@ docs/           n8n contract and other docs
   Build order: (1) setup + navigation, (2) Supabase + auth, (3) tanks CRUD, (4) text entry + mock parser + review, (5) voice recording, (6) real n8n connection, (7) offline mode: tanks/timelines viewable from the last sync, and new entries queued on the phone, then synced and parsed when back online.
   Until step 7, being offline shows a clear "No internet" message and never loses what the user typed.
 
+## Entry flow (note → parser → review → save)
+
+- `lib/parser/index.ts` `parseNote()` is the only entry point. It picks the mock (`lib/parser/mock.ts`) or n8n by `EXPO_PUBLIC_PARSER_MODE`, and validates every result with the zod schema in `lib/parser/schema.ts`. The same shape is used by the n8n response, the review screen and `entries.parsed`.
+- Mock parser test hooks: a note containing `#fail` simulates a server error; `#offline` simulates no internet.
+- `lib/entryDraft.ts` turns a parse result into an editable draft, and validates it into a `ValidEntry`. `lib/tankMatch.ts` resolves "tank 12" / "T12" to a tank.
+- Item values that look like numbers ("3,4") are saved as numbers; anything else stays text.
+
 ## Environment variables
 
 See `.env.example`. After changing `.env`, restart with `npx expo start --clear`.

@@ -1,4 +1,5 @@
 // Pure form logic for the tank form (no network), so it can be unit-tested.
+import { parseNumber } from './numbers';
 import type { Tank, TankInput } from './tanks';
 
 /** Raw text from the form inputs. */
@@ -34,25 +35,6 @@ export function tankToForm(tank: Tank): TankFormValues {
     variety: tank.variety ?? '',
     vintage: tank.vintage === null ? '' : String(tank.vintage),
   };
-}
-
-/**
- * Parses what people type on a phone keypad: "5000", "5 000", "5,000",
- * "5,000.5" and "5000,5" (comma as decimal separator).
- * Returns null for empty input and NaN for anything that isn't a number.
- */
-export function parseNumber(text: string): number | null {
-  let cleaned = text.replace(/[\s']/g, '');
-  if (cleaned === '') return null;
-  if (cleaned.includes('.') || /^\d{1,3}(,\d{3})+$/.test(cleaned)) {
-    // "5,000.5" or "12,500": commas are thousands separators.
-    cleaned = cleaned.replace(/,/g, '');
-  } else {
-    // "5000,5": a comma is the decimal separator.
-    cleaned = cleaned.replace(',', '.');
-  }
-  if (!/^\d+(\.\d+)?$/.test(cleaned)) return Number.NaN;
-  return Number(cleaned);
 }
 
 export function validateTankForm(

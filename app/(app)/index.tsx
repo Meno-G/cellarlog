@@ -6,6 +6,7 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { HeaderButton } from '@/components/HeaderButton';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankCard } from '@/components/TankCard';
@@ -68,9 +69,10 @@ export default function TanksScreen() {
           />
         }
         ListHeaderComponent={
-          tanks.error ? (
-            <Banner message={tanks.error} onRetry={tanks.refresh} />
-          ) : null
+          <View style={styles.header}>
+            <OfflineBanner />
+            {tanks.error ? <Banner message={tanks.error} onRetry={tanks.refresh} /> : null}
+          </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -100,6 +102,7 @@ export default function TanksScreen() {
 
 const styles = StyleSheet.create({
   list: { gap: spacing.sm, paddingBottom: spacing.md, flexGrow: 1 },
+  header: { gap: spacing.sm },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   emptyText: { textAlign: 'center' },
 });
