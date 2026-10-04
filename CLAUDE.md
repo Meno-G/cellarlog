@@ -54,6 +54,15 @@ docs/           n8n contract and other docs
 ## Environment variables
 
 See `.env.example`. After changing `.env`, restart with `npx expo start --clear`.
+`lib/env.ts` validates them with zod; if anything is missing the app shows a "Setup needed" screen listing the problems instead of crashing.
+
+## Supabase
+
+- Schema changes go in a **new** file in `supabase/migrations/` named `YYYYMMDDHHMMSS_description.sql`. Never edit a migration that has already been run.
+- Every table gets RLS enabled, with policies limited to `authenticated` and `(select auth.uid()) = user_id`. `user_id` defaults to `auth.uid()`, so the app never sends it.
+- Keep `lib/database.types.ts` in sync with the migrations. Same shape as `supabase gen types typescript`.
+- Get the client with `getSupabase()` from `lib/supabase.ts`. It's created lazily and throws `AppError('config')` if `.env` is incomplete.
+- Auth is email + password only. The session is stored with `expo-sqlite`'s localStorage, and the root layout gates `(app)` and `(auth)` with `Stack.Protected`.
 
 ## Dependency notes
 

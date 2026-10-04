@@ -6,13 +6,31 @@ entry on that tank.
 
 Built with Expo (React Native), TypeScript, Expo Router and Supabase.
 
-## Getting started
+## Setup
 
-```bash
-npm install
-npx expo start
-```
+1. **Install dependencies**
 
-Scan the QR code with the **Expo Go** app on your phone (same Wi-Fi network as your computer).
+   ```bash
+   npm install
+   ```
+
+2. **Create the database.** In your Supabase project, open **SQL Editor -> New query**,
+   paste the contents of [`supabase/migrations/20261004120000_init.sql`](supabase/migrations/20261004120000_init.sql)
+   and click **Run**.
+
+3. **Configure auth (for testing).** In **Authentication -> Sign In / Providers -> Email**,
+   keep Email enabled. Turning **Confirm email** off lets you sign up and sign in right away.
+
+4. **Environment variables.** Copy `.env.example` to `.env` and fill in the
+   project URL and publishable key from **Project Settings -> API Keys**.
+
+5. **Run**
+
+   ```bash
+   npx expo start --clear
+   ```
+
+   Scan the QR code with **Expo Go** (same Wi-Fi as your computer), or use
+   `npm run start:tunnel` if your phone can't reach your computer.
 
 See [CLAUDE.md](CLAUDE.md) for project conventions and all commands.
