@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Entry } from '@/lib/entries';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
@@ -7,14 +7,36 @@ import { radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
-export function EntryCard({ entry }: { entry: Entry }) {
+type Props = {
+  entry: Entry;
+  /** Tapping opens the entry's actions (e.g. delete). */
+  onPress?: () => void;
+  /** Dimmed while an action on this entry is running. */
+  busy?: boolean;
+};
+
+export function EntryCard({ entry, onPress, busy = false }: Props) {
   const { colors } = useTheme();
   const { items, note } = entry.parsed;
   // Show the original wording only when it adds something beyond the note.
   const showRaw = entry.rawText.trim() !== '' && entry.rawText.trim() !== note?.trim();
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress || busy}
+      accessibilityRole="button"
+      accessibilityHint="Shows options for this entry"
+      accessibilityState={{ busy }}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          opacity: busy ? 0.5 : pressed ? 0.8 : 1,
+        },
+      ]}
+    >
       <View style={styles.header}>
         <View style={[styles.badge, { backgroundColor: colors.surfaceAlt }]}>
           <AppText variant="label">{ENTRY_TYPE_LABELS[entry.type]}</AppText>
@@ -38,7 +60,7 @@ export function EntryCard({ entry }: { entry: Entry }) {
           “{entry.rawText}”
         </AppText>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 

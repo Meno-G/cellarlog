@@ -59,6 +59,18 @@ export async function listEntries(tankId: string): Promise<Entry[]> {
   }
 }
 
+export async function deleteEntry(id: string): Promise<void> {
+  if (!UUID.test(id)) throw new AppError('not_found', 'That entry no longer exists.');
+  try {
+    const { data, error } = await getSupabase().from('entries').delete().eq('id', id).select('id');
+    if (error) throw fromDbError(error, 'Could not delete the entry.');
+    // RLS hides other users' rows, so "nothing deleted" means it's already gone.
+    if (data.length === 0) throw new AppError('not_found', 'That entry was already deleted.');
+  } catch (error) {
+    throw toAppError(error, 'Could not delete the entry.');
+  }
+}
+
 export async function createEntry(entry: ValidEntry): Promise<Entry> {
   try {
     const { data, error } = await getSupabase()

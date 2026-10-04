@@ -1,5 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -11,7 +12,10 @@ import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useEntries } from '@/hooks/useEntries';
 import { useTank } from '@/hooks/useTanks';
-import { formatLiters, formatWine } from '@/lib/format';
+import { deleteEntry, type Entry } from '@/lib/entries';
+import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
+import { errorMessage } from '@/lib/errors';
+import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { radius, spacing, useTheme } from '@/theme';
 
 export default function TankDetailScreen() {
@@ -19,6 +23,29 @@ export default function TankDetailScreen() {
   const tank = useTank(id);
   const entries = useEntries(id);
   const { colors } = useTheme();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function confirmDelete(entry: Entry) {
+    const label = `${ENTRY_TYPE_LABELS[entry.type]} · ${formatEntryTime(entry.createdAt)}`;
+    Alert.alert('Delete this entry?', `${label}\n\nThis can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setActionError(null);
+          setDeletingId(entry.id);
+          deleteEntry(entry.id)
+            .catch((err: unknown) => setActionError(errorMessage(err)))
+            .finally(() => {
+              setDeletingId(null);
+              entries.refresh();
+            });
+        },
+      },
+    ]);
+  }
 
   if (tank.loading) {
     return (
@@ -75,6 +102,12 @@ export default function TankDetailScreen() {
         <AppText variant="label">{formatLiters(volumeLiters)}</AppText>
       </View>
       <AppText variant="title">Timeline</AppText>
+      {entries.data && entries.data.length > 0 ? (
+        <AppText muted variant="caption">
+          Tap an entry to delete it.
+        </AppText>
+      ) : null}
+      {actionError ? <Banner message={actionError} /> : null}
       {entries.data && entries.error ? (
         <Banner message={entries.error} onRetry={entries.refresh} />
       ) : null}
@@ -105,7 +138,13 @@ export default function TankDetailScreen() {
       <FlatList
         data={entries.data ?? []}
         keyExtractor={(entry) => entry.id}
-        renderItem={({ item }) => <EntryCard entry={item} />}
+        renderItem={({ item }) => (
+          <EntryCard
+            entry={item}
+            onPress={() => confirmDelete(item)}
+            busy={item.id === deletingId}
+          />
+        )}
         ListHeaderComponent={header}
         ListEmptyComponent={renderTimelineState()}
         contentContainerStyle={styles.list}
