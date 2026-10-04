@@ -11,8 +11,8 @@ import { RecordButton } from '@/components/RecordButton';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
+import { MAX_LISTEN_MS, useSpeechToText } from '@/hooks/useSpeechToText';
 import { useTanks } from '@/hooks/useTanks';
-import { MAX_RECORDING_MS, useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { createEntry } from '@/lib/entries';
 import {
   draftFromParse,
@@ -22,7 +22,7 @@ import {
   type EntryDraft,
 } from '@/lib/entryDraft';
 import { AppError, errorMessage } from '@/lib/errors';
-import { isMockParser, parseNote, type ParseInput } from '@/lib/parser';
+import { parseNote } from '@/lib/parser';
 import { spacing, useTheme } from '@/theme';
 
 type Review = {
@@ -30,8 +30,6 @@ type Review = {
   errors: DraftErrors;
   saveError: string | null;
   saving: boolean;
-  /** A voice note "parsed" by the mock: the content is a sample, not what was said. */
-  sampleFromVoice: boolean;
 };
 
 const EXAMPLE = 'Tank 12, added 20 g/hl SO2, temp 22°C';
@@ -43,42 +41,32 @@ export default function NewEntryScreen() {
   const { colors } = useTheme();
 
   const [text, setText] = useState('');
-  /** Which kind of input is being parsed right now, if any. */
-  const [parsingKind, setParsingKind] = useState<ParseInput['kind'] | null>(null);
-  const parsing = parsingKind !== null;
   const [parseError, setParseError] = useState<string | null>(null);
-  /** The input that failed to parse, so "Try again" doesn't need a new recording. */
-  const [failedInput, setFailedInput] = useState<ParseInput | null>(null);
   const [review, setReview] = useState<Review | null>(null);
 
-  async function runParse(input: ParseInput) {
+  function openReview(note: string) {
     const tankList = tanks.data ?? [];
     setParseError(null);
-    setFailedInput(null);
-    setParsingKind(input.kind);
     try {
-      const result = await parseNote(input, {
-        tankNames: tankList.map((tank) => tank.name),
-        defaultTankName: tankList.find((tank) => tank.id === startTankId)?.name ?? null,
-      });
+      const result = parseNote(note, { tankNames: tankList.map((tank) => tank.name) });
       setReview({
         draft: draftFromParse(result, tankList, startTankId),
         errors: {},
         saveError: null,
         saving: false,
-        sampleFromVoice: input.kind === 'audio' && isMockParser(),
       });
     } catch (err) {
       setParseError(errorMessage(err));
-      setFailedInput(input);
-    } finally {
-      setParsingKind(null);
     }
   }
 
-  // A finished recording is sent straight away: one less tap with wet gloves.
-  const recorder = useVoiceRecorder({
-    onRecorded: (recording) => void runParse({ kind: 'audio', ...recording }),
+  // Speaking fills the note; when you stop, it goes straight to review (one less tap with gloves).
+  const speech = useSpeechToText({
+    vocabulary: (tanks.data ?? []).map((tank) => tank.name),
+    onFinished: (transcript) => {
+      setText(transcript);
+      openReview(transcript);
+    },
   });
 
   if (tanks.loading) {
@@ -112,16 +100,8 @@ export default function NewEntryScreen() {
   const startTank = tankList.find((tank) => tank.id === startTankId);
 
   function fillInManually() {
-    const typed = failedInput?.kind === 'text' ? failedInput.text : text;
     setParseError(null);
-    setFailedInput(null);
-    setReview({
-      draft: manualDraft(typed, startTankId),
-      errors: {},
-      saveError: null,
-      saving: false,
-      sampleFromVoice: false,
-    });
+    setReview({ draft: manualDraft(text, startTankId), errors: {}, saveError: null, saving: false });
   }
 
   async function handleSave(current: Review) {
@@ -164,7 +144,7 @@ export default function NewEntryScreen() {
               <Button title="Save entry" onPress={() => handleSave(review)} loading={review.saving} />
               <Button
                 variant="secondary"
-                title="Back"
+                title="Back to note"
                 onPress={() => setReview(null)}
                 disabled={review.saving}
               />
@@ -173,12 +153,6 @@ export default function NewEntryScreen() {
         >
           <OfflineBanner message="You're offline. Saving needs internet. Your entry stays here." />
           <AppText variant="title">Check and save</AppText>
-          {review.sampleFromVoice ? (
-            <Banner
-              tone="info"
-              message="Test mode: speech isn't transcribed yet, so this is a sample note, not what you said. Real transcription comes with the n8n connection (step 6). Edit it or go back."
-            />
-          ) : null}
           {review.saveError ? (
             <Banner message={review.saveError} onRetry={() => handleSave(review)} />
           ) : null}
@@ -197,8 +171,11 @@ export default function NewEntryScreen() {
     );
   }
 
-  // ---- Input step: record or type ---------------------------------------
-  const busy = parsing || recorder.active;
+  // ---- Input step: speak or type ----------------------------------------
+  const showDownload =
+    Platform.OS === 'android' &&
+    speech.available &&
+    (speech.error?.offerOfflineDownload === true || speech.offlineReady === false);
 
   return (
     <KeyboardAvoidingView
@@ -208,73 +185,82 @@ export default function NewEntryScreen() {
       <Screen
         footer={
           <Button
-            title="Review typed note"
-            onPress={() => runParse({ kind: 'text', text })}
-            loading={parsingKind === 'text'}
-            disabled={text.trim() === '' || busy}
+            title="Review note"
+            onPress={() => openReview(text)}
+            disabled={text.trim() === '' || speech.active}
           />
         }
       >
-        <OfflineBanner />
+        <OfflineBanner message="You're offline. You can still record and review; saving needs internet." />
         {startTank ? <AppText muted>For {startTank.name}</AppText> : null}
 
-        <RecordButton
-          recording={recorder.recording}
-          busy={busy}
-          durationMs={recorder.durationMs}
-          maxMs={MAX_RECORDING_MS}
-          disabled={parsing}
-          onPress={recorder.recording ? recorder.stop : () => void recorder.start()}
-        />
-        {parsing ? (
-          <AppText style={styles.center} accessibilityLiveRegion="polite">
-            Reading your note…
-          </AppText>
-        ) : null}
-
-        {recorder.permission === 'blocked' ? (
+        {speech.available ? (
+          <RecordButton
+            listening={speech.listening}
+            busy={speech.active}
+            elapsedMs={speech.elapsedMs}
+            maxMs={MAX_LISTEN_MS}
+            onPress={speech.listening ? speech.stop : () => void speech.start()}
+          />
+        ) : (
           <Banner
-            message="Microphone access is turned off for this app. Turn it on in Settings, or type your note below."
+            tone="info"
+            message="Voice notes need the CellarLog app build. Expo Go doesn't include speech recognition. You can type your note below."
+          />
+        )}
+
+        {speech.permission === 'blocked' ? (
+          <Banner
+            message="Microphone access is turned off for CellarLog. Turn it on in Settings, or type your note below."
             onRetry={() => void Linking.openSettings()}
             retryLabel="Open settings"
           />
         ) : null}
-        {recorder.permission === 'denied' ? (
+        {speech.permission === 'denied' ? (
           <Banner
             tone="info"
-            message="CellarLog needs the microphone to record notes. Tap record and choose Allow, or type your note below."
+            message="CellarLog needs the microphone to hear your notes. Tap the button and choose Allow, or type below."
           />
         ) : null}
-        {recorder.error ? <Banner message={recorder.error} /> : null}
+        {speech.error && speech.permission !== 'blocked' ? <Banner message={speech.error.message} /> : null}
+
+        {showDownload ? (
+          <View style={styles.downloadBox}>
+            <AppText muted variant="caption">
+              {speech.downloadNote ??
+                'Voice uses the internet right now. Download English once (on Wi-Fi) to speak notes in the cellar without signal.'}
+            </AppText>
+            {speech.downloadNote === null ? (
+              <Button
+                variant="secondary"
+                title="Download English for offline"
+                onPress={() => void speech.downloadOffline()}
+              />
+            ) : null}
+          </View>
+        ) : null}
 
         {parseError ? (
           <View style={styles.errorBox}>
-            <Banner
-              message={
-                failedInput?.kind === 'audio'
-                  ? `${parseError} Your recording is kept.`
-                  : parseError
-              }
-              onRetry={failedInput ? () => void runParse(failedInput) : undefined}
-            />
+            <Banner message={parseError} />
             <Button variant="secondary" title="Fill in yourself" onPress={fillInManually} />
           </View>
         ) : null}
 
         <View style={styles.divider}>
           <View style={[styles.line, { backgroundColor: colors.border }]} />
-          <AppText muted>or type it</AppText>
+          <AppText muted>{speech.active ? 'what I heard' : 'or type it'}</AppText>
           <View style={[styles.line, { backgroundColor: colors.border }]} />
         </View>
 
         <TextField
           label="Note"
-          value={text}
+          value={speech.active ? speech.transcript : text}
           onChangeText={setText}
-          placeholder={EXAMPLE}
+          placeholder={speech.active ? 'Listening…' : EXAMPLE}
           multiline
           textAlignVertical="top"
-          editable={!busy}
+          editable={!speech.active}
           style={styles.noteInput}
         />
       </Screen>
@@ -285,9 +271,9 @@ export default function NewEntryScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   footer: { gap: spacing.sm },
-  center: { textAlign: 'center' },
   noteInput: { minHeight: 120, paddingTop: spacing.sm },
   errorBox: { gap: spacing.sm },
+  downloadBox: { gap: spacing.sm },
   divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   line: { flex: 1, height: StyleSheet.hairlineWidth * 2 },
 });

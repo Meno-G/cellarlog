@@ -5,10 +5,10 @@ import { spacing, touch, useTheme } from '@/theme';
 import { AppText } from './AppText';
 
 type Props = {
-  recording: boolean;
-  /** Starting/stopping the recorder, or sending the recording. */
+  listening: boolean;
+  /** Starting or finishing recognition. */
   busy: boolean;
-  durationMs: number;
+  elapsedMs: number;
   maxMs: number;
   disabled?: boolean;
   onPress: () => void;
@@ -20,15 +20,15 @@ function formatClock(ms: number): string {
 }
 
 /** One big tap-to-start / tap-to-stop button. Tapping twice is easier with gloves than holding. */
-export function RecordButton({ recording, busy, durationMs, maxMs, disabled = false, onPress }: Props) {
+export function RecordButton({ listening, busy, elapsedMs, maxMs, disabled = false, onPress }: Props) {
   const { colors } = useTheme();
-  const inactive = disabled || (busy && !recording);
+  const inactive = disabled || (busy && !listening);
 
-  const label = recording
-    ? `Tap to stop · ${formatClock(durationMs)} / ${formatClock(maxMs)}`
+  const label = listening
+    ? `Listening… tap to stop · ${formatClock(elapsedMs)} / ${formatClock(maxMs)}`
     : busy
       ? 'Please wait…'
-      : 'Tap to record';
+      : 'Tap and speak';
 
   return (
     <View style={styles.wrapper}>
@@ -36,21 +36,21 @@ export function RecordButton({ recording, busy, durationMs, maxMs, disabled = fa
         onPress={onPress}
         disabled={inactive}
         accessibilityRole="button"
-        accessibilityLabel={recording ? 'Stop recording' : 'Start recording'}
+        accessibilityLabel={listening ? 'Stop listening' : 'Start speaking'}
         accessibilityState={{ disabled: inactive, busy }}
         hitSlop={16}
         style={({ pressed }) => [
           styles.button,
           {
-            backgroundColor: recording ? colors.danger : colors.surface,
-            borderColor: recording ? colors.danger : colors.primary,
+            backgroundColor: listening ? colors.danger : colors.surface,
+            borderColor: listening ? colors.danger : colors.primary,
             opacity: inactive ? 0.5 : pressed ? 0.8 : 1,
           },
         ]}
       >
-        {busy && !recording ? (
+        {busy && !listening ? (
           <ActivityIndicator size="large" color={colors.primary} />
-        ) : recording ? (
+        ) : listening ? (
           <View style={[styles.stop, { backgroundColor: colors.onDanger }]} />
         ) : (
           <View style={[styles.dot, { backgroundColor: colors.danger }]} />

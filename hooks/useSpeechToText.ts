@@ -1,0 +1,270 @@
+import { requireOptionalNativeModule } from 'expo';
+import type {
+  ExpoSpeechRecognitionErrorCode,
+  ExpoSpeechRecognitionResultEvent,
+} from 'expo-speech-recognition';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+
+// Loaded optionally: the native module only exists in CellarLog's own build,
+// not in Expo Go, and importing 'expo-speech-recognition' directly would crash there.
+type SpeechModule = (typeof import('expo-speech-recognition'))['ExpoSpeechRecognitionModule'];
+const speech = requireOptionalNativeModule<SpeechModule>('ExpoSpeechRecognition');
+
+export const SPEECH_AVAILABLE = speech !== null;
+export const MAX_LISTEN_MS = 120_000;
+
+/** 'blocked' means the user said no and the OS won't ask again: only Settings can fix it. */
+export type MicPermission = 'unknown' | 'granted' | 'denied' | 'blocked';
+
+export type SpeechError = {
+  message: string;
+  /** Downloading English for offline recognition would fix this. */
+  offerOfflineDownload: boolean;
+};
+
+type Phase = 'idle' | 'starting' | 'listening' | 'stopping';
+
+const ON_DEVICE_SERVICE = 'com.google.android.as';
+const PREFERRED_LANG = 'en-US';
+
+// Primes the recognizer with words it would otherwise mishear.
+const WINE_TERMS = [
+  'SO2', 'free SO2', 'total SO2', 'pH', 'Brix', 'TA', 'VA', 'g/hL', 'mg/L', 'g/L',
+  'hectoliter', 'bentonite', 'tartaric acid', 'tannin', 'yeast', 'nutrient', 'racked',
+  'malolactic', 'pump over', 'punch down', 'barrique', 'Saperavi', 'Rkatsiteli',
+];
+
+function errorFor(code: ExpoSpeechRecognitionErrorCode, offlineReady: boolean): SpeechError | null {
+  switch (code) {
+    case 'aborted':
+      return null;
+    case 'no-speech':
+    case 'speech-timeout':
+      return { message: "Didn't catch that. Tap the button and speak again.", offerOfflineDownload: false };
+    case 'not-allowed':
+      return { message: 'Microphone access is needed to record notes.', offerOfflineDownload: false };
+    case 'network':
+      return {
+        message: offlineReady
+          ? 'Speech recognition lost its connection. Try again.'
+          : 'Voice needs internet until English is downloaded for offline use.',
+        offerOfflineDownload: !offlineReady,
+      };
+    case 'language-not-supported':
+      return {
+        message: 'English speech recognition is not installed on this phone.',
+        offerOfflineDownload: true,
+      };
+    case 'busy':
+      return { message: 'The microphone is busy. Try again in a moment.', offerOfflineDownload: false };
+    case 'audio-capture':
+      return {
+        message: "Couldn't use the microphone. Close other apps that use it and try again.",
+        offerOfflineDownload: false,
+      };
+    case 'service-not-allowed':
+      return {
+        message:
+          "Speech recognition isn't available. Check that Google's “Speech Recognition & Synthesis” app is installed and enabled.",
+        offerOfflineDownload: false,
+      };
+    default:
+      return { message: 'Speech recognition failed. Please try again.', offerOfflineDownload: false };
+  }
+}
+
+type Options = {
+  /** Called with the full transcript when listening ends with something recognised. */
+  onFinished: (transcript: string) => void;
+  /** Extra words to prime recognition with, e.g. the user's tank names. */
+  vocabulary: readonly string[];
+};
+
+/**
+ * Live speech-to-text with the phone's own recognizer. Prefers on-device
+ * English (works offline); otherwise Google's online recognition.
+ */
+export function useSpeechToText({ onFinished, vocabulary }: Options) {
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [transcript, setTranscript] = useState('');
+  const [error, setError] = useState<SpeechError | null>(null);
+  const [permission, setPermission] = useState<MicPermission>('unknown');
+  /** On-device locale to use, or null when only online recognition is available. */
+  const [offlineLang, setOfflineLang] = useState<string | null>(null);
+  const [offlineChecked, setOfflineChecked] = useState(false);
+  const [downloadNote, setDownloadNote] = useState<string | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  // Android delivers continuous recognition in segments: finished segments + the one in progress.
+  const finals = useRef<string[]>([]);
+  const partial = useRef('');
+  const startedAt = useRef(0);
+
+  const fullText = () => [...finals.current, partial.current].join(' ').replace(/\s+/g, ' ').trim();
+
+  async function checkOffline() {
+    if (!speech) return;
+    let lang: string | null = null;
+    try {
+      if (Platform.OS === 'android' && speech.supportsOnDeviceRecognition()) {
+        const { installedLocales } = await speech.getSupportedLocales({
+          androidRecognitionServicePackage: ON_DEVICE_SERVICE,
+        });
+        lang =
+          installedLocales.find((locale) => locale.toLowerCase() === PREFERRED_LANG.toLowerCase()) ??
+          installedLocales.find((locale) => locale.toLowerCase().startsWith('en')) ??
+          null;
+      } else if (Platform.OS === 'ios' && speech.supportsOnDeviceRecognition()) {
+        lang = PREFERRED_LANG;
+      }
+    } catch {
+      lang = null;
+    }
+    setOfflineLang(lang);
+    setOfflineChecked(true);
+  }
+
+  const checkOfflineOnMount = useEffectEvent(() => {
+    void checkOffline();
+  });
+  useEffect(() => {
+    checkOfflineOnMount();
+  }, []);
+
+  // ---- Native events --------------------------------------------------------
+  const onStart = useEffectEvent(() => {
+    startedAt.current = Date.now();
+    setElapsedMs(0);
+    setPhase('listening');
+  });
+  const onResult = useEffectEvent((event: ExpoSpeechRecognitionResultEvent) => {
+    const text = event.results[0]?.transcript?.trim() ?? '';
+    if (event.isFinal) {
+      if (text !== '') finals.current.push(text);
+      partial.current = '';
+    } else {
+      partial.current = text;
+    }
+    setTranscript(fullText());
+  });
+  const onError = useEffectEvent((event: { error: ExpoSpeechRecognitionErrorCode }) => {
+    // "No speech" after something was recognised just means the user paused at the end.
+    if ((event.error === 'no-speech' || event.error === 'speech-timeout') && fullText() !== '') return;
+    if (event.error === 'not-allowed') setPermission('blocked');
+    setError(errorFor(event.error, offlineLang !== null));
+  });
+  const onEnd = useEffectEvent(() => {
+    const text = fullText();
+    setPhase('idle');
+    if (text !== '') onFinished(text);
+  });
+
+  useEffect(() => {
+    if (!speech) return;
+    const subscriptions = [
+      speech.addListener('start', () => onStart()),
+      speech.addListener('result', (event) => onResult(event)),
+      speech.addListener('error', (event) => onError(event)),
+      speech.addListener('end', () => onEnd()),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.remove());
+      speech.abort();
+    };
+  }, []);
+
+  // ---- Controls -------------------------------------------------------------
+  async function start() {
+    if (!speech) return;
+    setError(null);
+    setTranscript('');
+    finals.current = [];
+    partial.current = '';
+    setPhase('starting');
+    try {
+      const response = await speech.requestPermissionsAsync();
+      if (!response.granted) {
+        setPermission(response.canAskAgain ? 'denied' : 'blocked');
+        setPhase('idle');
+        return;
+      }
+      setPermission('granted');
+      speech.start({
+        lang: offlineLang ?? PREFERRED_LANG,
+        interimResults: true,
+        continuous: true,
+        maxAlternatives: 1,
+        requiresOnDeviceRecognition: offlineLang !== null,
+        addsPunctuation: offlineLang !== null,
+        contextualStrings: [...vocabulary, ...WINE_TERMS],
+      });
+    } catch {
+      setError({ message: 'Speech recognition could not start. Please try again.', offerOfflineDownload: false });
+      setPhase('idle');
+    }
+  }
+
+  function stop() {
+    if (!speech || phase !== 'listening') return;
+    setPhase('stopping');
+    speech.stop(); // "end" follows once the last words are recognised
+  }
+
+  async function downloadOffline() {
+    if (!speech) return;
+    setDownloadNote('Starting download…');
+    try {
+      const result = await speech.androidTriggerOfflineModelDownload({ locale: PREFERRED_LANG });
+      if (result.status === 'download_success') {
+        setDownloadNote('English is ready: voice now works offline.');
+        setError(null);
+        await checkOffline();
+      } else if (result.status === 'download_scheduled') {
+        setDownloadNote('Download scheduled. It finishes on Wi-Fi; voice works online until then.');
+      } else {
+        setDownloadNote('Follow the download dialog, then try recording again.');
+      }
+    } catch {
+      setDownloadNote("Couldn't download English. Try again when you have Wi-Fi.");
+    }
+  }
+
+  // ---- Limits ---------------------------------------------------------------
+  const tick = useEffectEvent(() => {
+    const elapsed = Date.now() - startedAt.current;
+    setElapsedMs(elapsed);
+    if (elapsed >= MAX_LISTEN_MS) stop();
+  });
+  useEffect(() => {
+    if (phase !== 'listening') return;
+    const timer = setInterval(() => tick(), 250);
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  // A phone call or switching apps ends listening; keep what was said so far.
+  const onBackground = useEffectEvent(() => stop());
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') onBackground();
+    });
+    return () => subscription.remove();
+  }, []);
+
+  return {
+    available: SPEECH_AVAILABLE,
+    /** From tapping the button until the transcript is delivered. */
+    active: phase !== 'idle',
+    listening: phase === 'listening',
+    transcript,
+    elapsedMs: phase === 'listening' || phase === 'stopping' ? elapsedMs : 0,
+    permission,
+    error,
+    /** Whether English works without internet. null until checked. */
+    offlineReady: offlineChecked ? offlineLang !== null : null,
+    downloadNote,
+    start,
+    stop,
+    downloadOffline,
+  };
+}

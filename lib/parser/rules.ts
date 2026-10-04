@@ -1,18 +1,12 @@
-// A rough, offline stand-in for the n8n workflow (EXPO_PUBLIC_PARSER_MODE=mock).
-// It is only good enough to exercise the review screen with realistic data.
-// Test hooks: put "#fail" in a note to simulate a server error, "#offline" for no internet.
+// Rule-based note parser. Runs entirely on the phone (no network, no AI):
+// the note is normalised first (./normalize.ts: "twenty grams per hectoliter" -> "20 g/hl"),
+// then patterns pick out the tank, lab values, temperature, additions and transfers.
+// It covers common phrasing; the review screen is where the user fixes the rest.
 
 import type { EntryType } from '../entryTypes';
-import { AppError, NETWORK_MESSAGE } from '../errors';
 import { parseNumber } from '../numbers';
+import { normalizeNote } from './normalize';
 import type { ParsedItem, ParseResult } from './schema';
-
-export type MockParseOptions = {
-  /** The user's tank names, so "tank 12" resolves to "Tank 12". */
-  tankNames: readonly string[];
-  /** Simulated network delay. Tests pass 0. */
-  delayMs?: number;
-};
 
 const NUM = String.raw`(-?\d+(?:[.,]\d+)?)`;
 const SEP = String.raw`\s*(?:is|of|at|was|=|:)?\s*`;
@@ -73,8 +67,6 @@ const TRANSFER_KEYWORDS = /\b(?:transfer(?:red)?|rack(?:ed)?|mov(?:e|ed))\b/i;
 const TASTING_KEYWORDS = /\b(?:tast(?:e|ed|ing)|nose|palate|aroma|smells?|finish|mouthfeel|tannins? (?:are|is))\b/i;
 const GENERIC_TANK = /\b(?:tank|tk|t)\s*#?\s*(\d+[a-z]?)\b/gi;
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 /** Replaces a matched span with spaces so later patterns don't match it twice. */
 function blank(text: string, index: number, length: number): string {
   return text.slice(0, index) + ' '.repeat(length) + text.slice(index + length);
@@ -116,9 +108,13 @@ function isDestination(text: string, mention: Mention): boolean {
   return /\b(?:to|into)\s*$/i.test(text.slice(Math.max(0, mention.index - 6), mention.index));
 }
 
-/** Pure parsing logic, exported for tests. */
-export function mockParseText(input: string, tankNames: readonly string[]): ParseResult {
-  const transcript = input.trim();
+/**
+ * Parses a typed or spoken note. `transcript` in the result is the note exactly
+ * as given (saved as raw_text); everything else comes from the normalised text.
+ */
+export function parseWithRules(input: string, tankNames: readonly string[]): ParseResult {
+  const original = input.trim();
+  const transcript = normalizeNote(original);
   let rest = transcript;
   // Items remember where they were found, so they are listed in the order spoken.
   const found: { item: ParsedItem; index: number }[] = [];
@@ -194,30 +190,5 @@ export function mockParseText(input: string, tankNames: readonly string[]): Pars
           .trim() || null
       : null;
 
-  return { tank_name: source?.name ?? null, type, items, note, transcript };
-}
-
-const AUDIO_TEMPLATES = [
-  (tank: string) => `${tank}, added 20 g/hl SO2, temp 22°C`,
-  (tank: string) => `${tank} temperature 16 degrees`,
-  (tank: string) => `${tank} pH 3.5, brix 21.5, TA 6 g/l`,
-  (tank: string) => `Tasted ${tank}: ripe plum, soft tannins, short finish`,
-];
-
-/**
- * The mock can't transcribe, so a recording gets one of a few canned
- * transcripts (rotating by length), for the given tank.
- */
-export function mockAudioTranscript(tankName: string, durationMs: number): string {
-  const template = AUDIO_TEMPLATES[Math.floor(durationMs / 1000) % AUDIO_TEMPLATES.length];
-  return template ? template(tankName) : `${tankName} temperature 16 degrees`;
-}
-
-export async function mockParse(text: string, options: MockParseOptions): Promise<ParseResult> {
-  await sleep(options.delayMs ?? 900 + Math.random() * 600);
-  if (/#offline\b/i.test(text)) throw new AppError('network', NETWORK_MESSAGE);
-  if (/#fail\b/i.test(text)) {
-    throw new AppError('server', 'The parser failed (simulated with #fail). Try again or fill in the entry yourself.');
-  }
-  return mockParseText(text, options.tankNames);
+  return { tank_name: source?.name ?? null, type, items, note, transcript: original };
 }

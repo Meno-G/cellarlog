@@ -8,9 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.cellarlog.app",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.cellarlog.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,9 +29,15 @@
       "expo-status-bar",
       "expo-sqlite",
       [
-        "expo-audio",
+        "expo-speech-recognition",
         {
-          "microphonePermission": "CellarLog uses the microphone to record your spoken cellar notes."
+          "microphonePermission": "CellarLog uses the microphone so you can speak your cellar notes.",
+          "speechRecognitionPermission": "CellarLog turns your spoken notes into text on this phone.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.as",
+            "com.google.android.tts"
+          ]
         }
       ]
     ],
