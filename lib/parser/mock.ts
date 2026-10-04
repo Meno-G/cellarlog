@@ -197,6 +197,22 @@ export function mockParseText(input: string, tankNames: readonly string[]): Pars
   return { tank_name: source?.name ?? null, type, items, note, transcript };
 }
 
+const AUDIO_TEMPLATES = [
+  (tank: string) => `${tank}, added 20 g/hl SO2, temp 22°C`,
+  (tank: string) => `${tank} temperature 16 degrees`,
+  (tank: string) => `${tank} pH 3.5, brix 21.5, TA 6 g/l`,
+  (tank: string) => `Tasted ${tank}: ripe plum, soft tannins, short finish`,
+];
+
+/**
+ * The mock can't transcribe, so a recording gets one of a few canned
+ * transcripts (rotating by length), for the given tank.
+ */
+export function mockAudioTranscript(tankName: string, durationMs: number): string {
+  const template = AUDIO_TEMPLATES[Math.floor(durationMs / 1000) % AUDIO_TEMPLATES.length];
+  return template ? template(tankName) : `${tankName} temperature 16 degrees`;
+}
+
 export async function mockParse(text: string, options: MockParseOptions): Promise<ParseResult> {
   await sleep(options.delayMs ?? 900 + Math.random() * 600);
   if (/#offline\b/i.test(text)) throw new AppError('network', NETWORK_MESSAGE);

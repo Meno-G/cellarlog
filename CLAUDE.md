@@ -62,6 +62,8 @@ docs/           n8n contract and other docs
 - Mock parser test hooks: a note containing `#fail` simulates a server error; `#offline` simulates no internet.
 - `lib/entryDraft.ts` turns a parse result into an editable draft, and validates it into a `ValidEntry`. `lib/tankMatch.ts` resolves "tank 12" / "T12" to a tank.
 - Item values that look like numbers ("3,4") are saved as numbers; anything else stays text.
+- Voice: `hooks/useVoiceRecorder.ts` wraps expo-audio. It handles tap to start / tap to stop, mono AAC `.m4a` at 64 kbps, a 2-minute limit, and stopping when the app is backgrounded. It sorts mic permission into granted / denied / blocked; when blocked, only Settings can fix it. A finished recording is sent to `parseNote({ kind: 'audio', ... })` straight away. If parsing fails, the same recording is retried without re-recording.
+- Mock voice parsing can't transcribe: it returns one of four canned transcripts for the starting tank, and fails when offline, like a real upload would.
 
 ## Environment variables
 

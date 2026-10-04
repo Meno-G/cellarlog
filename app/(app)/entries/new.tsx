@@ -1,16 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { EntryReview } from '@/components/EntryReview';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { RecordButton } from '@/components/RecordButton';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { useTanks } from '@/hooks/useTanks';
+import { MAX_RECORDING_MS, useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { createEntry } from '@/lib/entries';
 import {
   draftFromParse,
@@ -20,8 +22,8 @@ import {
   type EntryDraft,
 } from '@/lib/entryDraft';
 import { AppError, errorMessage } from '@/lib/errors';
-import { parseNote } from '@/lib/parser';
-import { spacing } from '@/theme';
+import { parseNote, type ParseInput } from '@/lib/parser';
+import { spacing, useTheme } from '@/theme';
 
 type Review = {
   draft: EntryDraft;
@@ -36,11 +38,45 @@ export default function NewEntryScreen() {
   const { tankId } = useLocalSearchParams<{ tankId?: string }>();
   const startTankId = tankId ?? null;
   const tanks = useTanks();
+  const { colors } = useTheme();
 
   const [text, setText] = useState('');
-  const [parsing, setParsing] = useState(false);
+  /** Which kind of input is being parsed right now, if any. */
+  const [parsingKind, setParsingKind] = useState<ParseInput['kind'] | null>(null);
+  const parsing = parsingKind !== null;
   const [parseError, setParseError] = useState<string | null>(null);
+  /** The input that failed to parse, so "Try again" doesn't need a new recording. */
+  const [failedInput, setFailedInput] = useState<ParseInput | null>(null);
   const [review, setReview] = useState<Review | null>(null);
+
+  async function runParse(input: ParseInput) {
+    const tankList = tanks.data ?? [];
+    setParseError(null);
+    setFailedInput(null);
+    setParsingKind(input.kind);
+    try {
+      const result = await parseNote(input, {
+        tankNames: tankList.map((tank) => tank.name),
+        defaultTankName: tankList.find((tank) => tank.id === startTankId)?.name ?? null,
+      });
+      setReview({
+        draft: draftFromParse(result, tankList, startTankId),
+        errors: {},
+        saveError: null,
+        saving: false,
+      });
+    } catch (err) {
+      setParseError(errorMessage(err));
+      setFailedInput(input);
+    } finally {
+      setParsingKind(null);
+    }
+  }
+
+  // A finished recording is sent straight away: one less tap with wet gloves.
+  const recorder = useVoiceRecorder({
+    onRecorded: (recording) => void runParse({ kind: 'audio', ...recording }),
+  });
 
   if (tanks.loading) {
     return (
@@ -72,30 +108,11 @@ export default function NewEntryScreen() {
   }
   const startTank = tankList.find((tank) => tank.id === startTankId);
 
-  async function handleParse() {
-    setParseError(null);
-    setParsing(true);
-    try {
-      const result = await parseNote(
-        { kind: 'text', text },
-        { tankNames: tankList.map((tank) => tank.name) },
-      );
-      setReview({
-        draft: draftFromParse(result, tankList, startTankId),
-        errors: {},
-        saveError: null,
-        saving: false,
-      });
-    } catch (err) {
-      setParseError(errorMessage(err));
-    } finally {
-      setParsing(false);
-    }
-  }
-
   function fillInManually() {
+    const typed = failedInput?.kind === 'text' ? failedInput.text : text;
     setParseError(null);
-    setReview({ draft: manualDraft(text, startTankId), errors: {}, saveError: null, saving: false });
+    setFailedInput(null);
+    setReview({ draft: manualDraft(typed, startTankId), errors: {}, saveError: null, saving: false });
   }
 
   async function handleSave(current: Review) {
@@ -138,7 +155,7 @@ export default function NewEntryScreen() {
               <Button title="Save entry" onPress={() => handleSave(review)} loading={review.saving} />
               <Button
                 variant="secondary"
-                title="Back to note"
+                title="Back"
                 onPress={() => setReview(null)}
                 disabled={review.saving}
               />
@@ -165,7 +182,9 @@ export default function NewEntryScreen() {
     );
   }
 
-  // ---- Input step --------------------------------------------------------
+  // ---- Input step: record or type ---------------------------------------
+  const busy = parsing || recorder.active;
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -174,37 +193,75 @@ export default function NewEntryScreen() {
       <Screen
         footer={
           <Button
-            title={parsing ? 'Reading your note…' : 'Review entry'}
-            onPress={handleParse}
-            loading={parsing}
-            disabled={text.trim() === ''}
+            title="Review typed note"
+            onPress={() => runParse({ kind: 'text', text })}
+            loading={parsingKind === 'text'}
+            disabled={text.trim() === '' || busy}
           />
         }
       >
         <OfflineBanner />
         {startTank ? <AppText muted>For {startTank.name}</AppText> : null}
 
+        <RecordButton
+          recording={recorder.recording}
+          busy={busy}
+          durationMs={recorder.durationMs}
+          maxMs={MAX_RECORDING_MS}
+          disabled={parsing}
+          onPress={recorder.recording ? recorder.stop : () => void recorder.start()}
+        />
+        {parsing ? (
+          <AppText style={styles.center} accessibilityLiveRegion="polite">
+            Reading your note…
+          </AppText>
+        ) : null}
+
+        {recorder.permission === 'blocked' ? (
+          <Banner
+            message="Microphone access is turned off for this app. Turn it on in Settings, or type your note below."
+            onRetry={() => void Linking.openSettings()}
+            retryLabel="Open settings"
+          />
+        ) : null}
+        {recorder.permission === 'denied' ? (
+          <Banner
+            tone="info"
+            message="CellarLog needs the microphone to record notes. Tap record and choose Allow, or type your note below."
+          />
+        ) : null}
+        {recorder.error ? <Banner message={recorder.error} /> : null}
+
+        {parseError ? (
+          <View style={styles.errorBox}>
+            <Banner
+              message={
+                failedInput?.kind === 'audio'
+                  ? `${parseError} Your recording is kept.`
+                  : parseError
+              }
+              onRetry={failedInput ? () => void runParse(failedInput) : undefined}
+            />
+            <Button variant="secondary" title="Fill in yourself" onPress={fillInManually} />
+          </View>
+        ) : null}
+
+        <View style={styles.divider}>
+          <View style={[styles.line, { backgroundColor: colors.border }]} />
+          <AppText muted>or type it</AppText>
+          <View style={[styles.line, { backgroundColor: colors.border }]} />
+        </View>
+
         <TextField
-          label="What did you do?"
+          label="Note"
           value={text}
           onChangeText={setText}
           placeholder={EXAMPLE}
           multiline
           textAlignVertical="top"
-          autoFocus
-          editable={!parsing}
+          editable={!busy}
           style={styles.noteInput}
         />
-        <AppText muted variant="caption">
-          Mention the tank, what you added or measured, and units. Voice recording comes in step 5.
-        </AppText>
-
-        {parseError ? (
-          <View style={styles.errorBox}>
-            <Banner message={parseError} onRetry={handleParse} />
-            <Button variant="secondary" title="Fill in yourself" onPress={fillInManually} />
-          </View>
-        ) : null}
       </Screen>
     </KeyboardAvoidingView>
   );
@@ -213,6 +270,9 @@ export default function NewEntryScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   footer: { gap: spacing.sm },
-  noteInput: { minHeight: 160, paddingTop: spacing.sm },
+  center: { textAlign: 'center' },
+  noteInput: { minHeight: 120, paddingTop: spacing.sm },
   errorBox: { gap: spacing.sm },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  line: { flex: 1, height: StyleSheet.hairlineWidth * 2 },
 });
