@@ -29,6 +29,13 @@ Speech recognition is a native module that Expo Go doesn't include, so CellarLog
 - In Expo Go the app still runs; the voice button is replaced by a "needs the CellarLog app build" note (`SPEECH_AVAILABLE` in `hooks/useSpeechToText.ts`).
 - Metro picks up newly installed packages only after a restart (`npx expo start --clear`).
 
+## Preview build (standalone, for the cellar)
+
+`npx eas-cli@latest build --profile preview --platform android` builds an APK with its own code inside: no PC, cable or Metro needed.
+- `app.config.ts` gives it its own package id `com.cellarlog.app.preview` and scheme `cellarlog-preview`, so it installs **next to** the development build. The development build keeps `com.cellarlog.app` and becomes "CellarLog Dev" on its next rebuild.
+- The Supabase URL and publishable key for it come from **EAS environment variables** (environment `preview`), because `.env` is never uploaded. Change them with `npx eas-cli@latest env:set --environment preview ...`.
+- Code changes reach the preview app only through a new preview build.
+
 ## Expo changes fast: check the docs, not memory
 
 Expo ships breaking changes every SDK. Before touching an Expo or React Native API, check the versioned docs for SDK 57 (`https://docs.expo.dev/versions/v57.0.0/`) or `https://docs.expo.dev/llms.txt`.
