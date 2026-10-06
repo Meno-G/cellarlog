@@ -1,7 +1,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { setStoreForTests, userKey } = require('../.test-build/storage.js');
-const { tanksCache, tankCache, entriesCache, clearCache } = require('../.test-build/cache.js');
+const { tanksCache, tankCache, entriesCache, clearCache, saveOfflineCopy } = require('../.test-build/cache.js');
 const {
   enqueue,
   listOutbox,
@@ -72,6 +72,18 @@ test('cache: users never see each other\'s data, and sign-out clears it', () => 
   assert.equal(tanksCache('u1').read(), null);
   assert.equal(entriesCache('u1', 't12').read(), null);
   assert.equal(listOutbox('u1').length, 1, 'queued entries survive sign-out');
+});
+
+test('cache: one sync saves every timeline, even tanks never opened', () => {
+  const e = (id, tankId, at) => ({ ...entry, id, tankId, createdAt: at });
+  const recent = [e('3', 't12', '2026-10-03'), e('2', 't2', '2026-10-02'), e('1', 't12', '2026-10-01')];
+  saveOfflineCopy('u1', [tank12, tank2, { ...tank2, id: 't99', name: 'Tank 99' }], recent, 200);
+  assert.deepEqual(tanksCache('u1').read().data.map((t) => t.id), ['t12', 't2', 't99']);
+  assert.deepEqual(entriesCache('u1', 't12').read().data.map((x) => x.id), ['3', '1'], 'newest first');
+  assert.deepEqual(entriesCache('u1', 't2').read().data.map((x) => x.id), ['2']);
+  assert.deepEqual(entriesCache('u1', 't99').read().data, [], 'a tank with no entries opens empty, not as an error');
+  saveOfflineCopy('u1', [tank12], recent, 1);
+  assert.deepEqual(entriesCache('u1', 't12').read().data.map((x) => x.id), ['3'], 'per-tank limit');
 });
 
 // ---- outbox ---------------------------------------------------------------

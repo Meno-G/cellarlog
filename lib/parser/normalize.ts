@@ -100,8 +100,21 @@ export function wordsToNumbers(text: string): string {
   return joined.replace(/\s{2,}/g, ' ').trim();
 }
 
+type Replacement = string | ((match: string, ...groups: string[]) => string);
+
+/** "Tongue, 12" -> "Tank 12", "tonk 12" -> "tank 12": keeps the capital if there was one. */
+const toTank = (match: string) => (/^[A-Z]/.test(match) ? 'Tank ' : 'tank ');
+
 // Order matters: longer phrases first.
-const PHRASES: [RegExp, string][] = [
+const PHRASES: [RegExp, Replacement][] = [
+  // Mishearings seen on a real phone (Galaxy S25, on-device English)
+  [/\bhect(?:o|a|y|i|e)?l?\.?\s*-?\s*lit(?:er|re)s?\b/gi, 'hectoliter'], // "hectyl. Liter"
+  [/\b(?:tank|tonk|tongue|thank|tang|tink|tanks)\b[\s,.]*(?=\d)/gi, toTank], // "Tongue, 12"
+  [/\b(?:wrecked|wracked|racket|rocked)\b(?=\s+tank\b)/gi, 'racked'], // "Wrecked tank 12"
+  [/\bb\W{0,3}r\W{0,3}i\W{0,3}x\b/gi, 'brix'], // spelled "B, r, i, x"
+  [/\bbreaks\b(?=\s*\d)/gi, 'brix'], // "Breaks 22"
+  [/(\d)\s*breaks\b/gi, '$1 brix'],
+  [/\b(?:tunnels|tannens|tanins)\b/gi, 'tannins'],
   // Units
   [/\bmilligrams?\s+(?:per|a|\/)\s+lit(?:er|re)s?\b/gi, 'mg/l'],
   [/\bmg\s+per\s+(?:l|lit(?:er|re))\b/gi, 'mg/l'],
@@ -131,6 +144,8 @@ const PHRASES: [RegExp, string][] = [
   [/\bdegrees?\s+brix\b/gi, 'brix'],
   [/\btitratable\s+acid(?:ity)?\b/gi, 'TA'],
   [/\bt\s*\.\s*a\b\.?/gi, 'TA'],
+  // A lone "T" before an acid reading in g/L ("22 T 6.2 grams per liter") is TA, not a tank.
+  [/\bt\b\.?\s*(?=\d+(?:[.,]\d+)?\s*g\/l\b)/gi, 'TA '],
   [/\bvolatile\s+acid(?:ity)?\b/gi, 'VA'],
   [/\bv\s*\.\s*a\b\.?/gi, 'VA'],
   [/\bmalo\s*lactic\b/gi, 'malolactic'],
@@ -141,6 +156,11 @@ const PHRASES: [RegExp, string][] = [
 /** Full normalisation: numbers first, then phrases and units. */
 export function normalizeNote(text: string): string {
   let result = wordsToNumbers(text);
-  for (const [pattern, replacement] of PHRASES) result = result.replace(pattern, replacement);
+  for (const [pattern, replacement] of PHRASES) {
+    result =
+      typeof replacement === 'string'
+        ? result.replace(pattern, replacement)
+        : result.replace(pattern, replacement);
+  }
   return result.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:])/g, '$1').trim();
 }

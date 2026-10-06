@@ -1,5 +1,8 @@
-// Saving entries when the connection may be gone, and uploading the queue later.
-import { createEntry } from './entries';
+// Saving entries when the connection may be gone, uploading the queue later,
+// and keeping the offline copy of tanks and timelines up to date.
+import { saveOfflineCopy } from './cache';
+import { createEntry, listRecentEntries, TIMELINE_LIMIT } from './entries';
+import { listTanks } from './tanks';
 import type { ValidEntry } from './entryDraft';
 import { toAppError } from './errors';
 import { enqueue, flushQueue, newLocalId, type FlushResult } from './outbox';
@@ -32,6 +35,15 @@ export async function saveOrQueue(
     }
     throw appError;
   }
+}
+
+/**
+ * Downloads the tank list and every timeline and saves them on the phone.
+ * Two requests, whatever the number of tanks. Throws on failure (offline).
+ */
+export async function refreshOfflineCopy(userId: string): Promise<void> {
+  const [tanks, entries] = await Promise.all([listTanks(), listRecentEntries()]);
+  saveOfflineCopy(userId, tanks, entries, TIMELINE_LIMIT);
 }
 
 let running: Promise<FlushResult> | null = null;

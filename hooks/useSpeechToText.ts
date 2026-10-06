@@ -149,8 +149,12 @@ export function useSpeechToText({ onFinished, vocabulary }: Options) {
     setTranscript(fullText());
   });
   const onError = useEffectEvent((event: { error: ExpoSpeechRecognitionErrorCode }) => {
-    // "No speech" after something was recognised just means the user paused at the end.
-    if ((event.error === 'no-speech' || event.error === 'speech-timeout') && fullText() !== '') return;
+    // After words were recognised, these just mean the recognizer stopped: "no speech"
+    // when the user paused at the end, and "client" (ERROR_CLIENT) which Android's
+    // on-device recognizer reports when it ends a session. "end" still delivers the text.
+    const endedNormally =
+      event.error === 'no-speech' || event.error === 'speech-timeout' || event.error === 'client';
+    if (endedNormally && fullText() !== '') return;
     if (event.error === 'not-allowed') setPermission('blocked');
     setError(errorFor(event.error, offlineLang !== null));
   });

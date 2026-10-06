@@ -105,6 +105,46 @@ test('spoken: tasting', () => {
   assert.equal(r.tank_name, 'Tank 2');
 });
 
+// ---- Real transcripts from the phone (Galaxy S25, 2026-10-05/06) ------------
+test('real: "hectyl. Liter", comma before the temperature', () => {
+  const r = p('Tank Added 20 grams per hectyl. Liter of S o2 Temperature, 22 degrees.');
+  assert.equal(r.type, 'addition');
+  assert.deepEqual(simple(r), [['SO2', 20, 'g/hL'], ['Temperature', 22, '°C']]);
+});
+test('real: "Tongue, 12", "Breaks 22 Bricks", spelled B-r-i-x, "T 6.2" for TA', () => {
+  const r = p('Tongue, 12, Ph 3.45, Breaks 22 Bricks. B, r, i, x. 22 T 6.2 Grams per liter.');
+  assert.equal(r.type, 'lab_analysis');
+  assert.equal(r.tank_name, 'Tank 12');
+  assert.deepEqual(simple(r), [['pH', 3.45, null], ['Brix', 22, '°Bx'], ['TA', 6.2, 'g/L']]);
+});
+test('real: "Wrecked" heard for racked', () => {
+  const r = p('Wrecked tank 12 into tank 2. 2000 liters.');
+  assert.equal(r.type, 'transfer');
+  assert.equal(r.tank_name, 'Tank 12');
+  assert.deepEqual(simple(r), [['Destination', 'Tank 2', null], ['Volume', 2000, 'L']]);
+});
+test('real: "Tonk, 12" and "tunnels" in a tasting', () => {
+  const r = p('Tasted Tonk, 12 Right Plum soft tunnels.');
+  assert.equal(r.type, 'tasting');
+  assert.equal(r.tank_name, 'Tank 12');
+  assert.match(r.note, /soft tannins/);
+});
+test('real: a bare SO2 reading with no unit is a lab value', () => {
+  const r = p('Sulfur dioxide 22.');
+  assert.equal(r.type, 'lab_analysis');
+  assert.deepEqual(simple(r), [['SO2', 22, null]]);
+});
+test('SO2 reading with a unit, and an addition named before its amount', () => {
+  assert.deepEqual(simple(p('tank 12 SO2 28 mg/l')), [['SO2', 28, 'mg/L']]);
+  const added = p('tank 12 added SO2 20 g/hl');
+  assert.equal(added.type, 'addition');
+  assert.deepEqual(simple(added), [['SO2', 20, 'g/hL']]);
+});
+test('a substance never swallows the next keyword', () => {
+  const r = p('tank 12 added 20 g/hl SO2 temperature 18');
+  assert.deepEqual(simple(r), [['SO2', 20, 'g/hL'], ['Temperature', 18, '°C']]);
+});
+
 // ---- Matching, drafts, numbers ---------------------------------------------
 test('tank matching', () => {
   assert.equal(tankKey('Tank 12'), '12');

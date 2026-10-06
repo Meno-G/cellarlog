@@ -14,7 +14,7 @@ export type Entry = {
 };
 
 const COLUMNS = 'id, tank_id, type, raw_text, parsed, created_at';
-const TIMELINE_LIMIT = 200;
+export const TIMELINE_LIMIT = 200;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type EntryRow = {
@@ -56,6 +56,24 @@ export async function listEntries(tankId: string): Promise<Entry[]> {
     return data.map(fromRow);
   } catch (error) {
     throw toAppError(error, 'Could not load the timeline.');
+  }
+}
+
+/**
+ * The user's most recent entries across all tanks (RLS limits it to theirs),
+ * newest first. Used to save every timeline on the phone for offline use.
+ */
+export async function listRecentEntries(limit = 2000): Promise<Entry[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from('entries')
+      .select(COLUMNS)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw fromDbError(error, 'Could not load your entries.');
+    return data.map(fromRow);
+  } catch (error) {
+    throw toAppError(error, 'Could not load your entries.');
   }
 }
 

@@ -70,6 +70,8 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 
 - **Reading**: `useFocusQuery(load, cache)` shows the cached copy at once (`lib/cache.ts`), refreshes from Supabase, and writes successful results back. When the refresh fails, the cached data stays on screen and `CachedNote` says when it was saved.
   - Tanks and timelines are cached per user. Cache adapters must be memoized (`useMemo`).
+  - Whenever the app is online (on start, when the connection returns, on foreground), `OutboxProvider` uploads the queue and then runs `refreshOfflineCopy()`. That's two requests, which save **every** tank's timeline, not just the ones opened (`saveOfflineCopy` in `lib/cache.ts`).
+- **Speech:** Android's on-device recognizer often ends a session with `ERROR_CLIENT`. After words were recognised, that counts as a normal end (`useSpeechToText`).
 - **Writing new entries**: `useOutbox().saveEntry()` → `lib/sync.ts` `saveOrQueue()`.
   - Online, it saves directly. Offline, or on a network error, the entry goes into the outbox (`lib/outbox.ts`, localStorage, per user) and shows on the timeline as "waiting to upload".
   - `OutboxProvider` (in `app/(app)/_layout.tsx`) uploads when the connection returns, when the app comes to the foreground, and on "Upload now".

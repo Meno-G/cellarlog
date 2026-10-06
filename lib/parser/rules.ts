@@ -9,7 +9,12 @@ import { normalizeNote } from './normalize';
 import type { ParsedItem, ParseResult } from './schema';
 
 const NUM = String.raw`(-?\d+(?:[.,]\d+)?)`;
-const SEP = String.raw`\s*(?:is|of|at|was|=|:)?\s*`;
+// Between a name and its number: "pH 3.4", "pH: 3.4", "temperature, 22", "brix is 22".
+const SEP = String.raw`\s*,?\s*(?:is|of|at|was|=|:)?\s*`;
+const UNIT = String.raw`(g\/?hl|mg\/?l|g\/?l|ml\/?hl|ml\/?l|kg|g|ml|ppm)`;
+// Words that start the next value, so a substance name never runs into them.
+const STOPWORDS = String.raw`(?:and|then|temp\w*|at|to|in|into|ph|brix|ta|va|alcohol|tank|tasted?|racked|transfer\w*|free|total|added?|of)`;
+const ADD_KEYWORDS = /\b(?:add|added|adding|addition|dose|dosed)\b/i;
 
 const UNIT_NAMES: [RegExp, string][] = [
   [/^g\/?hl$/i, 'g/hL'],
@@ -34,12 +39,20 @@ function toValue(text: string): number | string {
   return number === null || Number.isNaN(number) ? text : number;
 }
 
-type Measure = { name: string; pattern: RegExp; unit: string | null };
+type Measure = {
+  name: string;
+  pattern: RegExp;
+  unit: string | null;
+  /** Skip in notes about an addition ("added SO2 20 g/hl" is an amount, not a reading). */
+  notInAdditions?: boolean;
+};
 
 // Lab values. The first capture group is the number; an optional second one is the unit.
 const LAB_MEASURES: Measure[] = [
   { name: 'Free SO2', pattern: new RegExp(String.raw`\bfree\s*so2${SEP}${NUM}\s*(mg\/?l|ppm)?`, 'i'), unit: 'mg/L' },
   { name: 'Total SO2', pattern: new RegExp(String.raw`\btotal\s*so2${SEP}${NUM}\s*(mg\/?l|ppm)?`, 'i'), unit: 'mg/L' },
+  // A bare "SO2 22" reading; the unit stays empty unless it was said.
+  { name: 'SO2', pattern: new RegExp(String.raw`\bso2${SEP}${NUM}(?:\s*(mg\/?l|ppm)\b)?(?!\s*(?:g\/?hl|g\/?l|ml|kg|g)\b)`, 'i'), unit: null, notInAdditions: true },
   { name: 'pH', pattern: new RegExp(String.raw`\bph${SEP}${NUM}`, 'i'), unit: null },
   { name: 'Brix', pattern: new RegExp(String.raw`\b(?:brix|bx)${SEP}${NUM}`, 'i'), unit: '°Bx' },
   { name: 'Brix', pattern: new RegExp(String.raw`${NUM}\s*°?\s*(?:brix|bx)\b`, 'i'), unit: '°Bx' },
@@ -57,9 +70,15 @@ const TEMPERATURE_PATTERNS = [
   new RegExp(String.raw`${NUM}\s*°`, 'i'),
 ];
 
+// "<amount> <unit> [of] <substance>": "20 g/hl SO2", "30 g of bentonite".
 const ADDITION_PATTERN = new RegExp(
-  String.raw`${NUM}\s*(g\/?hl|mg\/?l|g\/?l|ml\/?hl|ml\/?l|kg|g|ml|ppm)\s+(?:of\s+)?` +
-    String.raw`([\p{L}][\p{L}\p{N}-]*(?:\s+(?!and\b|then\b|temp\b|at\b|to\b|in\b)[\p{L}][\p{L}\p{N}-]*){0,2})`,
+  String.raw`${NUM}\s*${UNIT}\s+(?:of\s+)?` +
+    String.raw`((?!${STOPWORDS}\b)[\p{L}][\p{L}\p{N}-]*(?:\s+(?!${STOPWORDS}\b)[\p{L}][\p{L}\p{N}-]*){0,2})`,
+  'giu',
+);
+// "<substance> <amount> <unit>": "added SO2 20 g/hl" (only in notes about an addition).
+const ADDITION_SUBSTANCE_FIRST = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])((?!${STOPWORDS}\b)[\p{L}][\p{L}\p{N}-]*)\s+${NUM}\s*${UNIT}\b`,
   'giu',
 );
 
@@ -128,7 +147,9 @@ export function parseWithRules(input: string, tankNames: readonly string[]): Par
 
   // Lab values
   let labCount = 0;
+  const isAdditionNote = ADD_KEYWORDS.test(transcript);
   for (const measure of LAB_MEASURES) {
+    if (measure.notInAdditions && isAdditionNote) continue;
     const match = measure.pattern.exec(rest);
     if (!match?.[1]) continue;
     const unit = match[2] ? normalizeUnit(match[2]) : measure.unit;
@@ -160,13 +181,22 @@ export function parseWithRules(input: string, tankNames: readonly string[]): Par
     }
   }
 
-  // Additions: "<amount> <unit> [of] <substance>"
+  // Additions: "<amount> <unit> [of] <substance>", then "<substance> <amount> <unit>"
   let additionCount = 0;
   if (!isTransfer) {
-    for (const match of rest.matchAll(ADDITION_PATTERN)) {
+    for (const match of [...rest.matchAll(ADDITION_PATTERN)]) {
       if (!match[1] || !match[2] || !match[3]) continue;
       add({ name: match[3].trim(), value: toValue(match[1]), unit: normalizeUnit(match[2]) }, match.index);
+      rest = blank(rest, match.index, match[0].length);
       additionCount++;
+    }
+    if (isAdditionNote) {
+      for (const match of [...rest.matchAll(ADDITION_SUBSTANCE_FIRST)]) {
+        if (!match[1] || !match[2] || !match[3]) continue;
+        add({ name: match[1], value: toValue(match[2]), unit: normalizeUnit(match[3]) }, match.index);
+        rest = blank(rest, match.index, match[0].length);
+        additionCount++;
+      }
     }
   }
 

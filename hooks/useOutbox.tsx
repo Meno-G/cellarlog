@@ -14,7 +14,7 @@ import { AppState } from 'react-native';
 import type { ValidEntry } from '@/lib/entryDraft';
 import { errorMessage } from '@/lib/errors';
 import { listOutbox, markPending, removeFromOutbox, type OutboxItem } from '@/lib/outbox';
-import { flushOutbox, saveOrQueue, type SaveResult } from '@/lib/sync';
+import { flushOutbox, refreshOfflineCopy, saveOrQueue, type SaveResult } from '@/lib/sync';
 
 type OutboxValue = {
   /** Entries saved on this phone and not uploaded yet, oldest first. */
@@ -48,23 +48,32 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
 
   const reload = useCallback(() => setItems(listOutbox(userId)), [userId]);
 
+  /** Upload queued entries, then refresh the offline copy of every tank and timeline. */
   const upload = useCallback(async () => {
-    if (!listOutbox(userId).some((item) => item.status === 'pending')) return;
     if (isOffline(await NetInfo.fetch())) return;
-    setUploading(true);
-    try {
-      const result = await flushOutbox(userId);
-      if (result.uploaded > 0) setUploadedCount((count) => count + result.uploaded);
-      setLastError(result.interrupted ? 'Upload paused: no connection. It continues when you are back online.' : null);
-    } catch (error) {
-      setLastError(errorMessage(error));
-    } finally {
-      setUploading(false);
-      reload();
+    let interrupted = false;
+    if (listOutbox(userId).some((item) => item.status === 'pending')) {
+      setUploading(true);
+      try {
+        const result = await flushOutbox(userId);
+        interrupted = result.interrupted;
+        if (result.uploaded > 0) setUploadedCount((count) => count + result.uploaded);
+        setLastError(interrupted ? 'Upload paused: no connection. It continues when you are back online.' : null);
+      } catch (error) {
+        interrupted = true;
+        setLastError(errorMessage(error));
+      } finally {
+        setUploading(false);
+        reload();
+      }
+    }
+    if (!interrupted) {
+      // Best effort, in the background: screens still load on their own.
+      refreshOfflineCopy(userId).catch(() => undefined);
     }
   }, [userId, reload]);
 
-  // Upload on start, when the connection comes back, and when the app returns to the foreground.
+  // Sync on start, when the connection comes back, and when the app returns to the foreground.
   const uploadFromEffect = useEffectEvent(() => {
     void upload();
   });

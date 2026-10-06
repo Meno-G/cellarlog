@@ -81,6 +81,27 @@ export function entriesCache(userId: string, tankId: string): CacheAdapter<Entry
   };
 }
 
+/**
+ * Saves the tank list and every tank's timeline at once, from the user's
+ * recent entries (newest first), so all of them open offline, not only the
+ * ones visited while online. Tanks with no recent entries get an empty timeline.
+ */
+export function saveOfflineCopy(
+  userId: string,
+  tanks: Tank[],
+  recentEntries: Entry[],
+  perTank: number,
+): void {
+  tanksCache(userId).write(tanks);
+  const byTank = new Map<string, Entry[]>();
+  for (const entry of recentEntries) {
+    const list = byTank.get(entry.tankId) ?? [];
+    if (list.length < perTank) list.push(entry);
+    byTank.set(entry.tankId, list);
+  }
+  for (const tank of tanks) entriesCache(userId, tank.id).write(byTank.get(tank.id) ?? []);
+}
+
 /** Removes this user's cached tanks and timelines (on sign out). */
 export function clearCache(userId: string): void {
   const tanks = tanksCache(userId).read();
