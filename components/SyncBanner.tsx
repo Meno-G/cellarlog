@@ -7,11 +7,11 @@ import { radius, spacing, useTheme } from '@/theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
 
-function entries(count: number): string {
-  return count === 1 ? '1 entry' : `${count} entries`;
+function changes(count: number): string {
+  return count === 1 ? '1 change' : `${count} changes`;
 }
 
-/** Shows entries saved on the phone that haven't reached the server yet. Nothing otherwise. */
+/** Shows changes (entries, tanks) saved on the phone that haven't reached the server yet. Nothing otherwise. */
 export function SyncBanner() {
   const { pendingCount, failedCount, uploading, lastError, uploadNow } = useOutbox();
   const offline = useIsOffline();
@@ -20,10 +20,10 @@ export function SyncBanner() {
   if (pendingCount === 0 && failedCount === 0) return null;
 
   let message: string;
-  if (uploading) message = `Uploading ${entries(pendingCount)}…`;
+  if (uploading) message = `Uploading ${changes(pendingCount)}…`;
   else if (pendingCount > 0 && offline)
-    message = `${entries(pendingCount)} saved on this phone. They upload when you're back online.`;
-  else if (pendingCount > 0) message = lastError ?? `${entries(pendingCount)} waiting to upload.`;
+    message = `${changes(pendingCount)} saved on this phone. They upload when you're back online.`;
+  else if (pendingCount > 0) message = lastError ?? `${changes(pendingCount)} waiting to upload.`;
   else message = '';
 
   return (
@@ -38,7 +38,7 @@ export function SyncBanner() {
       ) : null}
       {failedCount > 0 ? (
         <AppText variant="label" style={{ color: colors.danger }}>
-          {entries(failedCount)} couldn&apos;t upload. Open the tank and tap the entry to retry or delete it.
+          {changes(failedCount)} couldn&apos;t upload. Tap the marked tank or entry to fix, retry or delete it.
         </AppText>
       ) : null}
       {pendingCount > 0 && !offline && !uploading ? (

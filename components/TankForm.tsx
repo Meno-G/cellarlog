@@ -11,6 +11,7 @@ import {
 import type { TankInput } from '@/lib/tanks';
 
 import { Banner } from './Banner';
+import { OfflineBanner } from './OfflineBanner';
 import { Button } from './Button';
 import { Screen } from './Screen';
 import { TextField } from './TextField';
@@ -18,6 +19,8 @@ import { TextField } from './TextField';
 type Props = {
   initialValues: TankFormValues;
   submitLabel: string;
+  /** Shown while the phone is offline (what happens when you save). */
+  offlineMessage?: string;
   /** Should throw an AppError on failure; a `field` error is shown under that input. */
   onSubmit: (input: TankInput) => Promise<void>;
 };
@@ -26,7 +29,7 @@ function isFormField(field: string | undefined): field is keyof TankFormValues {
   return TANK_FORM_FIELDS.some((name) => name === field);
 }
 
-export function TankForm({ initialValues, submitLabel, onSubmit }: Props) {
+export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage }: Props) {
   const [values, setValues] = useState<TankFormValues>(initialValues);
   const [errors, setErrors] = useState<TankFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -73,6 +76,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit }: Props) {
       <Screen
         footer={<Button title={submitLabel} onPress={handleSubmit} loading={submitting} />}
       >
+        <OfflineBanner message={offlineMessage} />
         {submitError ? <Banner message={submitError} /> : null}
 
         <TextField

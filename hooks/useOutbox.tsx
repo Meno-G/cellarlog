@@ -13,11 +13,26 @@ import { AppState } from 'react-native';
 
 import type { ValidEntry } from '@/lib/entryDraft';
 import { errorMessage } from '@/lib/errors';
-import { listOutbox, markPending, removeFromOutbox, type OutboxItem } from '@/lib/outbox';
-import { flushOutbox, refreshOfflineCopy, saveOrQueue, type SaveResult } from '@/lib/sync';
+import {
+  discardLocalTank,
+  isLocalTank,
+  listOutbox,
+  markPending,
+  removeFromOutbox,
+  type OutboxItem,
+} from '@/lib/outbox';
+import {
+  createTankOrQueue,
+  flushOutbox,
+  refreshOfflineCopy,
+  saveOrQueue,
+  updateTankOrQueue,
+  type SaveResult,
+} from '@/lib/sync';
+import type { TankInput } from '@/lib/tanks';
 
 type OutboxValue = {
-  /** Entries saved on this phone and not uploaded yet, oldest first. */
+  /** Changes saved on this phone and not uploaded yet (entries, new tanks, tank edits), oldest first. */
   items: OutboxItem[];
   /** Waiting for a connection (not counting failed ones). */
   pendingCount: number;
@@ -25,13 +40,18 @@ type OutboxValue = {
   uploading: boolean;
   /** Message from the last upload attempt that was interrupted, or null. */
   lastError: string | null;
-  /** Goes up each time queued entries reach the server, so timelines reload. */
+  /** Goes up each time queued changes reach the server, so screens reload. */
   uploadedCount: number;
   /** Save now, or keep on the phone when offline. */
   saveEntry: (entry: ValidEntry) => Promise<SaveResult>;
+  /** Create a tank now, or on this phone when offline. Returns the new tank's id either way. */
+  createTank: (tank: TankInput) => Promise<{ id: string; result: SaveResult }>;
+  updateTank: (tankId: string, tank: TankInput) => Promise<SaveResult>;
   uploadNow: () => void;
   retry: (localId: string) => void;
   discard: (localId: string) => void;
+  /** Throws away a tank created offline and the entries queued for it. */
+  discardTank: (tankId: string) => void;
 };
 
 const OutboxContext = createContext<OutboxValue | null>(null);
@@ -94,13 +114,40 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
     };
   }, []);
 
+  /** Queue instead of sending when offline, or when the tank only exists on this phone so far. */
+  const mustQueue = useCallback(
+    async (tankId: string | null) =>
+      (tankId !== null && isLocalTank(listOutbox(userId), tankId)) || isOffline(await NetInfo.fetch()),
+    [userId],
+  );
+
   const saveEntry = useCallback(
     async (entry: ValidEntry): Promise<SaveResult> => {
-      const result = await saveOrQueue(userId, entry, isOffline(await NetInfo.fetch()));
+      const result = await saveOrQueue(userId, entry, await mustQueue(entry.tankId));
       reload();
+      if (result === 'queued') void upload(); // sends it right away if the tank just became uploadable
       return result;
     },
-    [userId, reload],
+    [userId, reload, mustQueue, upload],
+  );
+
+  const createTank = useCallback(
+    async (tank: TankInput) => {
+      const saved = await createTankOrQueue(userId, tank, await mustQueue(null));
+      reload();
+      return saved;
+    },
+    [userId, reload, mustQueue],
+  );
+
+  const updateTank = useCallback(
+    async (tankId: string, tank: TankInput): Promise<SaveResult> => {
+      const result = await updateTankOrQueue(userId, tankId, tank, await mustQueue(tankId));
+      reload();
+      if (result === 'queued') void upload();
+      return result;
+    },
+    [userId, reload, mustQueue, upload],
   );
 
   const retry = useCallback(
@@ -120,6 +167,14 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
     [userId, reload],
   );
 
+  const discardTank = useCallback(
+    (tankId: string) => {
+      discardLocalTank(userId, tankId);
+      reload();
+    },
+    [userId, reload],
+  );
+
   const value = useMemo<OutboxValue>(
     () => ({
       items,
@@ -129,11 +184,14 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
       lastError,
       uploadedCount,
       saveEntry,
+      createTank,
+      updateTank,
       uploadNow: () => void upload(),
       retry,
       discard,
+      discardTank,
     }),
-    [items, uploading, lastError, uploadedCount, saveEntry, upload, retry, discard],
+    [items, uploading, lastError, uploadedCount, saveEntry, createTank, updateTank, upload, retry, discard, discardTank],
   );
 
   return <OutboxContext.Provider value={value}>{children}</OutboxContext.Provider>;

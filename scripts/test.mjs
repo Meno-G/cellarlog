@@ -19,6 +19,7 @@ const PURE_MODULES = [
   'lib/storage.ts',
   'lib/cache.ts',
   'lib/outbox.ts',
+  'lib/tankOverlay.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

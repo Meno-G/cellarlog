@@ -12,6 +12,13 @@ const {
   newLocalId,
 } = require('../.test-build/outbox.js');
 const { AppError } = require('../.test-build/errors.js');
+const {
+  enqueueTankCreate,
+  enqueueTankUpdate,
+  discardLocalTank,
+  isLocalTank,
+} = require('../.test-build/outbox.js');
+const { applyTankChanges, findDuplicateName } = require('../.test-build/tankOverlay.js');
 
 /** In-memory stand-in for the phone's localStorage. */
 function memoryStore() {
@@ -151,7 +158,87 @@ test('flush: an entry that can never upload is flagged, the others continue', as
   assert.deepEqual(again, { uploaded: 0, failed: 0, interrupted: false }, 'failed entries wait for Try again');
 });
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+// ---- tanks offline ----------------------------------------------------------
+const newTank = { name: 'Tank 7', volumeLiters: 800, variety: 'Rkatsiteli', vintage: 2026 };
+
+test('outbox: entries queued by the previous app version (no "kind") still load', () => {
+  const legacy = { localId: 'old', tankId: 't12', type: 'note', rawText: 'Sulfur dioxide 22.', parsed: { ...parsed, type: 'note', items: [] }, createdAt: '2026-10-06T08:17:27.608Z', status: 'pending', error: null };
+  store.setItem(userKey('u1', 'outbox'), JSON.stringify([legacy, { garbage: true }]));
+  const items = listOutbox('u1');
+  assert.equal(items.length, 1, 'the unreadable item is skipped, the good one kept');
+  assert.equal(items[0].kind, 'entry');
+  assert.equal(items[0].rawText, 'Sulfur dioxide 22.');
+});
+
+test('flush: a tank created offline uploads before the entries recorded for it', async () => {
+  enqueueTankCreate('u1', newTank, { localId: 'tank-local', createdAt: '1' });
+  enqueue('u1', { ...valid, tankId: 'tank-local' }, { localId: 'e-local', createdAt: '2' });
+  assert.equal(isLocalTank(listOutbox('u1'), 'tank-local'), true);
+  const seen = [];
+  const result = await flushQueue('u1', async (item) => { seen.push(`${item.kind}:${item.localId}`); });
+  assert.deepEqual(seen, ['tank-create:tank-local', 'entry:e-local']);
+  assert.equal(result.uploaded, 2);
+});
+
+test('flush: entries wait (not fail) while their tank cannot upload; others continue', async () => {
+  enqueueTankCreate('u1', newTank, { localId: 'tank-local', createdAt: '1' });
+  enqueue('u1', { ...valid, tankId: 'tank-local' }, { localId: 'e-local', createdAt: '2' });
+  enqueue('u1', valid, { localId: 'e-other', createdAt: '3' });
+  const seen = [];
+  const result = await flushQueue('u1', async (item) => {
+    seen.push(item.localId);
+    if (item.kind === 'tank-create') throw new AppError('validation', 'You already have a tank called "Tank 7".', { field: 'name' });
+  });
+  assert.deepEqual(seen, ['tank-local', 'e-other'], 'the waiting entry is not even tried');
+  assert.deepEqual(result, { uploaded: 1, failed: 1, interrupted: false });
+  assert.deepEqual(listOutbox('u1').map((i) => [i.localId, i.status]), [['tank-local', 'failed'], ['e-local', 'pending']]);
+});
+
+test('outbox: editing a tank that has not uploaded yet changes the queued tank', () => {
+  enqueueTankCreate('u1', newTank, { localId: 'tank-local', createdAt: '1' });
+  markFailed('u1', 'tank-local', 'You already have a tank called "Tank 7".');
+  enqueueTankUpdate('u1', 'tank-local', { ...newTank, name: 'Tank 7B' }, { localId: 'upd', createdAt: '2' });
+  const items = listOutbox('u1');
+  assert.equal(items.length, 1, 'no separate edit is queued');
+  assert.deepEqual([items[0].kind, items[0].tank.name, items[0].status, items[0].error], ['tank-create', 'Tank 7B', 'pending', null]);
+});
+
+test('outbox: a second offline edit of a tank replaces the first', () => {
+  enqueueTankUpdate('u1', 't12', { ...newTank, name: 'Tank 12', volumeLiters: 4800 }, { localId: 'u1a', createdAt: '1' });
+  enqueueTankUpdate('u1', 't12', { ...newTank, name: 'Tank 12', volumeLiters: 4500 }, { localId: 'u1b', createdAt: '2' });
+  const items = listOutbox('u1');
+  assert.deepEqual(items.map((i) => [i.kind, i.tankId, i.tank.volumeLiters]), [['tank-update', 't12', 4500]]);
+});
+
+test('outbox: deleting a tank that never uploaded also drops its entries', () => {
+  enqueueTankCreate('u1', newTank, { localId: 'tank-local', createdAt: '1' });
+  enqueue('u1', { ...valid, tankId: 'tank-local' }, { localId: 'e-local', createdAt: '2' });
+  enqueue('u1', valid, { localId: 'e-other', createdAt: '3' });
+  discardLocalTank('u1', 'tank-local');
+  assert.deepEqual(listOutbox('u1').map((i) => i.localId), ['e-other']);
+});
+
+test('overlay: tanks created and edited offline show at once, sorted, with their upload state', () => {
+  enqueueTankCreate('u1', newTank, { localId: 'tank-local', createdAt: '2026-10-06T09:00:00Z' });
+  enqueueTankUpdate('u1', 't12', { name: 'Tank 12', volumeLiters: 4800, variety: 'Saperavi', vintage: 2025 }, { localId: 'upd', createdAt: '2' });
+  const shown = applyTankChanges([tank12, tank2], listOutbox('u1'));
+  assert.deepEqual(shown.map((t) => t.name), ['Tank 2', 'Tank 7', 'Tank 12']);
+  const t7 = shown.find((t) => t.id === 'tank-local');
+  assert.deepEqual([t7.volumeLiters, t7.upload.status], [800, 'pending']);
+  const t12 = shown.find((t) => t.id === 't12');
+  assert.deepEqual([t12.volumeLiters, t12.upload.status], [4800, 'pending']);
+  assert.equal(shown.find((t) => t.id === 't2').upload, null);
+});
+
+test('duplicate tank names are caught on the phone (case, spaces, "T12" spelling)', () => {
+  const list = [tank12, tank2];
+  assert.equal(findDuplicateName(' tank 12 ', list, null)?.id, 't12');
+  assert.equal(findDuplicateName('T12', list, null)?.id, 't12');
+  assert.equal(findDuplicateName('Tank 12', list, 't12'), null, 'renaming a tank to its own name is fine');
+  assert.equal(findDuplicateName('Tank 3', list, null), null);
+});
+
+const UUID_V4 =/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 test('newLocalId: a valid, unique UUID v4 (it becomes the entry id)', () => {
   const ids = new Set(Array.from({ length: 500 }, () => newLocalId()));

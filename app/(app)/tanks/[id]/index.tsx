@@ -19,13 +19,13 @@ import { deleteEntry, type Entry } from '@/lib/entries';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { errorMessage } from '@/lib/errors';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
-import type { OutboxItem } from '@/lib/outbox';
+import type { EntryItem } from '@/lib/outbox';
 import { radius, spacing, useTheme } from '@/theme';
 
 /** A timeline row: an entry on the server, or one saved on this phone and not uploaded yet. */
-type Row = { entry: Entry; queued: OutboxItem | null };
+type Row = { entry: Entry; queued: EntryItem | null };
 
-function queuedAsEntry(item: OutboxItem): Entry {
+function queuedAsEntry(item: EntryItem): Entry {
   return {
     id: item.localId,
     tankId: item.tankId,
@@ -60,7 +60,7 @@ export default function TankDetailScreen() {
     ]);
   }
 
-  function openQueuedActions(item: OutboxItem) {
+  function openQueuedActions(item: EntryItem) {
     const label = entryLabel(queuedAsEntry(item));
     const message =
       item.status === 'failed'
@@ -121,12 +121,38 @@ export default function TankDetailScreen() {
     );
   }
 
-  const { name, volumeLiters, variety, vintage } = tank.data;
+  const { name, volumeLiters, variety, vintage, upload } = tank.data;
+  const tankItem = outbox.items.find(
+    (item) => (item.kind === 'tank-create' && item.localId === id) || (item.kind === 'tank-update' && item.tankId === id),
+  );
+  const localOnly = tankItem?.kind === 'tank-create';
+
+  function confirmDiscardTank() {
+    const waiting = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === id).length;
+    Alert.alert(
+      `Delete ${name}?`,
+      'This tank was never uploaded, so it will be gone for good' +
+        (waiting > 0 ? `, together with its ${waiting === 1 ? '1 entry' : `${waiting} entries`}.` : '.'),
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            outbox.discardTank(id);
+            router.back();
+          },
+        },
+      ],
+    );
+  }
 
   // Newest first: entries waiting to upload sit in the timeline at the time they were recorded.
   const saved = entries.data ?? [];
   const savedIds = new Set(saved.map((entry) => entry.id));
-  const queued = outbox.items.filter((item) => item.tankId === id && !savedIds.has(item.localId));
+  const queued = outbox.items.filter(
+    (item): item is EntryItem => item.kind === 'entry' && item.tankId === id && !savedIds.has(item.localId),
+  );
   const rows: Row[] = [
     ...queued.map((item) => ({ entry: queuedAsEntry(item), queued: item })),
     ...saved.map((entry) => ({ entry, queued: null })),
@@ -161,6 +187,19 @@ export default function TankDetailScreen() {
       <OfflineBanner message="You're offline. New entries are saved on this phone and upload later." />
       <SyncBanner />
       <CachedNote cachedAt={tank.cachedAt} error={tank.error} onRetry={refreshAll} />
+      {upload?.status === 'failed' && tankItem ? (
+        <View style={styles.uploadBox}>
+          <Banner
+            message={`This tank couldn't upload: ${upload.error ?? 'unknown error'} Fix it with Edit, then try again.`}
+            onRetry={() => outbox.retry(tankItem.localId)}
+          />
+          {localOnly ? (
+            <Button variant="danger" title="Delete this tank" onPress={confirmDiscardTank} />
+          ) : null}
+        </View>
+      ) : upload ? (
+        <Banner tone="info" message="Saved on this phone · this tank uploads when you're back online." />
+      ) : null}
       <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <AppText variant="heading">{name}</AppText>
         <AppText muted>{formatWine(variety, vintage) ?? 'No wine set'}</AppText>
@@ -244,4 +283,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   empty: { paddingVertical: spacing.xl, alignItems: 'center' },
+  uploadBox: { gap: spacing.sm },
 });

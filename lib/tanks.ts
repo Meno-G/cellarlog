@@ -1,6 +1,7 @@
 import type { Database } from './database.types';
 import { AppError, fromDbError, toAppError } from './errors';
 import { getSupabase } from './supabase';
+import { sortTanks } from './tankOverlay';
 
 type TankRow = Omit<Database['public']['Tables']['tanks']['Row'], 'user_id'>;
 
@@ -55,14 +56,12 @@ function duplicateNameError(name: string, cause: unknown): AppError {
   });
 }
 
-const byNaturalName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-
 /** All of the user's tanks, sorted so "Tank 2" comes before "Tank 12". */
 export async function listTanks(): Promise<Tank[]> {
   try {
     const { data, error } = await getSupabase().from('tanks').select(COLUMNS);
     if (error) throw fromDbError(error, 'Could not load your tanks.');
-    return data.map(fromRow).sort((a, b) => byNaturalName.compare(a.name, b.name));
+    return sortTanks(data.map(fromRow));
   } catch (error) {
     throw toAppError(error, 'Could not load your tanks.');
   }
@@ -84,15 +83,31 @@ export async function getTank(id: string): Promise<Tank> {
   }
 }
 
-export async function createTank(input: TankInput): Promise<Tank> {
+/**
+ * Creates a tank. `id` and `createdAt` come from the phone for tanks created
+ * offline: entries queued for the tank already point at that id, and a retried
+ * upload must not create a second tank.
+ */
+export async function createTank(
+  input: TankInput,
+  options: { id?: string; createdAt?: string } = {},
+): Promise<Tank> {
   try {
     const { data, error } = await getSupabase()
       .from('tanks')
-      .insert(toRow(input))
+      .insert({
+        ...toRow(input),
+        ...(options.id ? { id: options.id } : {}),
+        ...(options.createdAt ? { created_at: options.createdAt } : {}),
+      })
       .select(COLUMNS)
       .single();
     if (error) {
-      if (error.code === '23505') throw duplicateNameError(input.name, error);
+      if (error.code === '23505') {
+        // Same id: an earlier upload got through but its reply was lost.
+        if (options.id && error.message.includes('tanks_pkey')) return await getTank(options.id);
+        throw duplicateNameError(input.name, error);
+      }
       throw fromDbError(error, 'Could not save the tank.');
     }
     return fromRow(data);

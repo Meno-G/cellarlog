@@ -3,16 +3,28 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankForm } from '@/components/TankForm';
-import { useTank } from '@/hooks/useTanks';
+import { useOutbox } from '@/hooks/useOutbox';
+import { useTank, useTanks } from '@/hooks/useTanks';
+import { AppError } from '@/lib/errors';
 import { tankToForm } from '@/lib/tankForm';
-import { updateTank, type TankInput } from '@/lib/tanks';
+import { findDuplicateName } from '@/lib/tankOverlay';
+import type { TankInput } from '@/lib/tanks';
 
 export default function EditTankScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tank = useTank(id);
+  const tanks = useTanks();
+  const outbox = useOutbox();
 
   async function handleSubmit(input: TankInput) {
-    await updateTank(id, input);
+    const duplicate = findDuplicateName(input.name, tanks.data ?? [], id);
+    if (duplicate) {
+      throw new AppError('validation', `You already have a tank called "${duplicate.name}".`, {
+        field: 'name',
+      });
+    }
+    // Online it's saved now; offline (or for a tank not uploaded yet) it waits on this phone.
+    await outbox.updateTank(id, input);
     router.back();
   }
 
@@ -43,6 +55,7 @@ export default function EditTankScreen() {
       initialValues={tankToForm(tank.data)}
       submitLabel="Save changes"
       onSubmit={handleSubmit}
+      offlineMessage="You're offline. Your changes are saved on this phone and upload when you're back online."
     />
   );
 }

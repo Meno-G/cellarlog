@@ -77,7 +77,14 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - `OutboxProvider` (in `app/(app)/_layout.tsx`) uploads when the connection returns, when the app comes to the foreground, and on "Upload now".
   - Each queued entry carries its own UUID and recording time. The upload sends them as `id` / `created_at`, so retries are idempotent: `23505` means "already uploaded". The timeline also keeps the moment the entry was recorded.
   - Losing the connection or an expired login pauses the upload. Any other error flags only that entry, which the user can retry or delete.
-- **Only new entries** work offline. Creating or editing tanks and editing or deleting saved entries need internet, and show the "No internet" error.
+- **Tanks offline**: the outbox holds three kinds of change, `entry`, `tank-create` and `tank-update` (`lib/outbox.ts`).
+  - A tank created offline gets its database id on the phone, so entries queued for it already point at the right tank. Upload is oldest first: the tank goes before its entries.
+  - Entries and edits for a tank that hasn't been created on the server yet *wait*; they are not marked failed.
+  - Editing a tank that is still waiting to be created changes the queued tank. A second edit of the same tank replaces the first.
+  - `lib/tankOverlay.ts` shows queued tank changes on top of the server or cached list (`useTanks` / `useTank`), and checks duplicate names on the phone (`findDuplicateName`).
+  - When `23505` comes back on a tank insert, `tanks_pkey` means "already uploaded" and `tanks_user_name_key` means a real name clash. A clash is marked failed, and the user fixes it with Edit.
+  - Old outbox items without `kind` load as entries. Items are parsed one by one, so a bad item can't hide the rest.
+- **Still online-only**: editing or deleting entries that are already uploaded. Deleting tanks isn't supported at all.
 - **Session**: offline with an expired access token, supabase-js reports no session but keeps the login. `useSession` then restores the user from the saved login (`getStoredUser`, `offline: true`), and supabase-js refreshes the token once online.
 - **Sign-out** clears the cache. Queued entries stay and upload at the next sign-in of the same account on that phone, and the sign-out dialog warns about them.
 - All Supabase requests time out after 15 s (`lib/supabase.ts`), so weak signal falls back to cache and outbox instead of hanging.
