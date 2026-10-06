@@ -9,7 +9,7 @@ Stack: Expo SDK 57 (React Native 0.86), TypeScript (strict), Expo Router, Supaba
 ```bash
 npm install                 # install dependencies
 npx expo start --clear      # dev server (Metro); the CellarLog dev build loads the app from it
-npm test                    # unit tests for lib/ (parser, normaliser, validation, tank matching)
+npm test                    # unit tests for lib/ (parser, normaliser, validation, tank matching, offline cache + outbox)
 npm run typecheck           # tsc --noEmit
 npm run lint                # expo lint
 npx expo install <package>  # ALWAYS use this to add packages (picks SDK-compatible versions)
@@ -40,7 +40,7 @@ app/            Expo Router routes. Screens only: UI + calling hooks. No fetch /
   (auth)/       Signed-out screens
   (app)/        Signed-in screens (Stack)
 components/     Reusable UI (AppText, Button, Screen, RecordButton, EntryReview, ...)
-hooks/          React hooks: data loading (useFocusQuery), speech (useSpeechToText), network status
+hooks/          React hooks: session, data loading (useFocusQuery + cache), outbox, speech, network status
 lib/            All API and business logic: Supabase, parser, env, errors, types
   parser/       normalize.ts (spoken -> compact text), rules.ts (text -> entry), schema.ts (zod)
 theme/          Color tokens (light/dark), spacing, font sizes, touch sizes, useTheme()
@@ -64,8 +64,22 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Secrets:** only in `.env` (gitignored). Every variable must be listed in `.env.example`. Anything prefixed `EXPO_PUBLIC_` ends up in the app bundle, so never put private server secrets there.
 - **Scope:** build only what the plan covers. No extra features without asking.
   Build order: (1) setup + navigation, (2) Supabase + auth, (3) tanks CRUD, (4) text entry + review, (5) voice, (6) on-device speech recognition + rule-based parser (replaced the planned n8n integration at the user's request), (7) offline mode: tanks/timelines viewable from the last sync, and new entries queued on the phone, then synced when back online.
-  Until step 7, being offline shows a clear "No internet" message and never loses what the user typed. Parsing and on-device speech already work offline; only loading and saving need internet.
-  Added on request: editing and deleting a timeline entry (tap entry → Edit / Delete; delete asks twice). Editing keeps the original note (`raw_text`). Still not included: deleting tanks.
+  All 7 steps are built. Added on request: editing and deleting a timeline entry (tap entry → Edit / Delete; delete asks twice). Editing keeps the original note (`raw_text`). Still not included: deleting tanks.
+
+## Offline mode
+
+- **Reading**: `useFocusQuery(load, cache)` shows the cached copy at once (`lib/cache.ts`), refreshes from Supabase, and writes successful results back. When the refresh fails, the cached data stays on screen and `CachedNote` says when it was saved.
+  - Tanks and timelines are cached per user. Cache adapters must be memoized (`useMemo`).
+- **Writing new entries**: `useOutbox().saveEntry()` → `lib/sync.ts` `saveOrQueue()`.
+  - Online, it saves directly. Offline, or on a network error, the entry goes into the outbox (`lib/outbox.ts`, localStorage, per user) and shows on the timeline as "waiting to upload".
+  - `OutboxProvider` (in `app/(app)/_layout.tsx`) uploads when the connection returns, when the app comes to the foreground, and on "Upload now".
+  - Each queued entry carries its own UUID and recording time. The upload sends them as `id` / `created_at`, so retries are idempotent: `23505` means "already uploaded". The timeline also keeps the moment the entry was recorded.
+  - Losing the connection or an expired login pauses the upload. Any other error flags only that entry, which the user can retry or delete.
+- **Only new entries** work offline. Creating or editing tanks and editing or deleting saved entries need internet, and show the "No internet" error.
+- **Session**: offline with an expired access token, supabase-js reports no session but keeps the login. `useSession` then restores the user from the saved login (`getStoredUser`, `offline: true`), and supabase-js refreshes the token once online.
+- **Sign-out** clears the cache. Queued entries stay and upload at the next sign-in of the same account on that phone, and the sign-out dialog warns about them.
+- All Supabase requests time out after 15 s (`lib/supabase.ts`), so weak signal falls back to cache and outbox instead of hanging.
+- Storage goes through `lib/storage.ts`; tests swap in an in-memory store.
 
 ## Entry flow (speech/text → parser → review → save)
 

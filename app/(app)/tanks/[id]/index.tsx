@@ -5,23 +5,42 @@ import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
+import { CachedNote } from '@/components/CachedNote';
 import { EntryCard } from '@/components/EntryCard';
 import { HeaderButton } from '@/components/HeaderButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
+import { SyncBanner } from '@/components/SyncBanner';
 import { useEntries } from '@/hooks/useEntries';
+import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { deleteEntry, type Entry } from '@/lib/entries';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { errorMessage } from '@/lib/errors';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
+import type { OutboxItem } from '@/lib/outbox';
 import { radius, spacing, useTheme } from '@/theme';
+
+/** A timeline row: an entry on the server, or one saved on this phone and not uploaded yet. */
+type Row = { entry: Entry; queued: OutboxItem | null };
+
+function queuedAsEntry(item: OutboxItem): Entry {
+  return {
+    id: item.localId,
+    tankId: item.tankId,
+    type: item.type,
+    rawText: item.rawText,
+    parsed: item.parsed,
+    createdAt: item.createdAt,
+  };
+}
 
 export default function TankDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tank = useTank(id);
   const entries = useEntries(id);
+  const outbox = useOutbox();
   const { colors } = useTheme();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -38,6 +57,27 @@ export default function TankDetailScreen() {
         text: 'Edit',
         onPress: () => router.push({ pathname: '/entries/[id]/edit', params: { id: entry.id } }),
       },
+    ]);
+  }
+
+  function openQueuedActions(item: OutboxItem) {
+    const label = entryLabel(queuedAsEntry(item));
+    const message =
+      item.status === 'failed'
+        ? `Couldn't upload: ${item.error ?? 'unknown error'}`
+        : 'Saved on this phone. It uploads automatically when you are online.';
+    Alert.alert(label, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Delete this entry?', `${label}\n\nIt was never uploaded, so it will be gone for good.`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => outbox.discard(item.localId) },
+          ]),
+      },
+      { text: 'Try again', onPress: () => outbox.retry(item.localId) },
     ]);
   }
 
@@ -83,9 +123,19 @@ export default function TankDetailScreen() {
 
   const { name, volumeLiters, variety, vintage } = tank.data;
 
+  // Newest first: entries waiting to upload sit in the timeline at the time they were recorded.
+  const saved = entries.data ?? [];
+  const savedIds = new Set(saved.map((entry) => entry.id));
+  const queued = outbox.items.filter((item) => item.tankId === id && !savedIds.has(item.localId));
+  const rows: Row[] = [
+    ...queued.map((item) => ({ entry: queuedAsEntry(item), queued: item })),
+    ...saved.map((entry) => ({ entry, queued: null })),
+  ].sort((a, b) => b.entry.createdAt.localeCompare(a.entry.createdAt));
+
   function refreshAll() {
     tank.refresh();
     entries.refresh();
+    outbox.uploadNow();
   }
 
   function renderTimelineState() {
@@ -108,22 +158,23 @@ export default function TankDetailScreen() {
 
   const header = (
     <View style={styles.header}>
-      <OfflineBanner />
-      {tank.error ? <Banner message={tank.error} onRetry={refreshAll} /> : null}
+      <OfflineBanner message="You're offline. New entries are saved on this phone and upload later." />
+      <SyncBanner />
+      <CachedNote cachedAt={tank.cachedAt} error={tank.error} onRetry={refreshAll} />
       <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <AppText variant="heading">{name}</AppText>
         <AppText muted>{formatWine(variety, vintage) ?? 'No wine set'}</AppText>
         <AppText variant="label">{formatLiters(volumeLiters)}</AppText>
       </View>
       <AppText variant="title">Timeline</AppText>
-      {entries.data && entries.data.length > 0 ? (
+      {rows.length > 0 ? (
         <AppText muted variant="caption">
           Tap an entry to edit or delete it.
         </AppText>
       ) : null}
       {actionError ? <Banner message={actionError} /> : null}
-      {entries.data && entries.error ? (
-        <Banner message={entries.error} onRetry={entries.refresh} />
+      {rows.length > 0 ? (
+        <CachedNote cachedAt={entries.cachedAt} error={entries.error} onRetry={entries.refresh} />
       ) : null}
     </View>
   );
@@ -150,15 +201,23 @@ export default function TankDetailScreen() {
         }}
       />
       <FlatList
-        data={entries.data ?? []}
-        keyExtractor={(entry) => entry.id}
-        renderItem={({ item }) => (
-          <EntryCard
-            entry={item}
-            onPress={() => openEntryActions(item)}
-            busy={item.id === deletingId}
-          />
-        )}
+        data={rows}
+        keyExtractor={(row) => row.entry.id}
+        renderItem={({ item }) =>
+          item.queued ? (
+            <EntryCard
+              entry={item.entry}
+              upload={{ status: item.queued.status, error: item.queued.error }}
+              onPress={() => item.queued && openQueuedActions(item.queued)}
+            />
+          ) : (
+            <EntryCard
+              entry={item.entry}
+              onPress={() => openEntryActions(item.entry)}
+              busy={item.entry.id === deletingId}
+            />
+          )
+        }
         ListHeaderComponent={header}
         ListEmptyComponent={renderTimelineState()}
         contentContainerStyle={styles.list}

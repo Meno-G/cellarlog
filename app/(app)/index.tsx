@@ -4,28 +4,38 @@ import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native'
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
+import { CachedNote } from '@/components/CachedNote';
 import { Button } from '@/components/Button';
 import { HeaderButton } from '@/components/HeaderButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
+import { SyncBanner } from '@/components/SyncBanner';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankCard } from '@/components/TankCard';
-import { useSession } from '@/hooks/useSession';
+import { useOutbox } from '@/hooks/useOutbox';
+import { useUser } from '@/hooks/useSession';
 import { useTanks } from '@/hooks/useTanks';
 import { signOut } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
 import { spacing, useTheme } from '@/theme';
 
 export default function TanksScreen() {
-  const session = useSession();
+  const user = useUser();
+  const outbox = useOutbox();
   const tanks = useTanks();
   const { colors } = useTheme();
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
-  const email = session.status === 'signedIn' ? session.session.user.email : undefined;
-
   function confirmSignOut() {
-    Alert.alert('Sign out?', email ? `You are signed in as ${email}.` : undefined, [
+    const waiting = outbox.items.length;
+    const lines = [
+      user.email ? `You are signed in as ${user.email}.` : null,
+      waiting > 0
+        ? `${waiting === 1 ? '1 entry is' : `${waiting} entries are`} saved on this phone but not uploaded yet. ` +
+          'They stay on this phone and upload the next time you sign in with this account.'
+        : null,
+    ].filter((line): line is string => line !== null);
+    Alert.alert('Sign out?', lines.join('\n\n') || undefined, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign out',
@@ -71,7 +81,8 @@ export default function TanksScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <OfflineBanner />
-            {tanks.error ? <Banner message={tanks.error} onRetry={tanks.refresh} /> : null}
+            <SyncBanner />
+            <CachedNote cachedAt={tanks.cachedAt} error={tanks.error} onRetry={tanks.refresh} />
           </View>
         }
         ListEmptyComponent={

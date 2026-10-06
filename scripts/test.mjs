@@ -15,6 +15,10 @@ const PURE_MODULES = [
   'lib/parser/schema.ts',
   'lib/parser/normalize.ts',
   'lib/parser/rules.ts',
+  'lib/errors.ts',
+  'lib/storage.ts',
+  'lib/cache.ts',
+  'lib/outbox.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

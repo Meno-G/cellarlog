@@ -1,19 +1,21 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { getSession, onAuthChange, type Session } from '@/lib/auth';
-import { errorMessage } from '@/lib/errors';
+import { getSession, getStoredUser, onAuthChange, userFromSession, type SessionUser } from '@/lib/auth';
+import { clearCache } from '@/lib/cache';
+import { AppError, errorMessage } from '@/lib/errors';
 
 type SessionState =
   | { status: 'loading' }
   | { status: 'signedOut' }
-  | { status: 'signedIn'; session: Session }
+  | {
+      status: 'signedIn';
+      user: SessionUser;
+      /** Restored from the phone without the server (offline start); refreshed once online. */
+      offline: boolean;
+    }
   | { status: 'error'; message: string };
 
 const SessionContext = createContext<SessionState | null>(null);
-
-function fromSession(session: Session | null): SessionState {
-  return session ? { status: 'signedIn', session } : { status: 'signedOut' };
-}
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>({ status: 'loading' });
@@ -21,10 +23,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     let unsubscribe: (() => void) | undefined;
+    let currentUserId: string | null = null;
+
+    const signedIn = (user: SessionUser, offline: boolean) => {
+      currentUserId = user.id;
+      setState({ status: 'signedIn', user, offline });
+    };
+    const signedOut = () => {
+      // The saved copy of this cellar leaves with the user (queued entries stay,
+      // and upload the next time this account signs in on this phone).
+      if (currentUserId) clearCache(currentUserId);
+      currentUserId = null;
+      setState({ status: 'signedOut' });
+    };
 
     try {
-      unsubscribe = onAuthChange((_event, session) => {
-        if (active) setState(fromSession(session));
+      unsubscribe = onAuthChange((event, session) => {
+        if (!active) return;
+        // The first state comes from getSession() below, which can tell
+        // "signed out" apart from "offline with an expired token".
+        if (event === 'INITIAL_SESSION') return;
+        if (event === 'SIGNED_OUT' || !session) signedOut();
+        else signedIn(userFromSession(session), false);
       });
     } catch (error) {
       setState({ status: 'error', message: errorMessage(error) });
@@ -33,12 +53,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     getSession()
       .then((session) => {
-        if (active) setState(fromSession(session));
+        if (!active) return;
+        if (session) signedIn(userFromSession(session), false);
+        else setState({ status: 'signedOut' });
       })
       .catch((error: unknown) => {
-        // A stored session that can't be restored just means signing in again.
-        if (active) setState({ status: 'signedOut' });
-        console.warn('Session restore failed:', errorMessage(error));
+        if (!active) return;
+        // Offline with an expired token: stay signed in with the saved login so
+        // cached tanks and the outbox work in the cellar. supabase-js refreshes
+        // the token (TOKEN_REFRESHED above) when the connection comes back.
+        const stored = error instanceof AppError && error.kind === 'network' ? getStoredUser() : null;
+        if (stored) signedIn(stored, true);
+        else {
+          setState({ status: 'signedOut' });
+          console.warn('Session restore failed:', errorMessage(error));
+        }
       });
 
     return () => {
@@ -54,4 +83,11 @@ export function useSession(): SessionState {
   const value = useContext(SessionContext);
   if (!value) throw new Error('useSession must be used inside <SessionProvider>');
   return value;
+}
+
+/** The signed-in user. Only for screens inside the signed-in (app) group. */
+export function useUser(): SessionUser {
+  const session = useSession();
+  if (session.status !== 'signedIn') throw new Error('useUser used while signed out');
+  return session.user;
 }

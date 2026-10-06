@@ -107,14 +107,30 @@ function saveError(error: { code: string; message: string }, fallback: string): 
   return fromDbError(error, fallback);
 }
 
-export async function createEntry(entry: ValidEntry): Promise<Entry> {
+/**
+ * Saves a new entry. `id` and `createdAt` come from the phone for entries that
+ * were queued offline: the id makes a retried upload idempotent, and the time
+ * keeps the moment it was recorded rather than the moment it was uploaded.
+ */
+export async function createEntry(
+  entry: ValidEntry,
+  options: { id?: string; createdAt?: string } = {},
+): Promise<Entry> {
   try {
     const { data, error } = await getSupabase()
       .from('entries')
-      .insert(toRow(entry))
+      .insert({
+        ...toRow(entry),
+        ...(options.id ? { id: options.id } : {}),
+        ...(options.createdAt ? { created_at: options.createdAt } : {}),
+      })
       .select(COLUMNS)
       .single();
-    if (error) throw saveError(error, 'Could not save the entry.');
+    if (error) {
+      // Same id already there: an earlier upload got through but its reply was lost.
+      if (error.code === '23505' && options.id) return await getEntry(options.id);
+      throw saveError(error, 'Could not save the entry.');
+    }
     return fromRow(data);
   } catch (error) {
     throw toAppError(error, 'Could not save the entry.');

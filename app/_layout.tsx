@@ -1,3 +1,6 @@
+// Persistent localStorage on the phone (login, offline cache, outbox). Must load first.
+import 'expo-sqlite/localStorage/install';
+
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme as NavTheme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';

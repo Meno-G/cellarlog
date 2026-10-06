@@ -12,8 +12,8 @@ import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { MAX_LISTEN_MS, useSpeechToText } from '@/hooks/useSpeechToText';
+import { useOutbox } from '@/hooks/useOutbox';
 import { useTanks } from '@/hooks/useTanks';
-import { createEntry } from '@/lib/entries';
 import {
   draftFromParse,
   manualDraft,
@@ -38,6 +38,7 @@ export default function NewEntryScreen() {
   const { tankId } = useLocalSearchParams<{ tankId?: string }>();
   const startTankId = tankId ?? null;
   const tanks = useTanks();
+  const outbox = useOutbox();
   const { colors } = useTheme();
 
   const [text, setText] = useState('');
@@ -112,11 +113,14 @@ export default function NewEntryScreen() {
     }
     setReview({ ...current, errors: {}, saveError: null, saving: true });
     try {
-      const saved = await createEntry(result.entry);
-      if (saved.tankId === startTankId) {
+      // Online it's saved straight away; offline it's kept on the phone and
+      // shows on the timeline as "waiting to upload" (either way we go back).
+      await outbox.saveEntry(result.entry);
+      const savedTankId = result.entry.tankId;
+      if (savedTankId === startTankId) {
         router.back(); // the tank screen refetches its timeline on focus
       } else {
-        router.replace({ pathname: '/tanks/[id]', params: { id: saved.tankId } });
+        router.replace({ pathname: '/tanks/[id]', params: { id: savedTankId } });
       }
     } catch (err) {
       const tankError = err instanceof AppError && err.field === 'tank';
@@ -151,7 +155,7 @@ export default function NewEntryScreen() {
             </View>
           }
         >
-          <OfflineBanner message="You're offline. Saving needs internet. Your entry stays here." />
+          <OfflineBanner message="You're offline. Saving keeps the entry on this phone; it uploads when you're back online." />
           <AppText variant="title">Check and save</AppText>
           {review.saveError ? (
             <Banner message={review.saveError} onRetry={() => handleSave(review)} />
@@ -191,7 +195,7 @@ export default function NewEntryScreen() {
           />
         }
       >
-        <OfflineBanner message="You're offline. You can still record and review; saving needs internet." />
+        <OfflineBanner message="You're offline. Record or type as usual; entries are saved on this phone and upload later." />
         {startTank ? <AppText muted>For {startTank.name}</AppText> : null}
 
         {speech.available ? (

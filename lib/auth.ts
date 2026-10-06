@@ -6,10 +6,38 @@ import {
   type Session,
 } from '@supabase/supabase-js';
 
+import { z } from 'zod';
+
 import { AppError, NETWORK_MESSAGE, isNetworkFailure, toAppError } from './errors';
-import { getSupabase } from './supabase';
+import { readJson } from './storage';
+import { getSupabase, sessionStorageKey } from './supabase';
 
 export type { Session };
+
+/** The signed-in person, as the app needs them. */
+export type SessionUser = { id: string; email: string | null };
+
+export function userFromSession(session: Session): SessionUser {
+  return { id: session.user.id, email: session.user.email ?? null };
+}
+
+const storedSessionSchema = z.object({
+  user: z.object({ id: z.string().min(1), email: z.string().optional() }),
+});
+
+/**
+ * The user from the login saved on the phone, without asking the server.
+ * Used when the app starts offline with an expired access token: supabase-js
+ * then reports "no session" but keeps the login, and refreshes it once online.
+ */
+export function getStoredUser(): SessionUser | null {
+  try {
+    const stored = readJson(sessionStorageKey(), storedSessionSchema);
+    return stored ? { id: stored.user.id, email: stored.user.email ?? null } : null;
+  } catch {
+    return null;
+  }
+}
 
 const MIN_PASSWORD_LENGTH = 6;
 

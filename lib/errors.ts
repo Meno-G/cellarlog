@@ -34,7 +34,7 @@ export const NETWORK_MESSAGE = 'No internet connection. Check your signal and tr
 /** React Native's fetch rejects with a TypeError like "Network request failed". */
 export function isNetworkFailure(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return /network request failed|failed to fetch|network ?error|timed? ?out/i.test(error.message);
+  return /network request failed|failed to fetch|network ?error|timed? ?out|abort/i.test(error.message);
 }
 
 export function toAppError(error: unknown, fallbackMessage: string): AppError {
