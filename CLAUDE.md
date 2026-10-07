@@ -72,6 +72,13 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Every async UI has loading, error and empty states.**
 - **Large touch targets:** at least `touch.minHeight` (56 pt) for anything tappable; the record button is `touch.recordButton`. Body text is at least 18 pt. People use the app with wet or gloved hands.
 - **Dark mode:** never hard-code colors in components; use `useTheme().colors`. Add new colors to both palettes in `theme/colors.ts`.
+- **Design: wine-cellar premium.** The mockups are at https://claude.ai/artifact/4aDtWqAJBUweKYw3iju42D.
+  - **Colours:** cellar-burgundy header band (`colors.header`), Saperavi primary, barrel-gold accent (rings and marks only, never body text), parchment ground, plus a "dim cellar" dark palette.
+  - **Type:** `AppText` variants `display` / `heading` / `title` use Cormorant Garamond. `body` / `label` / `caption` use Source Sans 3. `quote` (serif italic) is for what the user said.
+  - Use `fonts.*` family names rather than `fontWeight`: each weight is its own family on Android. Import fonts per weight (`@expo-google-fonts/<family>/<weight>`), never the package root, which would bundle every weight.
+  - **Icons:** `components/Icon` (MaterialCommunityIcons, decorative only). `EntryTypeIcon` / `ENTRY_TYPE_ICONS` map each entry type to its icon.
+  - **Layout:** `Screen`'s `hero` prop + `HeroBand` continue the burgundy header band down the screen. The status bar is always light.
+  - **App icon / splash:** made from the canvas's glass mark, rendered to `assets/*.png` (1024 px; Android foreground in the inner 50%). The splash is set in the `expo-splash-screen` plugin. Both appear only after a new native build.
 - **Imports:** use the `@/` alias (maps to the repo root) in app code; inside `lib/` use relative imports, so `npm test` can compile it.
 - **Navigation:** typed routes are on. Use object hrefs for dynamic routes: `router.push({ pathname: '/tanks/[id]', params: { id } })`.
 - **Secrets:** only in `.env` (gitignored). Every variable must be listed in `.env.example`. Anything prefixed `EXPO_PUBLIC_` ends up in the app bundle, so never put private server secrets there.

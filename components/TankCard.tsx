@@ -1,74 +1,87 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { formatLiters, formatWine } from '@/lib/format';
+import type { LastActivity } from '@/hooks/useLastActivity';
+import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
+import { formatLiters, formatRelative, formatWine } from '@/lib/format';
 import type { ShownTank } from '@/lib/tankOverlay';
-import { radius, spacing, useTheme } from '@/theme';
+import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
 type Props = {
   tank: ShownTank;
+  last?: LastActivity;
   onPress: () => void;
 };
 
-export function TankCard({ tank, onPress }: Props) {
+export function TankCard({ tank, last, onPress }: Props) {
   const { colors } = useTheme();
   const wine = formatWine(tank.variety, tank.vintage);
   const volume = formatLiters(tank.volumeLiters);
   const failed = tank.upload?.status === 'failed';
+  const lastText = last
+    ? `Last: ${ENTRY_TYPE_LABELS[last.type].toLowerCase()} · ${formatRelative(last.createdAt)}`
+    : 'No entries yet';
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[tank.name, wine, volume, tank.upload ? 'not uploaded yet' : null]
+      accessibilityLabel={[tank.name, wine, volume, lastText, tank.upload ? 'not uploaded yet' : null]
         .filter(Boolean)
         .join(', ')}
       style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: failed ? colors.danger : tank.upload ? colors.warningText : colors.border,
+          borderColor: failed ? colors.danger : tank.upload ? colors.warningBorder : colors.border,
           borderStyle: tank.upload ? 'dashed' : 'solid',
-          opacity: pressed ? 0.8 : 1,
+          borderWidth: tank.upload ? 1.5 : 1,
+          opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
-      <View style={styles.row}>
-        <View style={styles.text}>
-          <AppText variant="title" numberOfLines={1}>
+      {/* Wine-coloured edge; gold while the tank waits to upload. */}
+      <View style={[styles.edge, { backgroundColor: tank.upload ? colors.accent : colors.primary }]} />
+      <View style={styles.text}>
+        <View style={styles.titleRow}>
+          <AppText variant="title" numberOfLines={1} style={styles.name}>
             {tank.name}
           </AppText>
-          <AppText muted numberOfLines={1}>
-            {wine ?? 'No wine set'}
-          </AppText>
+          <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 16, color: colors.primary }}>{volume}</AppText>
         </View>
-        <AppText variant="label">{volume}</AppText>
-        <AppText variant="title" muted>
-          ›
+        <AppText muted numberOfLines={1} style={styles.wine}>
+          {wine ?? 'No wine set'}
         </AppText>
+        {tank.upload ? (
+          <AppText
+            style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: failed ? colors.danger : colors.warningText }}
+          >
+            {failed
+              ? `${tank.upload.action === 'delete' ? "Couldn't delete" : "Couldn't upload"}: ${tank.upload.error ?? 'unknown error'}`
+              : 'Saved on this phone · waiting to upload'}
+          </AppText>
+        ) : (
+          <AppText muted variant="caption">
+            {lastText}
+          </AppText>
+        )}
       </View>
-      {tank.upload ? (
-        <AppText variant="label" style={{ color: failed ? colors.danger : colors.warningText }}>
-          {failed
-            ? `${tank.upload.action === 'delete' ? "Couldn't delete" : "Couldn't upload"}: ${tank.upload.error ?? 'unknown error'}`
-            : 'Saved on this phone · waiting to upload'}
-        </AppText>
-      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    minHeight: 80,
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 2,
+    minHeight: 96,
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  edge: { width: 8, borderRadius: 4, alignSelf: 'stretch' },
   text: { flex: 1, gap: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
+  name: { flexShrink: 1 },
+  wine: { fontSize: 17 },
 });

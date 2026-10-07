@@ -3,9 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { Entry } from '@/lib/entries';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { formatEntryTime, formatItemValue } from '@/lib/format';
-import { radius, spacing, useTheme } from '@/theme';
+import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { EntryTypeIcon } from './EntryTypeIcon';
 
 type Props = {
   entry: Entry;
@@ -19,10 +20,12 @@ type Props = {
 
 export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
   const { colors } = useTheme();
-  const failed = upload?.status === 'failed';
   const { items, note } = entry.parsed;
+  const failed = upload?.status === 'failed';
   // Show the original wording only when it adds something beyond the note.
   const showRaw = entry.rawText.trim() !== '' && entry.rawText.trim() !== note?.trim();
+  // Lab readings read best as tiles (pH | Brix | TA); other values as name–value rows.
+  const asTiles = entry.type === 'lab_analysis' && items.length > 1;
 
   return (
     <Pressable
@@ -35,62 +38,76 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: failed ? colors.danger : upload ? colors.warningText : colors.border,
+          borderColor: failed ? colors.danger : upload ? colors.warningBorder : colors.border,
           borderStyle: upload ? 'dashed' : 'solid',
-          opacity: busy ? 0.5 : pressed ? 0.8 : 1,
+          borderWidth: upload ? 1.5 : 1,
+          opacity: busy ? 0.5 : pressed ? 0.85 : 1,
         },
       ]}
     >
-      {upload ? (
-        <View
-          style={[
-            styles.uploadBadge,
-            { backgroundColor: failed ? colors.surfaceAlt : colors.warningBg },
-          ]}
-        >
-          <AppText variant="label" style={{ color: failed ? colors.danger : colors.warningText }}>
-            {failed ? `Couldn't upload: ${upload.error ?? 'unknown error'}` : 'Saved on this phone · waiting to upload'}
+      <EntryTypeIcon type={entry.type} waiting={Boolean(upload)} />
+      <View style={styles.body}>
+        <View style={styles.header}>
+          <AppText variant="label">{ENTRY_TYPE_LABELS[entry.type]}</AppText>
+          <AppText muted variant="caption">
+            {formatEntryTime(entry.createdAt)}
           </AppText>
         </View>
-      ) : null}
-      <View style={styles.header}>
-        <View style={[styles.badge, { backgroundColor: colors.surfaceAlt }]}>
-          <AppText variant="label">{ENTRY_TYPE_LABELS[entry.type]}</AppText>
-        </View>
-        <AppText muted variant="caption">
-          {formatEntryTime(entry.createdAt)}
-        </AppText>
+
+        {asTiles ? (
+          <View style={styles.tiles}>
+            {items.map((item, index) => (
+              <View key={`${item.name}-${index}`} style={[styles.tile, { backgroundColor: colors.background }]}>
+                <AppText muted style={styles.tileName} numberOfLines={1}>
+                  {item.name}
+                </AppText>
+                <AppText style={styles.tileValue} numberOfLines={1}>
+                  {formatItemValue(item)}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : (
+          items.map((item, index) => (
+            <View key={`${item.name}-${index}`} style={styles.item}>
+              <AppText style={styles.itemName}>{item.name}</AppText>
+              <AppText style={{ fontFamily: fonts.bodyBold }}>{formatItemValue(item)}</AppText>
+            </View>
+          ))
+        )}
+
+        {note ? <AppText>{note}</AppText> : null}
+
+        {showRaw ? (
+          <AppText variant="quote" muted style={styles.raw}>
+            “{entry.rawText}”
+          </AppText>
+        ) : null}
+
+        {upload ? (
+          <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: failed ? colors.danger : colors.warningText }}>
+            {failed ? `Couldn't upload: ${upload.error ?? 'unknown error'}` : 'Saved on this phone · waiting to upload'}
+          </AppText>
+        ) : null}
       </View>
-
-      {items.map((item, index) => (
-        <View key={`${item.name}-${index}`} style={styles.item}>
-          <AppText style={styles.itemName}>{item.name}</AppText>
-          <AppText variant="label">{formatItemValue(item)}</AppText>
-        </View>
-      ))}
-
-      {note ? <AppText>{note}</AppText> : null}
-
-      {showRaw ? (
-        <AppText muted variant="caption" style={styles.raw}>
-          “{entry.rawText}”
-        </AppText>
-      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
+    gap: spacing.md,
     padding: spacing.md,
-    gap: spacing.sm,
     borderRadius: radius.md,
-    borderWidth: 2,
   },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
-  uploadBadge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm },
+  body: { flex: 1, gap: spacing.sm },
+  header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
   item: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   itemName: { flexShrink: 1 },
-  raw: { fontStyle: 'italic' },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tile: { flexGrow: 1, flexBasis: '30%', borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 10 },
+  tileName: { fontSize: 14, lineHeight: 18 },
+  tileValue: { fontFamily: fonts.bodyBold, fontSize: 19, lineHeight: 24 },
+  raw: { fontSize: 19, lineHeight: 24 },
 });

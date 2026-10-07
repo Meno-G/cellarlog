@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { EntryReview } from '@/components/EntryReview';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { RecordButton } from '@/components/RecordButton';
-import { Screen } from '@/components/Screen';
+import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { MAX_LISTEN_MS, useSpeechToText } from '@/hooks/useSpeechToText';
@@ -23,7 +23,7 @@ import {
 } from '@/lib/entryDraft';
 import { AppError, errorMessage } from '@/lib/errors';
 import { parseNote } from '@/lib/parser';
-import { spacing, useTheme } from '@/theme';
+import { fonts, spacing, useTheme } from '@/theme';
 
 type Review = {
   draft: EntryDraft;
@@ -143,9 +143,10 @@ export default function NewEntryScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Screen
+          hero={<HeroBand title="Check and save" />}
           footer={
             <View style={styles.footer}>
-              <Button title="Save entry" onPress={() => handleSave(review)} loading={review.saving} />
+              <Button title="Save entry" icon="check" onPress={() => handleSave(review)} loading={review.saving} />
               <Button
                 variant="secondary"
                 title="Back to note"
@@ -156,7 +157,6 @@ export default function NewEntryScreen() {
           }
         >
           <OfflineBanner message="You're offline. Saving keeps the entry on this phone; it uploads when you're back online." />
-          <AppText variant="title">Check and save</AppText>
           {review.saveError ? (
             <Banner message={review.saveError} onRetry={() => handleSave(review)} />
           ) : null}
@@ -187,8 +187,10 @@ export default function NewEntryScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen
+        hero={startTank ? <HeroBand subtitle={`For ${startTank.name}`} /> : null}
         footer={
           <Button
+            variant="secondary"
             title="Review note"
             onPress={() => openReview(text)}
             disabled={text.trim() === '' || speech.active}
@@ -196,7 +198,6 @@ export default function NewEntryScreen() {
         }
       >
         <OfflineBanner message="You're offline. Record or type as usual; entries are saved on this phone and upload later." />
-        {startTank ? <AppText muted>For {startTank.name}</AppText> : null}
 
         {speech.available ? (
           <RecordButton
@@ -265,7 +266,8 @@ export default function NewEntryScreen() {
           multiline
           textAlignVertical="top"
           editable={!speech.active}
-          style={styles.noteInput}
+          // While listening, what was heard shows large in the serif, like a handwritten log.
+          style={speech.active ? [styles.noteInput, styles.heard] : styles.noteInput}
         />
       </Screen>
     </KeyboardAvoidingView>
@@ -276,6 +278,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   footer: { gap: spacing.sm },
   noteInput: { minHeight: 120, paddingTop: spacing.sm },
+  heard: { minHeight: 150, fontFamily: fonts.quote, fontSize: 25, lineHeight: 32 },
   errorBox: { gap: spacing.sm },
   downloadBox: { gap: spacing.sm },
   divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

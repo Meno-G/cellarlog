@@ -1,32 +1,50 @@
 import { Text, type TextProps } from 'react-native';
 
-import { fontSize, useTheme } from '@/theme';
+import { fonts, fontSize, useTheme } from '@/theme';
 
-type Variant = 'heading' | 'title' | 'body' | 'label' | 'caption';
+/**
+ * heading/title/display: Cormorant Garamond (names, titles).
+ * body/label/caption: Source Sans 3. quote: serif italic for what was said.
+ */
+type Variant = 'display' | 'heading' | 'title' | 'body' | 'label' | 'caption' | 'quote';
 
 type Props = TextProps & {
   variant?: Variant;
   muted?: boolean;
 };
 
-const weights: Record<Variant, '400' | '600' | '700'> = {
-  heading: '700',
-  title: '700',
-  body: '400',
-  label: '600',
-  caption: '400',
+const families: Record<Variant, string> = {
+  display: fonts.display,
+  heading: fonts.display,
+  title: fonts.display,
+  body: fonts.body,
+  label: fonts.bodyBold,
+  caption: fonts.body,
+  quote: fonts.quote,
+};
+
+const sizes: Record<Variant, number> = {
+  display: fontSize.display,
+  heading: fontSize.heading,
+  title: fontSize.title,
+  body: fontSize.body,
+  label: fontSize.label,
+  caption: fontSize.caption,
+  quote: 21,
 };
 
 export function AppText({ variant = 'body', muted = false, style, ...rest }: Props) {
   const { colors } = useTheme();
+  const size = sizes[variant];
+  const serif = variant === 'display' || variant === 'heading' || variant === 'title';
   return (
     <Text
       style={[
         {
           color: muted ? colors.textMuted : colors.text,
-          fontSize: fontSize[variant],
-          fontWeight: weights[variant],
-          lineHeight: Math.round(fontSize[variant] * 1.3),
+          fontFamily: families[variant],
+          fontSize: size,
+          lineHeight: Math.round(size * (serif ? 1.15 : 1.3)),
         },
         style,
       ]}

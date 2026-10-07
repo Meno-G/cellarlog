@@ -18,7 +18,7 @@
     "android": {
       "package": "com.cellarlog.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#4A1322",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -45,6 +45,18 @@
             "com.google.android.as",
             "com.google.android.tts"
           ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#4A1322",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "dark": {
+            "backgroundColor": "#2A0E17",
+            "image": "./assets/splash-icon.png"
+          }
         }
       ]
     ],

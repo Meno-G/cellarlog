@@ -1,6 +1,6 @@
 import { Pressable } from 'react-native';
 
-import { spacing, useTheme } from '@/theme';
+import { fonts, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
@@ -9,6 +9,7 @@ type Props = {
   onPress: () => void;
 };
 
+/** A text button in the burgundy header band. */
 export function HeaderButton({ title, onPress }: Props) {
   const { colors } = useTheme();
   return (
@@ -19,14 +20,16 @@ export function HeaderButton({ title, onPress }: Props) {
       style={({ pressed }) => ({
         minHeight: 48,
         minWidth: 48,
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: 24,
+        borderWidth: 1.5,
+        borderColor: colors.onHeaderMuted,
         justifyContent: 'center',
+        alignItems: 'center',
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <AppText variant="label" style={{ color: colors.primary }}>
-        {title}
-      </AppText>
+      <AppText style={{ color: colors.onHeader, fontFamily: fonts.bodySemi, fontSize: 17 }}>{title}</AppText>
     </Pressable>
   );
 }

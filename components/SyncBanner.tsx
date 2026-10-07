@@ -2,10 +2,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { useIsOffline } from '@/hooks/useNetworkStatus';
 import { useOutbox } from '@/hooks/useOutbox';
-import { radius, spacing, useTheme } from '@/theme';
+import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 import { Button } from './Button';
+import { Icon } from './Icon';
 
 function changes(count: number): string {
   return count === 1 ? '1 change' : `${count} changes`;
@@ -29,15 +30,16 @@ export function SyncBanner() {
   return (
     <View
       accessibilityRole="alert"
-      style={[styles.box, { backgroundColor: colors.warningBg, borderColor: colors.warningText }]}
+      style={[styles.box, { backgroundColor: colors.warningBg, borderColor: colors.warningBorder }]}
     >
       {message ? (
-        <AppText variant="label" style={{ color: colors.warningText }}>
-          {message}
-        </AppText>
+        <View style={styles.row}>
+          <Icon name={uploading ? 'cloud-sync-outline' : 'cloud-upload-outline'} size={24} color={colors.warningText} />
+          <AppText style={[styles.text, { color: colors.warningText }]}>{message}</AppText>
+        </View>
       ) : null}
       {failedCount > 0 ? (
-        <AppText variant="label" style={{ color: colors.danger }}>
+        <AppText style={[styles.text, { color: colors.danger }]}>
           {changes(failedCount)} couldn&apos;t upload. Tap the marked tank or entry to fix, retry or delete it.
         </AppText>
       ) : null}
@@ -49,8 +51,10 @@ export function SyncBanner() {
 }
 
 const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  text: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 17 },
   box: {
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderRadius: radius.md,
     padding: spacing.md,
     gap: spacing.sm,

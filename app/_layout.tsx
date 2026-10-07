@@ -2,6 +2,7 @@
 import 'expo-sqlite/localStorage/install';
 
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme as NavTheme } from 'expo-router';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -11,7 +12,7 @@ import { Banner } from '@/components/Banner';
 import { Screen } from '@/components/Screen';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 import { getConfigProblems } from '@/lib/env';
-import { useTheme } from '@/theme';
+import { fontAssets, useTheme } from '@/theme';
 
 export default function RootLayout() {
   const { dark, colors } = useTheme();
@@ -32,10 +33,17 @@ export default function RootLayout() {
   }, [dark, colors]);
 
   const configProblems = getConfigProblems();
+  // Fonts ship inside the app; if they ever fail to load, carry on with system fonts.
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
+
+  if (!fontsLoaded && !fontError) {
+    return <View style={[styles.center, { backgroundColor: colors.header }]} />;
+  }
 
   return (
     <ThemeProvider value={navTheme}>
-      <StatusBar style={dark ? 'light' : 'dark'} />
+      {/* Light icons on the burgundy header band. */}
+      <StatusBar style="light" />
       {configProblems ? (
         <ConfigErrorScreen problems={configProblems} />
       ) : (

@@ -1,7 +1,7 @@
 import type { Ref } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { fontSize, radius, spacing, touch, useTheme } from '@/theme';
+import { fonts, fontSize, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
@@ -48,5 +48,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     fontSize: fontSize.body,
+    fontFamily: fonts.body,
   },
 });

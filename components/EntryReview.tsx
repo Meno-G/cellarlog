@@ -2,12 +2,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { newDraftItem, type DraftErrors, type DraftItem, type EntryDraft } from '@/lib/entryDraft';
 import { ENTRY_TYPE_LABELS, ENTRY_TYPES } from '@/lib/entryTypes';
-import { radius, spacing, touch, useTheme } from '@/theme';
+import { fonts, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 import { Banner } from './Banner';
 import { Button } from './Button';
 import { ChoiceChips } from './ChoiceChips';
+import { ENTRY_TYPE_ICONS } from './EntryTypeIcon';
 import { TextField } from './TextField';
 
 type TankChoice = { id: string; name: string };
@@ -20,7 +21,11 @@ type Props = {
   disabled?: boolean;
 };
 
-const TYPE_CHOICES = ENTRY_TYPES.map((value) => ({ value, label: ENTRY_TYPE_LABELS[value] }));
+const TYPE_CHOICES = ENTRY_TYPES.map((value) => ({
+  value,
+  label: ENTRY_TYPE_LABELS[value],
+  icon: ENTRY_TYPE_ICONS[value],
+}));
 
 /** The confirm/edit step: everything the parser produced, editable. */
 export function EntryReview({ draft, onChange, tanks, errors, disabled = false }: Props) {
@@ -89,9 +94,7 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
                   hitSlop={8}
                   style={({ pressed }) => [styles.remove, { opacity: pressed ? 0.6 : 1 }]}
                 >
-                  <AppText variant="label" style={{ color: colors.danger }}>
-                    Remove
-                  </AppText>
+                  <AppText style={{ color: colors.danger, fontFamily: fonts.bodyBold }}>Remove</AppText>
                 </Pressable>
               </View>
               <TextField
@@ -132,7 +135,8 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
         })}
         <Button
           variant="secondary"
-          title="+ Add value"
+          title="Add value"
+          icon="plus"
           onPress={() => onChange({ ...draft, items: [...draft.items, newDraftItem()] })}
           disabled={disabled}
         />
@@ -150,11 +154,11 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
       />
 
       {draft.rawText ? (
-        <View style={styles.section}>
-          <AppText variant="label">Original note</AppText>
-          <AppText muted style={styles.raw}>
-            “{draft.rawText}”
+        <View style={[styles.said, { backgroundColor: colors.surfaceAlt }]}>
+          <AppText muted style={styles.saidLabel}>
+            YOU SAID
           </AppText>
+          <AppText variant="quote">“{draft.rawText}”</AppText>
         </View>
       ) : null}
     </View>
@@ -164,12 +168,13 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
 const styles = StyleSheet.create({
   wrapper: { gap: spacing.lg },
   section: { gap: spacing.sm },
-  item: { borderWidth: 2, borderRadius: radius.md, padding: spacing.sm, gap: spacing.sm },
+  item: { borderWidth: 1.5, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   remove: { minHeight: touch.minHeight - 8, justifyContent: 'center', paddingHorizontal: spacing.sm },
   valueRow: { flexDirection: 'row', gap: spacing.sm },
   value: { flex: 3 },
   unit: { flex: 2 },
   note: { minHeight: 96, paddingTop: spacing.sm },
-  raw: { fontStyle: 'italic' },
+  said: { borderRadius: radius.sm + 2, padding: spacing.md, gap: 2 },
+  saidLabel: { fontFamily: fonts.bodyBold, fontSize: 14, letterSpacing: 1 },
 });

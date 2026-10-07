@@ -33,6 +33,19 @@ function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
+/** "just now", "12 min ago", "2 h ago", "yesterday", "4 days ago", "3 Oct", "3 Oct 2025". */
+export function formatRelative(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (days === 0) return `${Math.floor(minutes / 60)} h ago`;
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  return (date.getFullYear() === now.getFullYear() ? dayMonth : dayMonthYear).format(date);
+}
+
 /** "Today 14:32", "Yesterday 09:10", "3 Oct 09:10", "3 Oct 2025 09:10". */
 export function formatEntryTime(iso: string, now: Date = new Date()): string {
   const date = new Date(iso);

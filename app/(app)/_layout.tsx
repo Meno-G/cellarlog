@@ -2,7 +2,8 @@ import { Stack } from 'expo-router';
 
 import { OutboxProvider } from '@/hooks/useOutbox';
 import { useSession } from '@/hooks/useSession';
-import { useTheme } from '@/theme';
+import { BrandMark } from '@/components/BrandMark';
+import { fonts, useTheme } from '@/theme';
 
 export default function AppLayout() {
   const { colors } = useTheme();
@@ -17,13 +18,15 @@ export default function AppLayout() {
     <OutboxProvider key={session.user.id} userId={session.user.id}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.primary,
-          headerTitleStyle: { color: colors.text, fontSize: 20, fontWeight: '700' },
+          // The cellar-burgundy band at the top of every screen.
+          headerStyle: { backgroundColor: colors.header },
+          headerTintColor: colors.onHeader,
+          headerShadowVisible: false,
+          headerTitleStyle: { color: colors.onHeader, fontFamily: fonts.display, fontSize: 26 },
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'Tanks' }} />
+        <Stack.Screen name="index" options={{ title: 'Tanks', headerTitle: () => <BrandMark /> }} />
         <Stack.Screen name="tanks/new" options={{ title: 'New tank', presentation: 'modal' }} />
         <Stack.Screen name="tanks/[id]/index" options={{ title: 'Tank' }} />
         <Stack.Screen name="tanks/[id]/edit" options={{ title: 'Edit tank', presentation: 'modal' }} />

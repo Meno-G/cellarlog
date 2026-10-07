@@ -9,7 +9,7 @@ import { CachedNote } from '@/components/CachedNote';
 import { EntryCard } from '@/components/EntryCard';
 import { HeaderButton } from '@/components/HeaderButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import { Screen } from '@/components/Screen';
+import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { SyncBanner } from '@/components/SyncBanner';
 import { useEntries } from '@/hooks/useEntries';
@@ -20,7 +20,7 @@ import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { errorMessage } from '@/lib/errors';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import type { EntryItem } from '@/lib/outbox';
-import { radius, spacing, useTheme } from '@/theme';
+import { spacing, useTheme } from '@/theme';
 
 /** A timeline row: an entry on the server, or one saved on this phone and not uploaded yet. */
 type Row = { entry: Entry; queued: EntryItem | null };
@@ -204,19 +204,18 @@ export default function TankDetailScreen() {
           ) : null}
         </View>
       ) : upload ? (
-        <Banner tone="info" message="Saved on this phone · this tank uploads when you're back online." />
+        <Banner tone="waiting" message="Saved on this phone · this tank uploads when you're back online." />
       ) : null}
-      <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <AppText variant="heading">{name}</AppText>
-        <AppText muted>{formatWine(variety, vintage) ?? 'No wine set'}</AppText>
-        <AppText variant="label">{formatLiters(volumeLiters)}</AppText>
-      </View>
-      <AppText variant="title">Timeline</AppText>
-      {rows.length > 0 ? (
-        <AppText muted variant="caption">
-          Tap an entry to edit or delete it.
+      <View style={styles.timelineHeading}>
+        <AppText variant="heading" style={{ color: colors.header }}>
+          Timeline
         </AppText>
-      ) : null}
+        {rows.length > 0 ? (
+          <AppText muted variant="caption">
+            Tap to edit or delete
+          </AppText>
+        ) : null}
+      </View>
       {actionError ? <Banner message={actionError} /> : null}
       {rows.length > 0 ? (
         <CachedNote cachedAt={entries.cachedAt} error={entries.error} onRetry={entries.refresh} />
@@ -227,16 +226,24 @@ export default function TankDetailScreen() {
   return (
     <Screen
       scroll={false}
+      hero={
+        <HeroBand
+          title={name}
+          subtitle={[formatWine(variety, vintage) ?? 'No wine set', formatLiters(volumeLiters)].join(' · ')}
+        />
+      }
       footer={
         <Button
           title="Add entry"
+          icon="microphone"
           onPress={() => router.push({ pathname: '/entries/new', params: { tankId: id } })}
         />
       }
     >
       <Stack.Screen
         options={{
-          title: name,
+          // The name is shown large in the band below; keep the header itself quiet.
+          title: '',
           headerRight: () => (
             <HeaderButton
               title="Edit"
@@ -280,13 +287,13 @@ export default function TankDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.sm, paddingBottom: spacing.md, flexGrow: 1 },
+  list: { gap: spacing.md, paddingBottom: spacing.md, flexGrow: 1 },
   header: { gap: spacing.md, marginBottom: spacing.xs },
-  summary: {
-    padding: spacing.md,
-    gap: spacing.xs,
-    borderRadius: radius.md,
-    borderWidth: 2,
+  timelineHeading: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
   },
   empty: { paddingVertical: spacing.xl, alignItems: 'center' },
   uploadBox: { gap: spacing.sm },

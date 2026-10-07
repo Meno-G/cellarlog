@@ -8,10 +8,11 @@ import { CachedNote } from '@/components/CachedNote';
 import { Button } from '@/components/Button';
 import { HeaderButton } from '@/components/HeaderButton';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import { Screen } from '@/components/Screen';
+import { HeroBand, Screen } from '@/components/Screen';
 import { SyncBanner } from '@/components/SyncBanner';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankCard } from '@/components/TankCard';
+import { useLastActivity } from '@/hooks/useLastActivity';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useUser } from '@/hooks/useSession';
 import { useTanks } from '@/hooks/useTanks';
@@ -25,6 +26,16 @@ export default function TanksScreen() {
   const tanks = useTanks();
   const { colors } = useTheme();
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const last = useLastActivity((tanks.data ?? []).map((tank) => tank.id));
+
+  const tankCount = tanks.data?.length ?? 0;
+  const waiting = outbox.pendingCount + outbox.failedCount;
+  const summary = [
+    tanks.data ? (tankCount === 1 ? '1 tank' : `${tankCount} tanks`) : null,
+    waiting > 0 ? (waiting === 1 ? '1 change waiting to upload' : `${waiting} changes waiting to upload`) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   function confirmSignOut() {
     const waiting = outbox.items.length;
@@ -66,6 +77,7 @@ export default function TanksScreen() {
         renderItem={({ item }) => (
           <TankCard
             tank={item}
+            last={last.get(item.id)}
             onPress={() => router.push({ pathname: '/tanks/[id]', params: { id: item.id } })}
           />
         )}
@@ -83,6 +95,11 @@ export default function TanksScreen() {
             <OfflineBanner />
             <SyncBanner />
             <CachedNote cachedAt={tanks.cachedAt} error={tanks.error} onRetry={tanks.refresh} />
+            {tankCount > 0 ? (
+              <AppText variant="heading" style={[styles.heading, { color: colors.header }]}>
+                Your cellar
+              </AppText>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -100,7 +117,8 @@ export default function TanksScreen() {
   return (
     <Screen
       scroll={false}
-      footer={<Button title="+ New tank" onPress={() => router.push('/tanks/new')} />}
+      hero={summary ? <HeroBand subtitle={summary} /> : null}
+      footer={<Button title="New tank" icon="plus" onPress={() => router.push('/tanks/new')} />}
     >
       <Stack.Screen
         options={{ headerRight: () => <HeaderButton title="Sign out" onPress={confirmSignOut} /> }}
@@ -112,8 +130,9 @@ export default function TanksScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.sm, paddingBottom: spacing.md, flexGrow: 1 },
+  list: { gap: spacing.md, paddingBottom: spacing.md, flexGrow: 1 },
   header: { gap: spacing.sm },
+  heading: { marginTop: spacing.xs, paddingHorizontal: spacing.xs },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   emptyText: { textAlign: 'center' },
 });

@@ -1,18 +1,22 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, type TextInput } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View, type TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
+import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { signIn, signUp } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
-import { spacing } from '@/theme';
+import { fonts, spacing, useTheme } from '@/theme';
 
 type Mode = 'signIn' | 'signUp';
 
 export default function SignInScreen() {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,11 +61,17 @@ export default function SignInScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Screen edges={['top', 'bottom']}>
-        <AppText variant="heading" style={styles.heading}>
-          CellarLog
+      <Screen
+        hero={
+          <View style={[styles.hero, { backgroundColor: colors.header, paddingTop: insets.top + spacing.xl }]}>
+            <BrandMark size={42} />
+            <AppText style={[styles.tagline, { color: colors.onHeaderMuted }]}>CELLAR NOTES, SPOKEN</AppText>
+          </View>
+        }
+      >
+        <AppText variant="heading" style={[styles.heading, { color: colors.header }]}>
+          {isSignUp ? 'Create your account' : 'Welcome back'}
         </AppText>
-        <AppText muted>{isSignUp ? 'Create your account' : 'Sign in to your cellar'}</AppText>
 
         {info ? <Banner tone="info" message={info} /> : null}
         {error ? <Banner message={error} /> : null}
@@ -115,5 +125,7 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  heading: { marginTop: spacing.xl },
+  heading: { marginTop: spacing.sm },
+  hero: { alignItems: 'center', paddingBottom: spacing.xl, gap: spacing.sm },
+  tagline: { fontFamily: fonts.bodySemi, fontSize: 14, letterSpacing: 2 },
 });

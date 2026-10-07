@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { fontSize, radius, spacing, touch, useTheme } from '@/theme';
+import { fonts, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { Icon, type IconName } from './Icon';
 
 type Variant = 'primary' | 'secondary' | 'danger';
 
@@ -10,6 +11,7 @@ type Props = {
   title: string;
   onPress: () => void;
   variant?: Variant;
+  icon?: IconName;
   loading?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -20,6 +22,7 @@ export function Button({
   title,
   onPress,
   variant = 'primary',
+  icon,
   loading = false,
   disabled = false,
   style,
@@ -31,22 +34,25 @@ export function Button({
   const background =
     variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : colors.surface;
   const foreground =
-    variant === 'primary' ? colors.onPrimary : variant === 'danger' ? colors.onDanger : colors.text;
+    variant === 'primary' ? colors.onPrimary : variant === 'danger' ? colors.onDanger : colors.primary;
+  const border = variant === 'secondary' ? colors.primary : background;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={inactive}
       accessibilityRole="button"
+      accessibilityLabel={title}
       accessibilityState={{ disabled: inactive, busy: loading }}
       accessibilityHint={accessibilityHint}
       hitSlop={8}
       style={({ pressed }) => [
         styles.base,
         {
+          minHeight: variant === 'secondary' ? touch.minHeight : touch.primaryHeight,
           backgroundColor: background,
-          borderColor: variant === 'secondary' ? colors.border : background,
-          opacity: inactive ? 0.5 : pressed ? 0.8 : 1,
+          borderColor: border,
+          opacity: inactive ? 0.5 : pressed ? 0.85 : 1,
         },
         style,
       ]}
@@ -54,9 +60,10 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={foreground} />
       ) : (
-        <AppText variant="label" style={{ color: foreground, fontSize: fontSize.label }}>
-          {title}
-        </AppText>
+        <View style={styles.content}>
+          {icon ? <Icon name={icon} size={22} color={foreground} /> : null}
+          <AppText style={{ color: foreground, fontFamily: fonts.bodyBold, fontSize: 19 }}>{title}</AppText>
+        </View>
       )}
     </Pressable>
   );
@@ -64,11 +71,11 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: touch.minHeight,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  content: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });
