@@ -116,6 +116,20 @@ export async function createTank(
   }
 }
 
+/**
+ * Deletes a tank. The database deletes its entries with it (ON DELETE CASCADE).
+ * A tank that's already gone counts as deleted, so a retried upload is safe.
+ */
+export async function deleteTank(id: string): Promise<void> {
+  if (!UUID.test(id)) throw new AppError('not_found', 'That tank no longer exists.');
+  try {
+    const { error } = await getSupabase().from('tanks').delete().eq('id', id).select('id');
+    if (error) throw fromDbError(error, 'Could not delete the tank.');
+  } catch (error) {
+    throw toAppError(error, 'Could not delete the tank.');
+  }
+}
+
 export async function updateTank(id: string, input: TankInput): Promise<Tank> {
   if (!UUID.test(id)) throw new AppError('not_found', 'That tank no longer exists.');
   try {

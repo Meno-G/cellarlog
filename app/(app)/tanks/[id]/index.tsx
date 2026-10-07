@@ -123,7 +123,9 @@ export default function TankDetailScreen() {
 
   const { name, volumeLiters, variety, vintage, upload } = tank.data;
   const tankItem = outbox.items.find(
-    (item) => (item.kind === 'tank-create' && item.localId === id) || (item.kind === 'tank-update' && item.tankId === id),
+    (item) =>
+      (item.kind === 'tank-create' && item.localId === id) ||
+      ((item.kind === 'tank-update' || item.kind === 'tank-delete') && item.tankId === id),
   );
   const localOnly = tankItem?.kind === 'tank-create';
 
@@ -190,7 +192,11 @@ export default function TankDetailScreen() {
       {upload?.status === 'failed' && tankItem ? (
         <View style={styles.uploadBox}>
           <Banner
-            message={`This tank couldn't upload: ${upload.error ?? 'unknown error'} Fix it with Edit, then try again.`}
+            message={
+              upload.action === 'delete'
+                ? `Couldn't delete this tank: ${upload.error ?? 'unknown error'}`
+                : `This tank couldn't upload: ${upload.error ?? 'unknown error'} Fix it with Edit, then try again.`
+            }
             onRetry={() => outbox.retry(tankItem.localId)}
           />
           {localOnly ? (

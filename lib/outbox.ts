@@ -50,17 +50,25 @@ const tankUpdateItemSchema = z.object({
   ...common,
 });
 
+const tankDeleteItemSchema = z.object({ kind: z.literal('tank-delete'), tankId: z.string(), ...common });
+
 const outboxItemSchema = z.preprocess(
   // Items saved before tanks could be queued have no `kind`: they are entries.
   (value) =>
     typeof value === 'object' && value !== null && !('kind' in value) ? { ...value, kind: 'entry' } : value,
-  z.discriminatedUnion('kind', [entryItemSchema, tankCreateItemSchema, tankUpdateItemSchema]),
+  z.discriminatedUnion('kind', [
+    entryItemSchema,
+    tankCreateItemSchema,
+    tankUpdateItemSchema,
+    tankDeleteItemSchema,
+  ]),
 );
 
 export type OutboxItem = z.infer<typeof outboxItemSchema>;
 export type EntryItem = z.infer<typeof entryItemSchema>;
 export type TankCreateItem = z.infer<typeof tankCreateItemSchema>;
 export type TankUpdateItem = z.infer<typeof tankUpdateItemSchema>;
+export type TankDeleteItem = z.infer<typeof tankDeleteItemSchema>;
 
 const outboxKey = (userId: string) => userKey(userId, 'outbox');
 
@@ -137,6 +145,31 @@ export function enqueueTankUpdate(userId: string, tankId: string, tank: TankInpu
   const update: TankUpdateItem = { kind: 'tank-update', tankId, tank, ...meta, status: 'pending', error: null };
   save(userId, [...others, update]);
   return update;
+}
+
+/**
+ * Queues deleting a tank. Anything else queued for that tank is dropped, since
+ * the database deletes its entries anyway. A tank that only exists on this
+ * phone is simply discarded (nothing to delete on the server): returns null.
+ */
+export function enqueueTankDelete(userId: string, tankId: string, meta: Meta): TankDeleteItem | null {
+  const items = listOutbox(userId);
+  if (isLocalTank(items, tankId)) {
+    discardLocalTank(userId, tankId);
+    return null;
+  }
+  const others = items.filter((item) => item.kind === 'tank-create' || item.tankId !== tankId);
+  const item: TankDeleteItem = { kind: 'tank-delete', tankId, ...meta, status: 'pending', error: null };
+  save(userId, [...others, item]);
+  return item;
+}
+
+/** Drops queued entries and edits for a tank that was deleted on the server. */
+export function dropQueuedForTank(userId: string, tankId: string): void {
+  save(
+    userId,
+    listOutbox(userId).filter((item) => item.kind === 'tank-create' || item.tankId !== tankId),
+  );
 }
 
 /** True while a tank exists only on this phone (its creation hasn't uploaded yet). */

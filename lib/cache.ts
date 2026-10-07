@@ -102,6 +102,18 @@ export function saveOfflineCopy(
   for (const tank of tanks) entriesCache(userId, tank.id).write(byTank.get(tank.id) ?? []);
 }
 
+/** Drops a deleted tank and its timeline from the saved copy. */
+export function removeTankFromCache(userId: string, tankId: string): void {
+  const cached = tanksCache(userId).read();
+  if (cached) {
+    writeJson(tanksKey(userId), {
+      data: cached.data.filter((tank) => tank.id !== tankId),
+      savedAt: cached.savedAt,
+    });
+  }
+  removeKey(entriesKey(userId, tankId));
+}
+
 /** Removes this user's cached tanks and timelines (on sign out). */
 export function clearCache(userId: string): void {
   const tanks = tanksCache(userId).read();

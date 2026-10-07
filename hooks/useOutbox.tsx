@@ -23,6 +23,7 @@ import {
 } from '@/lib/outbox';
 import {
   createTankOrQueue,
+  deleteTankOrQueue,
   flushOutbox,
   refreshOfflineCopy,
   saveOrQueue,
@@ -47,6 +48,8 @@ type OutboxValue = {
   /** Create a tank now, or on this phone when offline. Returns the new tank's id either way. */
   createTank: (tank: TankInput) => Promise<{ id: string; result: SaveResult }>;
   updateTank: (tankId: string, tank: TankInput) => Promise<SaveResult>;
+  /** Delete a tank (and its entries) now, or on this phone when offline. */
+  deleteTank: (tankId: string) => Promise<SaveResult>;
   uploadNow: () => void;
   retry: (localId: string) => void;
   discard: (localId: string) => void;
@@ -159,6 +162,15 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
     [userId, reload, upload],
   );
 
+  const deleteTank = useCallback(
+    async (tankId: string): Promise<SaveResult> => {
+      const result = await deleteTankOrQueue(userId, tankId, await mustQueue(null));
+      reload();
+      return result;
+    },
+    [userId, reload, mustQueue],
+  );
+
   const discard = useCallback(
     (localId: string) => {
       removeFromOutbox(userId, localId);
@@ -186,12 +198,13 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
       saveEntry,
       createTank,
       updateTank,
+      deleteTank,
       uploadNow: () => void upload(),
       retry,
       discard,
       discardTank,
     }),
-    [items, uploading, lastError, uploadedCount, saveEntry, createTank, updateTank, upload, retry, discard, discardTank],
+    [items, uploading, lastError, uploadedCount, saveEntry, createTank, updateTank, deleteTank, upload, retry, discard, discardTank],
   );
 
   return <OutboxContext.Provider value={value}>{children}</OutboxContext.Provider>;

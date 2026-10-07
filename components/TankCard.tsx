@@ -51,7 +51,7 @@ export function TankCard({ tank, onPress }: Props) {
       {tank.upload ? (
         <AppText variant="label" style={{ color: failed ? colors.danger : colors.warningText }}>
           {failed
-            ? `Couldn't upload: ${tank.upload.error ?? 'unknown error'}`
+            ? `${tank.upload.action === 'delete' ? "Couldn't delete" : "Couldn't upload"}: ${tank.upload.error ?? 'unknown error'}`
             : 'Saved on this phone · waiting to upload'}
         </AppText>
       ) : null}

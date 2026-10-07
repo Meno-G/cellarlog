@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, type TextInput } from 'react-native';
 
 import { AppError, errorMessage } from '@/lib/errors';
@@ -21,6 +21,8 @@ type Props = {
   submitLabel: string;
   /** Shown while the phone is offline (what happens when you save). */
   offlineMessage?: string;
+  /** Shown at the very end of the form, below the fields (e.g. a delete button). */
+  footerExtra?: ReactNode;
   /** Should throw an AppError on failure; a `field` error is shown under that input. */
   onSubmit: (input: TankInput) => Promise<void>;
 };
@@ -29,7 +31,7 @@ function isFormField(field: string | undefined): field is keyof TankFormValues {
   return TANK_FORM_FIELDS.some((name) => name === field);
 }
 
-export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage }: Props) {
+export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage, footerExtra }: Props) {
   const [values, setValues] = useState<TankFormValues>(initialValues);
   const [errors, setErrors] = useState<TankFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -127,6 +129,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage 
           onSubmitEditing={handleSubmit}
           editable={!submitting}
         />
+        {footerExtra}
       </Screen>
     </KeyboardAvoidingView>
   );

@@ -1,7 +1,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { setStoreForTests, userKey } = require('../.test-build/storage.js');
-const { tanksCache, tankCache, entriesCache, clearCache, saveOfflineCopy } = require('../.test-build/cache.js');
+const { tanksCache, tankCache, entriesCache, clearCache, saveOfflineCopy, removeTankFromCache } = require('../.test-build/cache.js');
 const {
   enqueue,
   listOutbox,
@@ -15,6 +15,8 @@ const { AppError } = require('../.test-build/errors.js');
 const {
   enqueueTankCreate,
   enqueueTankUpdate,
+  enqueueTankDelete,
+  dropQueuedForTank,
   discardLocalTank,
   isLocalTank,
 } = require('../.test-build/outbox.js');
@@ -236,6 +238,53 @@ test('duplicate tank names are caught on the phone (case, spaces, "T12" spelling
   assert.equal(findDuplicateName('T12', list, null)?.id, 't12');
   assert.equal(findDuplicateName('Tank 12', list, 't12'), null, 'renaming a tank to its own name is fine');
   assert.equal(findDuplicateName('Tank 3', list, null), null);
+});
+
+// ---- deleting tanks ---------------------------------------------------------
+test('delete offline: a server tank is queued, and its other queued changes are dropped', () => {
+  enqueue('u1', valid, { localId: 'e12', createdAt: '1' }); // entry for t12
+  enqueueTankUpdate('u1', 't12', { name: 'Tank 12', volumeLiters: 4800, variety: null, vintage: null }, { localId: 'upd', createdAt: '2' });
+  enqueue('u1', { ...valid, tankId: 't2' }, { localId: 'e2', createdAt: '3' });
+  const item = enqueueTankDelete('u1', 't12', { localId: 'del', createdAt: '4' });
+  assert.equal(item.kind, 'tank-delete');
+  assert.deepEqual(listOutbox('u1').map((i) => [i.kind, i.localId]), [['entry', 'e2'], ['tank-delete', 'del']]);
+});
+
+test('delete offline: a tank that never uploaded is just discarded with its entries', () => {
+  enqueueTankCreate('u1', newTank, { localId: 'tank-local', createdAt: '1' });
+  enqueue('u1', { ...valid, tankId: 'tank-local' }, { localId: 'e-local', createdAt: '2' });
+  assert.equal(enqueueTankDelete('u1', 'tank-local', { localId: 'del', createdAt: '3' }), null);
+  assert.equal(listOutbox('u1').length, 0, 'nothing to send to the server');
+});
+
+test('delete online: changes still queued for that tank are dropped', () => {
+  enqueue('u1', valid, { localId: 'e12', createdAt: '1' });
+  enqueue('u1', { ...valid, tankId: 't2' }, { localId: 'e2', createdAt: '2' });
+  dropQueuedForTank('u1', 't12');
+  assert.deepEqual(listOutbox('u1').map((i) => i.localId), ['e2']);
+});
+
+test('overlay: a pending delete hides the tank at once; a failed one shows it, marked', () => {
+  enqueueTankDelete('u1', 't12', { localId: 'del', createdAt: '1' });
+  assert.deepEqual(applyTankChanges([tank12, tank2], listOutbox('u1')).map((t) => t.id), ['t2']);
+  markFailed('u1', 'del', "You don't have access to that.");
+  const t12 = applyTankChanges([tank12, tank2], listOutbox('u1')).find((t) => t.id === 't12');
+  assert.deepEqual([t12.upload.status, t12.upload.action], ['failed', 'delete']);
+});
+
+test('flush: a queued delete is uploaded like any other change', async () => {
+  enqueueTankDelete('u1', 't12', { localId: 'del', createdAt: '1' });
+  const seen = [];
+  await flushQueue('u1', async (item) => { seen.push(`${item.kind}:${item.tankId}`); });
+  assert.deepEqual(seen, ['tank-delete:t12']);
+  assert.equal(listOutbox('u1').length, 0);
+});
+
+test('cache: a deleted tank and its timeline leave the saved copy', () => {
+  saveOfflineCopy('u1', [tank12, tank2], [entry], 200);
+  removeTankFromCache('u1', 't12');
+  assert.deepEqual(tanksCache('u1').read().data.map((t) => t.id), ['t2']);
+  assert.equal(entriesCache('u1', 't12').read(), null);
 });
 
 const UUID_V4 =/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

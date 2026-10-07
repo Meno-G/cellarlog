@@ -77,7 +77,8 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Secrets:** only in `.env` (gitignored). Every variable must be listed in `.env.example`. Anything prefixed `EXPO_PUBLIC_` ends up in the app bundle, so never put private server secrets there.
 - **Scope:** build only what the plan covers. No extra features without asking.
   Build order: (1) setup + navigation, (2) Supabase + auth, (3) tanks CRUD, (4) text entry + review, (5) voice, (6) on-device speech recognition + rule-based parser (replaced the planned n8n integration at the user's request), (7) offline mode: tanks/timelines viewable from the last sync, and new entries queued on the phone, then synced when back online.
-  All 7 steps are built. Added on request: editing and deleting a timeline entry (tap entry → Edit / Delete; delete asks twice). Editing keeps the original note (`raw_text`). Still not included: deleting tanks.
+  All 7 steps are built. Added on request: editing and deleting a timeline entry (tap entry → Edit / Delete; delete asks twice). Editing keeps the original note (`raw_text`).
+  Also added on request: deleting a tank (Edit tank → Delete tank, asked twice, showing how many entries go with it). The database deletes its entries via ON DELETE CASCADE.
 
 ## Offline mode
 
@@ -90,14 +91,18 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - `OutboxProvider` (in `app/(app)/_layout.tsx`) uploads when the connection returns, when the app comes to the foreground, and on "Upload now".
   - Each queued entry carries its own UUID and recording time. The upload sends them as `id` / `created_at`, so retries are idempotent: `23505` means "already uploaded". The timeline also keeps the moment the entry was recorded.
   - Losing the connection or an expired login pauses the upload. Any other error flags only that entry, which the user can retry or delete.
-- **Tanks offline**: the outbox holds three kinds of change, `entry`, `tank-create` and `tank-update` (`lib/outbox.ts`).
+- **Tanks offline**: the outbox holds four kinds of change, `entry`, `tank-create`, `tank-update` and `tank-delete` (`lib/outbox.ts`).
   - A tank created offline gets its database id on the phone, so entries queued for it already point at the right tank. Upload is oldest first: the tank goes before its entries.
   - Entries and edits for a tank that hasn't been created on the server yet *wait*; they are not marked failed.
   - Editing a tank that is still waiting to be created changes the queued tank. A second edit of the same tank replaces the first.
   - `lib/tankOverlay.ts` shows queued tank changes on top of the server or cached list (`useTanks` / `useTank`), and checks duplicate names on the phone (`findDuplicateName`).
   - When `23505` comes back on a tank insert, `tanks_pkey` means "already uploaded" and `tanks_user_name_key` means a real name clash. A clash is marked failed, and the user fixes it with Edit.
   - Old outbox items without `kind` load as entries. Items are parsed one by one, so a bad item can't hide the rest.
-- **Still online-only**: editing or deleting entries that are already uploaded. Deleting tanks isn't supported at all.
+  - **Deleting a tank** (`deleteTankOrQueue`): a tank that never uploaded is discarded with its queued entries.
+    - A server tank is deleted now, or queued as `tank-delete`. Either way, queued changes for it are dropped and it leaves the saved copy (`removeTankFromCache`).
+    - The overlay hides a pending delete at once. A delete that failed for good shows the tank again, marked "Couldn't delete".
+    - `deleteTank` is idempotent: 0 rows means already gone.
+- **Still online-only**: editing or deleting entries that are already uploaded.
 - **Session**: offline with an expired access token, supabase-js reports no session but keeps the login. `useSession` then restores the user from the saved login (`getStoredUser`, `offline: true`), and supabase-js refreshes the token once online.
 - **Sign-out** clears the cache. Queued entries stay and upload at the next sign-in of the same account on that phone, and the sign-out dialog warns about them.
 - All Supabase requests time out after 15 s (`lib/supabase.ts`), so weak signal falls back to cache and outbox instead of hanging.

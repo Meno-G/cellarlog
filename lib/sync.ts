@@ -1,19 +1,24 @@
 // Saving changes when the connection may be gone, uploading the queue later,
 // and keeping the offline copy of tanks and timelines up to date.
-import { saveOfflineCopy } from './cache';
+import { removeTankFromCache, saveOfflineCopy } from './cache';
 import { createEntry, listRecentEntries, TIMELINE_LIMIT } from './entries';
 import type { ValidEntry } from './entryDraft';
 import { toAppError } from './errors';
 import {
+  discardLocalTank,
+  dropQueuedForTank,
   enqueue,
   enqueueTankCreate,
+  enqueueTankDelete,
   enqueueTankUpdate,
   flushQueue,
+  isLocalTank,
+  listOutbox,
   newLocalId,
   type FlushResult,
   type OutboxItem,
 } from './outbox';
-import { createTank, listTanks, updateTank, type TankInput } from './tanks';
+import { createTank, deleteTank, listTanks, updateTank, type TankInput } from './tanks';
 
 export type SaveResult = 'saved' | 'queued';
 export type { FlushResult };
@@ -83,6 +88,31 @@ export function updateTankOrQueue(
 }
 
 /**
+ * Deletes a tank (and, in the database, its entries) now, or queues it.
+ * A tank that only exists on this phone is just discarded with its queued entries.
+ */
+export async function deleteTankOrQueue(
+  userId: string,
+  tankId: string,
+  queueOnly: boolean,
+): Promise<SaveResult> {
+  if (isLocalTank(listOutbox(userId), tankId)) {
+    discardLocalTank(userId, tankId);
+    return 'saved';
+  }
+  const result = await sendOrQueue(
+    queueOnly,
+    () => deleteTank(tankId),
+    () => enqueueTankDelete(userId, tankId, newMeta()),
+  );
+  // Either way it's gone from this phone's saved copy. Changes still queued for it
+  // could never upload (its entries are deleted with it), so they go too.
+  removeTankFromCache(userId, tankId);
+  if (result === 'saved') dropQueuedForTank(userId, tankId);
+  return result;
+}
+
+/**
  * Downloads the tank list and every timeline and saves them on the phone.
  * Two requests, whatever the number of tanks. Throws on failure (offline).
  */
@@ -105,6 +135,9 @@ async function uploadItem(item: OutboxItem): Promise<void> {
       return;
     case 'tank-update':
       await updateTank(item.tankId, item.tank);
+      return;
+    case 'tank-delete':
+      await deleteTank(item.tankId);
       return;
   }
 }
