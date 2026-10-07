@@ -6,6 +6,7 @@
 // this PC instead. The forward resets whenever the cable or adb restarts.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const PACKAGE = 'com.cellarlog.app'; // the development build (see app.config.ts)
@@ -20,6 +21,8 @@ function findAdb() {
     process.env.ANDROID_HOME && join(process.env.ANDROID_HOME, 'platform-tools', exe),
     process.env.ANDROID_SDK_ROOT && join(process.env.ANDROID_SDK_ROOT, 'platform-tools', exe),
     process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, 'Android', 'Sdk', 'platform-tools', exe),
+    // Some terminals (e.g. the one built into the Claude app) don't pass LOCALAPPDATA on.
+    join(homedir(), 'AppData', 'Local', 'Android', 'Sdk', 'platform-tools', exe),
     process.env.HOME && join(process.env.HOME, 'Library', 'Android', 'sdk', 'platform-tools', exe),
     process.env.HOME && join(process.env.HOME, 'Android', 'Sdk', 'platform-tools', exe),
   ].filter(Boolean);
