@@ -52,7 +52,7 @@ Built with Expo (React Native), TypeScript, Expo Router and Supabase.
 
    It connects the phone to Metro over the cable and opens CellarLog. Run it again after
    replugging the phone. It needs Android platform-tools (adb) in
-   `%LOCALAPPDATA%AndroidSdkplatform-tools` or `ANDROID_HOME`.
+   `%LOCALAPPDATA%\Android\Sdk\platform-tools` or `ANDROID_HOME`.
 
 7. **Standalone app for daily use** (no PC needed): `npx eas-cli@latest build --profile preview --platform android`.
    Set the two `EXPO_PUBLIC_SUPABASE_*` values for it first with `npx eas-cli@latest env:set --environment preview`.
