@@ -44,8 +44,18 @@ Built with Expo (React Native), TypeScript, Expo Router and Supabase.
    npx expo start --clear
    ```
 
-   Open **CellarLog** on the phone and connect to the dev server (scan the QR code,
-   or over USB with `adb reverse tcp:8081 tcp:8081` and `exp+cellarlog://expo-development-client/?url=http://127.0.0.1:8081`).
+   With the phone plugged in over USB, in a second terminal:
+
+   ```bash
+   npm run phone
+   ```
+
+   It connects the phone to Metro over the cable and opens CellarLog. Run it again after
+   replugging the phone. It needs Android platform-tools (adb) in
+   `%LOCALAPPDATA%AndroidSdkplatform-tools` or `ANDROID_HOME`.
+
+7. **Standalone app for daily use** (no PC needed): `npx eas-cli@latest build --profile preview --platform android`.
+   Set the two `EXPO_PUBLIC_SUPABASE_*` values for it first with `npx eas-cli@latest env:set --environment preview`.
 
 ## Checks
 

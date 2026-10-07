@@ -9,6 +9,7 @@ Stack: Expo SDK 57 (React Native 0.86), TypeScript (strict), Expo Router, Supaba
 ```bash
 npm install                 # install dependencies
 npx expo start --clear      # dev server (Metro); the CellarLog dev build loads the app from it
+npm run phone               # then: connect the phone over USB (adb reverse) and open the dev build on Metro
 npm test                    # unit tests for lib/ (parser, normaliser, validation, tank matching, offline cache + outbox)
 npm run typecheck           # tsc --noEmit
 npm run lint                # expo lint
@@ -28,6 +29,11 @@ Speech recognition is a native module that Expo Go doesn't include, so CellarLog
 - **Rebuild only after native changes**: adding or removing a package with native code, or editing plugins or permissions in `app.json`.
 - In Expo Go the app still runs; the voice button is replaced by a "needs the CellarLog app build" note (`SPEECH_AVAILABLE` in `hooks/useSpeechToText.ts`).
 - Metro picks up newly installed packages only after a restart (`npx expo start --clear`).
+- **Connecting the phone**: the dev network isolates devices (no LAN, ngrok unreliable), so the phone reaches Metro over USB.
+  - `npm run phone` (`scripts/phone.mjs`) checks Metro and the phone, waits for "Allow USB debugging", runs `adb reverse tcp:8081 tcp:8081`, and reopens `com.cellarlog.app` on `http://127.0.0.1:8081`.
+  - Re-run it after replugging the cable or restarting the PC.
+  - adb is in `%LOCALAPPDATA%\Android\Sdk\platform-tools`, the standard SDK path that Expo CLI's `a` key also uses.
+  - Start Metro **without** `--localhost`: that binds IPv6 only, and adb's forward is IPv4.
 
 ## Preview build (standalone, for the cellar)
 
