@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { newDraftItem, type DraftErrors, type DraftItem, type EntryDraft } from '@/lib/entryDraft';
 import { ENTRY_TYPE_LABELS, ENTRY_TYPES } from '@/lib/entryTypes';
-import { fonts, radius, spacing, touch, useTheme } from '@/theme';
+import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 import { Banner } from './Banner';
@@ -10,6 +10,7 @@ import { Button } from './Button';
 import { ChoiceChips } from './ChoiceChips';
 import { ENTRY_TYPE_ICONS } from './EntryTypeIcon';
 import { TextField } from './TextField';
+import { ValueRowEditor } from './ValueRowEditor';
 
 type TankChoice = { id: string; name: string };
 
@@ -72,67 +73,17 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
       <View style={styles.section}>
         <AppText variant="label">Values</AppText>
         {draft.items.length === 0 ? <AppText muted>No values. Add one if needed.</AppText> : null}
-        {draft.items.map((item, index) => {
-          const error = errors.items?.[item.key];
-          return (
-            <View
-              key={item.key}
-              style={[
-                styles.item,
-                { borderColor: error ? colors.danger : colors.border, backgroundColor: colors.surface },
-              ]}
-            >
-              <View style={styles.itemHeader}>
-                <AppText muted variant="caption">
-                  Value {index + 1}
-                </AppText>
-                <Pressable
-                  onPress={() => removeItem(item.key)}
-                  disabled={disabled}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove value ${index + 1}${item.name ? `, ${item.name}` : ''}`}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.remove, { opacity: pressed ? 0.6 : 1 }]}
-                >
-                  <AppText style={{ color: colors.danger, fontFamily: fonts.bodyBold }}>Remove</AppText>
-                </Pressable>
-              </View>
-              <TextField
-                label="Name"
-                value={item.name}
-                onChangeText={(name) => updateItem(item.key, { name })}
-                placeholder="SO2"
-                editable={!disabled}
-              />
-              <View style={styles.valueRow}>
-                <View style={styles.value}>
-                  <TextField
-                    label="Value"
-                    value={item.value}
-                    onChangeText={(value) => updateItem(item.key, { value })}
-                    placeholder="20"
-                    editable={!disabled}
-                  />
-                </View>
-                <View style={styles.unit}>
-                  <TextField
-                    label="Unit"
-                    value={item.unit}
-                    onChangeText={(unit) => updateItem(item.key, { unit })}
-                    placeholder="g/hL"
-                    autoCapitalize="none"
-                    editable={!disabled}
-                  />
-                </View>
-              </View>
-              {error ? (
-                <AppText variant="caption" style={{ color: colors.danger }}>
-                  {error}
-                </AppText>
-              ) : null}
-            </View>
-          );
-        })}
+        {draft.items.map((item, index) => (
+          <ValueRowEditor
+            key={item.key}
+            item={item}
+            title={`Value ${index + 1}`}
+            onChange={(fields) => updateItem(item.key, fields)}
+            onRemove={() => removeItem(item.key)}
+            error={errors.items?.[item.key]}
+            disabled={disabled}
+          />
+        ))}
         <Button
           variant="secondary"
           title="Add value"
@@ -168,12 +119,6 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
 const styles = StyleSheet.create({
   wrapper: { gap: spacing.lg },
   section: { gap: spacing.sm },
-  item: { borderWidth: 1.5, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  remove: { minHeight: touch.minHeight - 8, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  valueRow: { flexDirection: 'row', gap: spacing.sm },
-  value: { flex: 3 },
-  unit: { flex: 2 },
   note: { minHeight: 96, paddingTop: spacing.sm },
   said: { borderRadius: radius.sm + 2, padding: spacing.md, gap: 2 },
   saidLabel: { fontFamily: fonts.bodyBold, fontSize: 14, letterSpacing: 1 },

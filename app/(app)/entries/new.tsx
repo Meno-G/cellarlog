@@ -2,10 +2,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Linking, Platform, StyleSheet, View } from 'react-native';
 
+import { AnalysisFormView } from '@/components/AnalysisFormView';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { EntryReview } from '@/components/EntryReview';
+import { HeaderTabs, type HeaderTab } from '@/components/HeaderTabs';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { RecordButton } from '@/components/RecordButton';
 import { HeroBand, Screen } from '@/components/Screen';
@@ -15,11 +17,18 @@ import { MAX_LISTEN_MS, useSpeechToText } from '@/hooks/useSpeechToText';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTanks } from '@/hooks/useTanks';
 import {
+  emptyAnalysisForm,
+  validateAnalysisForm,
+  type AnalysisErrors,
+  type AnalysisForm,
+} from '@/lib/analysisForm';
+import {
   draftFromParse,
   manualDraft,
   validateDraft,
   type DraftErrors,
   type EntryDraft,
+  type ValidEntry,
 } from '@/lib/entryDraft';
 import { AppError, errorMessage } from '@/lib/errors';
 import { parseNote } from '@/lib/parser';
@@ -34,6 +43,20 @@ type Review = {
 
 const EXAMPLE = 'Tank 12, added 20 g/hl SO2, temp 22°C';
 
+type Tab = 'note' | 'analysis';
+
+const TABS: readonly HeaderTab<Tab>[] = [
+  { value: 'note', label: 'Speak / note', icon: 'microphone' },
+  { value: 'analysis', label: 'Analysis', icon: 'flask-outline' },
+];
+
+type AnalysisState = {
+  form: AnalysisForm;
+  errors: AnalysisErrors;
+  saveError: string | null;
+  saving: boolean;
+};
+
 export default function NewEntryScreen() {
   const { tankId } = useLocalSearchParams<{ tankId?: string }>();
   const startTankId = tankId ?? null;
@@ -44,6 +67,13 @@ export default function NewEntryScreen() {
   const [text, setText] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
+  const [tab, setTab] = useState<Tab>('note');
+  const [analysis, setAnalysis] = useState<AnalysisState>(() => ({
+    form: emptyAnalysisForm(startTankId),
+    errors: {},
+    saveError: null,
+    saving: false,
+  }));
 
   function openReview(note: string) {
     const tankList = tanks.data ?? [];
@@ -105,6 +135,17 @@ export default function NewEntryScreen() {
     setReview({ draft: manualDraft(text, startTankId), errors: {}, saveError: null, saving: false });
   }
 
+  // Online it's saved straight away; offline it's kept on the phone and
+  // shows on the timeline as "waiting to upload" (either way we go back).
+  async function saveAndLeave(entry: ValidEntry) {
+    await outbox.saveEntry(entry);
+    if (entry.tankId === startTankId) {
+      router.back(); // the tank screen refetches its timeline on focus
+    } else {
+      router.replace({ pathname: '/tanks/[id]', params: { id: entry.tankId } });
+    }
+  }
+
   async function handleSave(current: Review) {
     const result = validateDraft(current.draft, tankList);
     if (!result.ok) {
@@ -113,18 +154,30 @@ export default function NewEntryScreen() {
     }
     setReview({ ...current, errors: {}, saveError: null, saving: true });
     try {
-      // Online it's saved straight away; offline it's kept on the phone and
-      // shows on the timeline as "waiting to upload" (either way we go back).
-      await outbox.saveEntry(result.entry);
-      const savedTankId = result.entry.tankId;
-      if (savedTankId === startTankId) {
-        router.back(); // the tank screen refetches its timeline on focus
-      } else {
-        router.replace({ pathname: '/tanks/[id]', params: { id: savedTankId } });
-      }
+      await saveAndLeave(result.entry);
     } catch (err) {
       const tankError = err instanceof AppError && err.field === 'tank';
       setReview({
+        ...current,
+        saving: false,
+        errors: tankError ? { tank: err.message } : {},
+        saveError: tankError ? null : errorMessage(err),
+      });
+    }
+  }
+
+  async function handleSaveAnalysis(current: AnalysisState) {
+    const result = validateAnalysisForm(current.form, tankList);
+    if (!result.ok) {
+      setAnalysis({ ...current, errors: result.errors, saveError: null });
+      return;
+    }
+    setAnalysis({ ...current, errors: {}, saveError: null, saving: true });
+    try {
+      await saveAndLeave(result.entry);
+    } catch (err) {
+      const tankError = err instanceof AppError && err.field === 'tank';
+      setAnalysis({
         ...current,
         saving: false,
         errors: tankError ? { tank: err.message } : {},
@@ -175,6 +228,56 @@ export default function NewEntryScreen() {
     );
   }
 
+  // Tabs are locked while listening, so a finished recording always lands on its note.
+  const hero = (
+    <HeroBand subtitle={startTank ? `For ${startTank.name}` : undefined}>
+      <HeaderTabs tabs={TABS} selected={tab} onSelect={setTab} disabled={speech.active || analysis.saving} />
+    </HeroBand>
+  );
+
+  // ---- Analysis tab: one field per value ---------------------------------
+  if (tab === 'analysis') {
+    const hasErrors =
+      analysis.errors.tank ||
+      analysis.errors.fields ||
+      analysis.errors.extras ||
+      analysis.errors.note ||
+      analysis.errors.form;
+    return (
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Screen
+          hero={hero}
+          footer={
+            <Button
+              title="Save analysis"
+              icon="check"
+              onPress={() => handleSaveAnalysis(analysis)}
+              loading={analysis.saving}
+            />
+          }
+        >
+          <OfflineBanner message="You're offline. Saving keeps the analysis on this phone; it uploads when you're back online." />
+          {analysis.saveError ? (
+            <Banner message={analysis.saveError} onRetry={() => handleSaveAnalysis(analysis)} />
+          ) : null}
+          {hasErrors ? (
+            <Banner message={analysis.errors.form ?? 'Please fix the highlighted fields.'} />
+          ) : null}
+          <AnalysisFormView
+            form={analysis.form}
+            onChange={(form) => setAnalysis({ ...analysis, form })}
+            tanks={tankList}
+            errors={analysis.errors}
+            disabled={analysis.saving}
+          />
+        </Screen>
+      </KeyboardAvoidingView>
+    );
+  }
+
   // ---- Input step: speak or type ----------------------------------------
   const showDownload =
     Platform.OS === 'android' &&
@@ -187,7 +290,7 @@ export default function NewEntryScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen
-        hero={startTank ? <HeroBand subtitle={`For ${startTank.name}`} /> : null}
+        hero={hero}
         footer={
           <Button
             variant="secondary"

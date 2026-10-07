@@ -12,6 +12,7 @@ const PURE_MODULES = [
   'lib/tankForm.ts',
   'lib/tankMatch.ts',
   'lib/entryDraft.ts',
+  'lib/analysisForm.ts',
   'lib/parser/schema.ts',
   'lib/parser/normalize.ts',
   'lib/parser/rules.ts',

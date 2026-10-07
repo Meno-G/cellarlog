@@ -131,6 +131,12 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **To improve recognition of a new phrasing**, add a case to `tests/normalize.test.cjs` or `tests/parser.test.cjs` first, then adjust `normalize.ts` / `rules.ts`.
 - `lib/entryDraft.ts` turns a parse result into an editable draft, and validates it into a `ValidEntry`. `lib/tankMatch.ts` resolves "tank 12" / "T12" to a tank.
 - Item values that look like numbers ("3,4") are saved as numbers; anything else stays text.
+- **Analysis tab** (New entry → "Analysis", `components/AnalysisFormView.tsx`): one labelled field per analysis, no parser and no review step.
+  - The fields are `ANALYSIS_FIELDS` in `lib/analysisForm.ts`: Free/Total SO2, temperature, pH, TA, VA, alcohol, Brix, residual sugar, density, volume (L/hL).
+  - Item names match the parser's ("TA", "Free SO2"), so typed and spoken values line up.
+  - "Add field" adds a row where the user types name, value and unit (`ValueRowEditor`, shared with the review screen).
+  - Empty fields are skipped; a trailing unit ("13%") is accepted. Saved as `lab_analysis` (or `temperature` if that's the only value).
+  - `raw_text` is just the typed note (may be empty). It saves through the same outbox as notes, so it works offline.
 
 ## Environment variables
 
