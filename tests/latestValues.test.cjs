@@ -49,3 +49,27 @@ test('card readings: temperature, Brix and free SO2 first; text values skipped; 
   assert.deepEqual(cardReadings(latest, 5).map((r) => r.item.name), ['Temperature', 'Brix', 'Free SO2', 'pH']);
   assert.deepEqual(cardReadings(latestValues([entry('lab_analysis', '2026-10-05T08:00:00Z', [v('Colour', 'ruby')])])), []);
 });
+
+const { valueHistory } = require('../.test-build/latestValues.js');
+
+test('history: every reading of a value, oldest first, in the most common unit', () => {
+  const history = valueHistory(
+    [
+      entry('lab_analysis', '2026-10-05T08:00:00Z', [v('Temperature', 18, '°C')]),
+      entry('addition', '2026-10-03T08:00:00Z', [v('SO2', 20, 'g/hL'), v('temperature', 22, '°C')]),
+      entry('temperature', '2026-10-04T08:00:00Z', [v('Temperature', 68, '°F')]),
+      entry('lab_analysis', '2026-10-01T08:00:00Z', [v('Temperature', 'warm')]),
+      entry('note', '2026-10-02T08:00:00Z', [v('Temperature', 24, '°C')]),
+    ],
+    'Temperature',
+  );
+  assert.equal(history.unit, '°C');
+  assert.deepEqual(history.points.map((p) => [p.value, p.createdAt.slice(8, 10)]), [[24, '02'], [22, '03'], [18, '05']]);
+  assert.equal(history.skipped, 2, 'the °F reading and the text one');
+});
+
+test('history: amounts added are not readings', () => {
+  const history = valueHistory([entry('addition', '2026-10-03T08:00:00Z', [v('SO2', 20, 'g/hL')])], 'SO2');
+  assert.deepEqual(history.points, []);
+  assert.equal(history.skipped, 0);
+});

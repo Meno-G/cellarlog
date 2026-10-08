@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { fonts, radius, spacing, touch, useTheme } from '@/theme';
@@ -9,7 +10,11 @@ type Variant = 'primary' | 'secondary' | 'danger';
 
 type Props = {
   title: string;
-  onPress: () => void;
+  /**
+   * When this returns a promise (an async save), further taps are ignored until
+   * it settles: a quick double tap with gloves must not save twice.
+   */
+  onPress: () => void | Promise<unknown>;
   variant?: Variant;
   icon?: IconName;
   loading?: boolean;
@@ -30,6 +35,19 @@ export function Button({
 }: Props) {
   const { colors } = useTheme();
   const inactive = disabled || loading;
+  const running = useRef(false);
+
+  function handlePress() {
+    if (running.current) return;
+    const result = onPress();
+    if (result instanceof Promise) {
+      running.current = true;
+      const release = () => {
+        running.current = false;
+      };
+      result.then(release, release);
+    }
+  }
 
   const background =
     variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : colors.surface;
@@ -39,7 +57,7 @@ export function Button({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={title}

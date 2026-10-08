@@ -1,15 +1,19 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { formatItemValue, formatRelative } from '@/lib/format';
 import type { LatestValue } from '@/lib/latestValues';
-import { fonts, radius, spacing, useTheme } from '@/theme';
+import { fonts, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
-type Props = { values: readonly LatestValue[] };
+type Props = {
+  values: readonly LatestValue[];
+  /** Tapping a numeric value opens its history. */
+  onSelect: (name: string) => void;
+};
 
 /** The newest reading of each value on a tank, with how long ago it was measured. */
-export function LatestValues({ values }: Props) {
+export function LatestValues({ values, onSelect }: Props) {
   const { colors } = useTheme();
   if (values.length === 0) return null;
   return (
@@ -17,16 +21,27 @@ export function LatestValues({ values }: Props) {
       <AppText variant="heading" style={{ color: colors.header }}>
         Latest values
       </AppText>
+      <AppText muted variant="caption">
+        Tap a value to see how it changed.
+      </AppText>
       <View style={styles.tiles}>
         {values.map(({ item, createdAt }) => {
           const value = formatItemValue(item);
           const when = formatRelative(createdAt);
+          // Text values ("deep ruby") have no history to chart.
+          const charted = typeof item.value === 'number';
           return (
-            <View
+            <Pressable
               key={item.name.toLowerCase()}
-              accessible
+              onPress={() => onSelect(item.name)}
+              disabled={!charted}
+              accessibilityRole={charted ? 'button' : undefined}
               accessibilityLabel={`${item.name}: ${value}, ${when}`}
-              style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              accessibilityHint={charted ? 'Shows every reading of this value' : undefined}
+              style={({ pressed }) => [
+                styles.tile,
+                { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+              ]}
             >
               <AppText muted style={styles.name} numberOfLines={1}>
                 {item.name}
@@ -37,7 +52,7 @@ export function LatestValues({ values }: Props) {
               <AppText muted style={styles.when} numberOfLines={1}>
                 {when}
               </AppText>
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -49,6 +64,7 @@ const styles = StyleSheet.create({
   wrapper: { gap: spacing.sm },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tile: {
+    minHeight: touch.minHeight + 16,
     flexGrow: 1,
     flexBasis: '30%',
     borderWidth: 1,

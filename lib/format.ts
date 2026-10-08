@@ -56,3 +56,11 @@ export function formatEntryTime(iso: string, now: Date = new Date()): string {
   const day = date.getFullYear() === now.getFullYear() ? dayMonth : dayMonthYear;
   return `${day.format(date)} ${clock}`;
 }
+
+/** "+1.2°C", "−0.05 g/L", "±0": the change between two readings, rounded like the readings. */
+export function formatChange(delta: number, unit: string | null): string {
+  const rounded = Math.round(delta * 1000) / 1000;
+  if (rounded === 0) return '±0';
+  const sign = rounded > 0 ? '+' : '−';
+  return `${sign}${formatItemValue({ name: '', value: Math.abs(rounded), unit })}`;
+}

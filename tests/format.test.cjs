@@ -23,3 +23,11 @@ test('formatItemValue and formatWine', () => {
   assert.equal(formatWine('Saperavi', 2025), 'Saperavi · 2025');
   assert.equal(formatWine(null, null), null);
 });
+
+test('formatChange: signed, rounded, with the unit like readings', () => {
+  const { formatChange } = require('../.test-build/format.js');
+  assert.equal(formatChange(1.2, '°C'), '+1.2°C');
+  assert.equal(formatChange(-0.05, 'g/L'), '−0.05 g/L');
+  assert.equal(formatChange(0.1 + 0.2 - 0.3, null), '±0');
+  assert.equal(formatChange(3.45 - 3.3, null), '+0.15');
+});

@@ -210,7 +210,10 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
       ) : upload ? (
         <Banner tone="waiting" message="Saved on this phone · this tank uploads when you're back online." />
       ) : null}
-      <LatestValues values={latest} />
+      <LatestValues
+        values={latest}
+        onSelect={(valueName) => router.push({ pathname: '/tanks/[id]/history', params: { id, name: valueName } })}
+      />
       <View style={styles.timelineHeading}>
         <AppText variant="heading" style={{ color: colors.header }}>
           Timeline

@@ -70,6 +70,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **lib/ returns camelCase domain types** (`Tank`, `Entry`), not raw database rows. Mapping happens in `lib/` (`fromRow` / `toRow`).
 - **Errors:** `lib/` functions throw a typed `AppError` (kinds: network, permission, server, invalid_response, auth, validation, config, not_found; optional `field`). Screens show `error.message` (already human-readable) and offer a retry.
 - **Every async UI has loading, error and empty states.**
+- **Buttons:** `Button`'s `onPress` may return a promise; repeat taps are ignored until it settles, so a double tap can't save twice. Pass the async handler (`onPress={handleSave}`) rather than wrapping it in `void`.
 - **Large touch targets:** at least `touch.minHeight` (56 pt) for anything tappable; the record button is `touch.recordButton`. Body text is at least 18 pt. People use the app with wet or gloved hands.
 - **Dark mode:** never hard-code colors in components; use `useTheme().colors`. Add new colors to both palettes in `theme/colors.ts`.
 - **Design: wine-cellar premium.** The mockups are at https://claude.ai/artifact/4aDtWqAJBUweKYw3iju42D.
@@ -148,6 +149,8 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
     - A spoken entry keeps its transcript as `raw_text`.
 - **Tank list**: each card shows up to three latest readings (`cardReadings`: temperature, Brix, density, free SO2…) from the saved timelines plus queued changes (`useTankSummaries`), so it works offline.
   - A search box ("Find a tank") appears from 6 tanks (`searchTanks`: name incl. "t12", grape, vintage; every word must match).
+- **Value history** (`app/(app)/tanks/[id]/history.tsx`, opened by tapping a latest value): every reading of that value with latest / change / lowest / highest and a bar chart (`HistoryChart`, plain Views, no chart library).
+  - `valueHistory` uses the same "what counts as a reading" rule as latest values. It compares only the most common unit; others (°F among °C, text) are counted and mentioned.
 - **Latest values** (tank screen, `lib/latestValues.ts`): the newest reading of each value across the timeline, including entries waiting to upload.
   - Analysis entries count in full.
   - Other entries count only real readings: temperature, pH, Free/Total SO2… A bare "SO2" in an addition is an amount added, and "Volume" in a transfer is volume moved, so they don't count.
@@ -170,4 +173,5 @@ See `.env.example`. After changing `.env`, restart with `npx expo start --clear`
 - `expo-speech-recognition` is loaded with `requireOptionalNativeModule` in `hooks/useSpeechToText.ts`. Only its types are imported, because importing the package directly crashes Expo Go.
 - `@expo/ngrok` is a local devDependency. Expo CLI fails to find a globally installed copy on Windows ("Install @expo/ngrok@^4.1.0 and try again").
 - If `expo start` prints "Networking has been disabled", one request to api.expo.dev failed at startup and the CLI stays offline (no tunnel) for that run. Just restart it.
+- **Held-back patch updates**: `npx expo install --fix` (expo 57.0.27…) makes `expo-modules-core` want `react-native-worklets` 0.10 while reanimated wants 0.13. The lock file then fails `npm ci` on EAS. So expo-doctor's one version warning is expected until Expo fixes the peer range.
 - `react-dom` is pinned to the same version as `react` (19.2.3). `expo-router` pulls in `react-dom` as a peer, and without the pin npm installs a newer one that conflicts with `react`.
