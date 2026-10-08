@@ -49,6 +49,26 @@ export function applyTankChanges(tanks: readonly Tank[], items: readonly OutboxI
 }
 
 /**
+ * Tanks matching what was typed in the search box: name ("t12" finds "Tank 12"),
+ * grape variety or vintage. Every word must match. Empty search: all tanks.
+ */
+export function searchTanks<T extends { name: string; variety: string | null; vintage: number | null }>(
+  tanks: readonly T[],
+  query: string,
+): T[] {
+  const words = query.trim().toLowerCase().split(/s+/).filter((word) => word !== '');
+  if (words.length === 0) return [...tanks];
+  return tanks.filter((tank) => {
+    const haystack = [tank.name, tank.variety ?? '', tank.vintage === null ? '' : String(tank.vintage)]
+      .join(' ')
+      .toLowerCase();
+    return words.every(
+      (word) => haystack.includes(word) || (tankKey(word) !== '' && tankKey(tank.name).startsWith(tankKey(word))),
+    );
+  });
+}
+
+/**
  * Another tank with the same name (ignoring case, spaces and "Tank"/"T" spelling),
  * or null. Catches duplicates offline, before the server's unique index would.
  */

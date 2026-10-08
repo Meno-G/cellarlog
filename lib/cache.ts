@@ -81,6 +81,26 @@ export function entriesCache(userId: string, tankId: string): CacheAdapter<Entry
   };
 }
 
+/** One entry, read from (and written back into) its tank's saved timeline. */
+export function entryCache(userId: string, tankId: string, entryId: string): CacheAdapter<Entry> {
+  const list = entriesCache(userId, tankId);
+  return {
+    read: () => {
+      const cached = list.read();
+      const entry = cached?.data.find((candidate) => candidate.id === entryId);
+      return cached && entry ? { data: entry, savedAt: cached.savedAt } : null;
+    },
+    write: (entry) => {
+      const cached = list.read();
+      if (!cached || entry.tankId !== tankId) return;
+      writeJson(entriesKey(userId, tankId), {
+        data: cached.data.map((candidate) => (candidate.id === entry.id ? entry : candidate)),
+        savedAt: cached.savedAt,
+      });
+    },
+  };
+}
+
 /**
  * Saves the tank list and every tank's timeline at once, from the user's
  * recent entries (newest first), so all of them open offline, not only the
@@ -112,6 +132,16 @@ export function removeTankFromCache(userId: string, tankId: string): void {
     });
   }
   removeKey(entriesKey(userId, tankId));
+}
+
+/** Drops a deleted entry from its tank's saved timeline. */
+export function removeEntryFromCache(userId: string, tankId: string, entryId: string): void {
+  const cached = entriesCache(userId, tankId).read();
+  if (!cached) return;
+  writeJson(entriesKey(userId, tankId), {
+    data: cached.data.filter((entry) => entry.id !== entryId),
+    savedAt: cached.savedAt,
+  });
 }
 
 /** Removes this user's cached tanks and timelines (on sign out). */

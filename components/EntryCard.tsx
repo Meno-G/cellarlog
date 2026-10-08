@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Entry } from '@/lib/entries';
+import type { EntryUpload } from '@/lib/entryOverlay';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { formatEntryTime, formatItemValue } from '@/lib/format';
 import { fonts, radius, spacing, useTheme } from '@/theme';
@@ -14,14 +15,23 @@ type Props = {
   onPress?: () => void;
   /** Dimmed while an action on this entry is running. */
   busy?: boolean;
-  /** Saved on this phone, not uploaded yet. */
-  upload?: { status: 'pending' | 'failed'; error: string | null };
+  /** A change made on this phone (new entry, edit, deletion) that hasn't uploaded yet. */
+  upload?: Pick<EntryUpload, 'status' | 'error' | 'action'>;
 };
+
+function uploadText(upload: NonNullable<Props['upload']>): string {
+  const error = upload.error ?? 'unknown error';
+  if (upload.action === 'delete') return `Couldn't delete: ${error}`;
+  if (upload.status === 'failed') {
+    return upload.action === 'edit' ? `Couldn't upload this edit: ${error}` : `Couldn't upload: ${error}`;
+  }
+  return upload.action === 'edit' ? 'Edited on this phone · waiting to upload' : 'Saved on this phone · waiting to upload';
+}
 
 export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
   const { colors } = useTheme();
   const { items, note } = entry.parsed;
-  const failed = upload?.status === 'failed';
+  const failed = upload?.status === 'failed' || upload?.action === 'delete';
   // Show the original wording only when it adds something beyond the note.
   const showRaw = entry.rawText.trim() !== '' && entry.rawText.trim() !== note?.trim();
   // Lab readings read best as tiles (pH | Brix | TA); other values as name–value rows.
@@ -86,7 +96,7 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
 
         {upload ? (
           <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: failed ? colors.danger : colors.warningText }}>
-            {failed ? `Couldn't upload: ${upload.error ?? 'unknown error'}` : 'Saved on this phone · waiting to upload'}
+            {uploadText(upload)}
           </AppText>
         ) : null}
       </View>

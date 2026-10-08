@@ -10,6 +10,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useEntry } from '@/hooks/useEntries';
+import { useOutbox } from '@/hooks/useOutbox';
 import { useTanks } from '@/hooks/useTanks';
 import {
   analysisFormFromSaved,
@@ -18,14 +19,21 @@ import {
   type AnalysisErrors,
   type AnalysisForm,
 } from '@/lib/analysisForm';
-import { updateEntry, type Entry } from '@/lib/entries';
-import { draftFromSaved, validateDraft, type DraftErrors, type EntryDraft } from '@/lib/entryDraft';
+import type { Entry } from '@/lib/entries';
+import {
+  draftFromSaved,
+  validateDraft,
+  type DraftErrors,
+  type EntryDraft,
+  type ValidEntry,
+} from '@/lib/entryDraft';
 import { AppError, errorMessage } from '@/lib/errors';
 import type { Tank } from '@/lib/tanks';
 
 export default function EditEntryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const entry = useEntry(id);
+  // tankId (from the timeline) lets the entry open offline from the saved timeline.
+  const { id, tankId } = useLocalSearchParams<{ id: string; tankId?: string }>();
+  const entry = useEntry(id, tankId);
   const tanks = useTanks();
 
   if (entry.loading || tanks.loading) {
@@ -60,13 +68,22 @@ export default function EditEntryScreen() {
   );
 }
 
-/** After saving: back to the timeline, or to the other tank's timeline if the entry moved. */
-function leaveAfterSave(entry: Entry, saved: Entry) {
-  if (saved.tankId === entry.tankId) {
-    router.back(); // the timeline refetches on focus
-  } else {
-    router.replace({ pathname: '/tanks/[id]', params: { id: saved.tankId } });
-  }
+const OFFLINE_MESSAGE = "You're offline. Your changes are saved on this phone and upload when you're back online.";
+
+/**
+ * Saves now, or on this phone when offline. Then back to the timeline, or to
+ * the other tank's timeline if the entry moved.
+ */
+function useSaveEdit(entry: Entry) {
+  const outbox = useOutbox();
+  return async (edited: ValidEntry) => {
+    await outbox.updateEntry(entry, edited);
+    if (edited.tankId === entry.tankId) {
+      router.back(); // the timeline refetches on focus
+    } else {
+      router.replace({ pathname: '/tanks/[id]', params: { id: edited.tankId } });
+    }
+  };
 }
 
 function AnalysisEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
@@ -74,6 +91,7 @@ function AnalysisEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
   const [errors, setErrors] = useState<AnalysisErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveEdit = useSaveEdit(entry);
 
   async function handleSave() {
     setSaveError(null);
@@ -85,7 +103,7 @@ function AnalysisEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
     setErrors({});
     setSaving(true);
     try {
-      leaveAfterSave(entry, await updateEntry(entry.id, result.entry));
+      await saveEdit(result.entry);
     } catch (err) {
       if (err instanceof AppError && err.field === 'tank') setErrors({ tank: err.message });
       else setSaveError(errorMessage(err));
@@ -101,7 +119,7 @@ function AnalysisEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen footer={<Button title="Save changes" icon="check" onPress={handleSave} loading={saving} />}>
-        <OfflineBanner message="You're offline. Saving needs internet. Your changes stay here." />
+        <OfflineBanner message={OFFLINE_MESSAGE} />
         {saveError ? <Banner message={saveError} onRetry={handleSave} /> : null}
         {hasErrors ? (
           <Banner message={errors.form ?? 'Please fix the highlighted fields.'} />
@@ -117,6 +135,7 @@ function EntryEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
   const [errors, setErrors] = useState<DraftErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveEdit = useSaveEdit(entry);
 
   async function handleSave() {
     setSaveError(null);
@@ -128,7 +147,7 @@ function EntryEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
     setErrors({});
     setSaving(true);
     try {
-      leaveAfterSave(entry, await updateEntry(entry.id, result.entry));
+      await saveEdit(result.entry);
     } catch (err) {
       if (err instanceof AppError && err.field === 'tank') setErrors({ tank: err.message });
       else setSaveError(errorMessage(err));
@@ -144,7 +163,7 @@ function EntryEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Screen footer={<Button title="Save changes" onPress={handleSave} loading={saving} />}>
-        <OfflineBanner message="You're offline. Saving needs internet. Your changes stay here." />
+        <OfflineBanner message={OFFLINE_MESSAGE} />
         {saveError ? <Banner message={saveError} onRetry={handleSave} /> : null}
         {hasErrors ? (
           <Banner message={errors.form ?? 'Please fix the highlighted fields.'} />

@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { LastActivity } from '@/hooks/useLastActivity';
+import type { TankSummary } from '@/hooks/useTankSummaries';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
-import { formatLiters, formatRelative, formatWine } from '@/lib/format';
+import { formatItemValue, formatLiters, formatRelative, formatWine } from '@/lib/format';
+import { cardReadings } from '@/lib/latestValues';
 import type { ShownTank } from '@/lib/tankOverlay';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
@@ -10,11 +11,14 @@ import { AppText } from './AppText';
 
 type Props = {
   tank: ShownTank;
-  last?: LastActivity;
+  summary?: TankSummary;
   onPress: () => void;
 };
 
-export function TankCard({ tank, last, onPress }: Props) {
+export function TankCard({ tank, summary, onPress }: Props) {
+  const last = summary?.last;
+  // A few latest readings, so the cellar can be checked without opening each tank.
+  const readings = cardReadings(summary?.latest ?? []);
   const { colors } = useTheme();
   const wine = formatWine(tank.variety, tank.vintage);
   const volume = formatLiters(tank.volumeLiters);
@@ -27,7 +31,14 @@ export function TankCard({ tank, last, onPress }: Props) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[tank.name, wine, volume, lastText, tank.upload ? 'not uploaded yet' : null]
+      accessibilityLabel={[
+        tank.name,
+        wine,
+        volume,
+        ...readings.map(({ item }) => `${item.name} ${formatItemValue(item)}`),
+        lastText,
+        tank.upload ? 'not uploaded yet' : null,
+      ]
         .filter(Boolean)
         .join(', ')}
       style={({ pressed }) => [
@@ -53,6 +64,20 @@ export function TankCard({ tank, last, onPress }: Props) {
         <AppText muted numberOfLines={1} style={styles.wine}>
           {wine ?? 'No wine set'}
         </AppText>
+        {readings.length > 0 ? (
+          <View style={styles.readings}>
+            {readings.map(({ item }) => (
+              <View key={item.name} style={[styles.reading, { backgroundColor: colors.background }]}>
+                <AppText muted style={styles.readingName} numberOfLines={1}>
+                  {item.name}
+                </AppText>
+                <AppText style={styles.readingValue} numberOfLines={1}>
+                  {formatItemValue(item)}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {tank.upload ? (
           <AppText
             style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: failed ? colors.danger : colors.warningText }}
@@ -84,4 +109,15 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
   name: { flexShrink: 1 },
   wine: { fontSize: 17 },
+  readings: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2, marginVertical: spacing.xs },
+  reading: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.xs + 2,
+    borderRadius: radius.sm,
+    paddingVertical: 3,
+    paddingHorizontal: spacing.sm,
+  },
+  readingName: { fontSize: 14, lineHeight: 19 },
+  readingValue: { fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 21 },
 });

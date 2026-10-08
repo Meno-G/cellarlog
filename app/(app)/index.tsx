@@ -12,13 +12,18 @@ import { HeroBand, Screen } from '@/components/Screen';
 import { SyncBanner } from '@/components/SyncBanner';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankCard } from '@/components/TankCard';
-import { useLastActivity } from '@/hooks/useLastActivity';
+import { TextField } from '@/components/TextField';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useUser } from '@/hooks/useSession';
+import { useTankSummaries } from '@/hooks/useTankSummaries';
 import { useTanks } from '@/hooks/useTanks';
 import { signOut } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
+import { searchTanks } from '@/lib/tankOverlay';
 import { spacing, useTheme } from '@/theme';
+
+/** The search box appears once the list is long enough to need it. */
+const SEARCH_FROM = 6;
 
 export default function TanksScreen() {
   const user = useUser();
@@ -26,7 +31,8 @@ export default function TanksScreen() {
   const tanks = useTanks();
   const { colors } = useTheme();
   const [signOutError, setSignOutError] = useState<string | null>(null);
-  const last = useLastActivity((tanks.data ?? []).map((tank) => tank.id));
+  const [query, setQuery] = useState('');
+  const summaries = useTankSummaries((tanks.data ?? []).map((tank) => tank.id));
 
   const tankCount = tanks.data?.length ?? 0;
   const waiting = outbox.pendingCount + outbox.failedCount;
@@ -42,7 +48,7 @@ export default function TanksScreen() {
     const lines = [
       user.email ? `You are signed in as ${user.email}.` : null,
       waiting > 0
-        ? `${waiting === 1 ? '1 entry is' : `${waiting} entries are`} saved on this phone but not uploaded yet. ` +
+        ? `${waiting === 1 ? '1 change is' : `${waiting} changes are`} saved on this phone but not uploaded yet. ` +
           'They stay on this phone and upload the next time you sign in with this account.'
         : null,
     ].filter((line): line is string => line !== null);
@@ -70,14 +76,17 @@ export default function TanksScreen() {
         />
       );
     }
+    const searching = tankCount >= SEARCH_FROM;
+    const shown = searching ? searchTanks(tanks.data, query) : tanks.data;
     return (
       <FlatList
-        data={tanks.data}
+        data={shown}
+        keyboardShouldPersistTaps="handled"
         keyExtractor={(tank) => tank.id}
         renderItem={({ item }) => (
           <TankCard
             tank={item}
-            last={last.get(item.id)}
+            summary={summaries.get(item.id)}
             onPress={() => router.push({ pathname: '/tanks/[id]', params: { id: item.id } })}
           />
         )}
@@ -100,15 +109,37 @@ export default function TanksScreen() {
                 Your cellar
               </AppText>
             ) : null}
+            {searching ? (
+              <TextField
+                label="Find a tank"
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Name, grape or vintage"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+              />
+            ) : null}
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <AppText variant="title">No tanks yet</AppText>
-            <AppText muted style={styles.emptyText}>
-              Add your first tank to start logging additions, temperatures and tastings.
-            </AppText>
-          </View>
+          tankCount > 0 ? (
+            <View style={styles.empty}>
+              <AppText variant="title">No matching tanks</AppText>
+              <AppText muted style={styles.emptyText}>
+                Nothing matches “{query.trim()}”. Try part of the name, the grape or the vintage.
+              </AppText>
+              <Button variant="secondary" title="Show all tanks" onPress={() => setQuery('')} />
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <AppText variant="title">No tanks yet</AppText>
+              <AppText muted style={styles.emptyText}>
+                Add your first tank to start logging additions, temperatures and tastings.
+              </AppText>
+            </View>
+          )
         }
       />
     );
@@ -133,6 +164,6 @@ const styles = StyleSheet.create({
   list: { gap: spacing.md, paddingBottom: spacing.md, flexGrow: 1 },
   header: { gap: spacing.sm },
   heading: { marginTop: spacing.xs, paddingHorizontal: spacing.xs },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
   emptyText: { textAlign: 'center' },
 });

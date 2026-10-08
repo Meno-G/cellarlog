@@ -22,6 +22,7 @@ const PURE_MODULES = [
   'lib/cache.ts',
   'lib/outbox.ts',
   'lib/tankOverlay.ts',
+  'lib/entryOverlay.ts',
   'lib/format.ts',
 ];
 

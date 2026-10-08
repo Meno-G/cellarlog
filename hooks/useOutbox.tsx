@@ -11,10 +11,12 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 
+import type { Entry } from '@/lib/entries';
 import type { ValidEntry } from '@/lib/entryDraft';
 import { errorMessage } from '@/lib/errors';
 import {
   discardLocalTank,
+  hasQueuedEntryChanges,
   isLocalTank,
   listOutbox,
   markPending,
@@ -23,10 +25,12 @@ import {
 } from '@/lib/outbox';
 import {
   createTankOrQueue,
+  deleteEntryOrQueue,
   deleteTankOrQueue,
   flushOutbox,
   refreshOfflineCopy,
   saveOrQueue,
+  updateEntryOrQueue,
   updateTankOrQueue,
   type SaveResult,
 } from '@/lib/sync';
@@ -45,6 +49,10 @@ type OutboxValue = {
   uploadedCount: number;
   /** Save now, or keep on the phone when offline. */
   saveEntry: (entry: ValidEntry) => Promise<SaveResult>;
+  /** Save an edit now, or on this phone when offline (or while earlier changes to it wait). */
+  updateEntry: (saved: Pick<Entry, 'id' | 'createdAt'>, entry: ValidEntry) => Promise<SaveResult>;
+  /** Delete an entry now, or on this phone when offline. */
+  deleteEntry: (saved: Pick<Entry, 'id' | 'tankId'>) => Promise<SaveResult>;
   /** Create a tank now, or on this phone when offline. Returns the new tank's id either way. */
   createTank: (tank: TankInput) => Promise<{ id: string; result: SaveResult }>;
   updateTank: (tankId: string, tank: TankInput) => Promise<SaveResult>;
@@ -134,6 +142,28 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
     [userId, reload, mustQueue, upload],
   );
 
+  const updateEntry = useCallback(
+    async (saved: Pick<Entry, 'id' | 'createdAt'>, entry: ValidEntry): Promise<SaveResult> => {
+      const waiting = hasQueuedEntryChanges(listOutbox(userId), saved.id);
+      const result = await updateEntryOrQueue(userId, saved, entry, waiting || (await mustQueue(entry.tankId)));
+      reload();
+      if (result === 'queued') void upload();
+      return result;
+    },
+    [userId, reload, mustQueue, upload],
+  );
+
+  const deleteEntry = useCallback(
+    async (saved: Pick<Entry, 'id' | 'tankId'>): Promise<SaveResult> => {
+      const waiting = hasQueuedEntryChanges(listOutbox(userId), saved.id);
+      const result = await deleteEntryOrQueue(userId, saved, waiting || (await mustQueue(null)));
+      reload();
+      if (result === 'queued') void upload();
+      return result;
+    },
+    [userId, reload, mustQueue, upload],
+  );
+
   const createTank = useCallback(
     async (tank: TankInput) => {
       const saved = await createTankOrQueue(userId, tank, await mustQueue(null));
@@ -196,6 +226,8 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
       lastError,
       uploadedCount,
       saveEntry,
+      updateEntry,
+      deleteEntry,
       createTank,
       updateTank,
       deleteTank,
@@ -204,7 +236,7 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
       discard,
       discardTank,
     }),
-    [items, uploading, lastError, uploadedCount, saveEntry, createTank, updateTank, deleteTank, upload, retry, discard, discardTank],
+    [items, uploading, lastError, uploadedCount, saveEntry, updateEntry, deleteEntry, createTank, updateTank, deleteTank, upload, retry, discard, discardTank],
   );
 
   return <OutboxContext.Provider value={value}>{children}</OutboxContext.Provider>;

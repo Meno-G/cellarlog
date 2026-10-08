@@ -36,3 +36,16 @@ test('no entries, no values', () => {
   assert.deepEqual(latestValues([]), []);
   assert.deepEqual(latestValues([entry('note', '2026-10-01T08:00:00Z', [])]), []);
 });
+
+const { cardReadings } = require('../.test-build/latestValues.js');
+
+test('card readings: temperature, Brix and free SO2 first; text values skipped; at most 3', () => {
+  const latest = latestValues([
+    entry('lab_analysis', '2026-10-05T08:00:00Z', [
+      v('pH', 3.45), v('Free SO2', 28, 'mg/L'), v('Colour', 'ruby'), v('Brix', 4.2, '°Bx'), v('Temperature', 18, '°C'),
+    ]),
+  ]);
+  assert.deepEqual(cardReadings(latest).map((r) => r.item.name), ['Temperature', 'Brix', 'Free SO2']);
+  assert.deepEqual(cardReadings(latest, 5).map((r) => r.item.name), ['Temperature', 'Brix', 'Free SO2', 'pH']);
+  assert.deepEqual(cardReadings(latestValues([entry('lab_analysis', '2026-10-05T08:00:00Z', [v('Colour', 'ruby')])])), []);
+});

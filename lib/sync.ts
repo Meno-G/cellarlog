@@ -1,17 +1,28 @@
 // Saving changes when the connection may be gone, uploading the queue later,
 // and keeping the offline copy of tanks and timelines up to date.
-import { removeTankFromCache, saveOfflineCopy } from './cache';
-import { createEntry, listRecentEntries, TIMELINE_LIMIT } from './entries';
+import { removeEntryFromCache, removeTankFromCache, saveOfflineCopy } from './cache';
+import {
+  createEntry,
+  deleteEntry,
+  listRecentEntries,
+  TIMELINE_LIMIT,
+  updateEntry,
+  type Entry,
+} from './entries';
 import type { ValidEntry } from './entryDraft';
-import { toAppError } from './errors';
+import { AppError, toAppError } from './errors';
 import {
   discardLocalTank,
+  dropQueuedForEntry,
   dropQueuedForTank,
   enqueue,
+  enqueueEntryDelete,
+  enqueueEntryUpdate,
   enqueueTankCreate,
   enqueueTankDelete,
   enqueueTankUpdate,
   flushQueue,
+  isLocalEntry,
   isLocalTank,
   listOutbox,
   newLocalId,
@@ -57,6 +68,55 @@ export function saveOrQueue(userId: string, entry: ValidEntry, queueOnly: boolea
     () => createEntry(entry, { id: meta.localId, createdAt: meta.createdAt }),
     () => enqueue(userId, entry, meta),
   );
+}
+
+/**
+ * Saves an edit now, or queues it. Queued when offline, and also when changes
+ * to this entry (or its new tank) are still waiting, so they upload in order.
+ */
+export function updateEntryOrQueue(
+  userId: string,
+  saved: Pick<Entry, 'id' | 'createdAt'>,
+  entry: ValidEntry,
+  queueOnly: boolean,
+): Promise<SaveResult> {
+  return sendOrQueue(
+    queueOnly,
+    () => updateEntry(saved.id, entry),
+    () => enqueueEntryUpdate(userId, saved, entry, newMeta()),
+  );
+}
+
+/** An entry that's already gone counts as deleted, so a retried upload is safe. */
+async function deleteEntryIfThere(id: string): Promise<void> {
+  try {
+    await deleteEntry(id);
+  } catch (error) {
+    if (!(error instanceof AppError && error.kind === 'not_found')) throw error;
+  }
+}
+
+/**
+ * Deletes an entry now, or queues it. An entry that never uploaded is just
+ * removed from the queue. Either way it leaves this phone's saved timeline.
+ */
+export async function deleteEntryOrQueue(
+  userId: string,
+  saved: Pick<Entry, 'id' | 'tankId'>,
+  queueOnly: boolean,
+): Promise<SaveResult> {
+  if (isLocalEntry(listOutbox(userId), saved.id)) {
+    enqueueEntryDelete(userId, saved, newMeta());
+    return 'saved';
+  }
+  const result = await sendOrQueue(
+    queueOnly,
+    () => deleteEntryIfThere(saved.id),
+    () => enqueueEntryDelete(userId, saved, newMeta()),
+  );
+  removeEntryFromCache(userId, saved.tankId, saved.id);
+  if (result === 'saved') dropQueuedForEntry(userId, saved.id);
+  return result;
 }
 
 /** Creates a tank now or queues it. The id is chosen here, so it's known either way. */
@@ -129,6 +189,17 @@ async function uploadItem(item: OutboxItem): Promise<void> {
         { tankId: item.tankId, type: item.type, rawText: item.rawText, parsed: item.parsed },
         { id: item.localId, createdAt: item.createdAt },
       );
+      return;
+    case 'entry-update':
+      await updateEntry(item.entryId, {
+        tankId: item.tankId,
+        type: item.type,
+        rawText: item.rawText,
+        parsed: item.parsed,
+      });
+      return;
+    case 'entry-delete':
+      await deleteEntryIfThere(item.entryId);
       return;
     case 'tank-create':
       await createTank(item.tank, { id: item.localId, createdAt: item.createdAt });

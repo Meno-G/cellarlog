@@ -98,7 +98,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - `OutboxProvider` (in `app/(app)/_layout.tsx`) uploads when the connection returns, when the app comes to the foreground, and on "Upload now".
   - Each queued entry carries its own UUID and recording time. The upload sends them as `id` / `created_at`, so retries are idempotent: `23505` means "already uploaded". The timeline also keeps the moment the entry was recorded.
   - Losing the connection or an expired login pauses the upload. Any other error flags only that entry, which the user can retry or delete.
-- **Tanks offline**: the outbox holds four kinds of change, `entry`, `tank-create`, `tank-update` and `tank-delete` (`lib/outbox.ts`).
+- **Tanks offline**: the outbox holds six kinds of change: `entry`, `entry-update`, `entry-delete`, `tank-create`, `tank-update` and `tank-delete` (`lib/outbox.ts`).
   - A tank created offline gets its database id on the phone, so entries queued for it already point at the right tank. Upload is oldest first: the tank goes before its entries.
   - Entries and edits for a tank that hasn't been created on the server yet *wait*; they are not marked failed.
   - Editing a tank that is still waiting to be created changes the queued tank. A second edit of the same tank replaces the first.
@@ -109,7 +109,13 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
     - A server tank is deleted now, or queued as `tank-delete`. Either way, queued changes for it are dropped and it leaves the saved copy (`removeTankFromCache`).
     - The overlay hides a pending delete at once. A delete that failed for good shows the tank again, marked "Couldn't delete".
     - `deleteTank` is idempotent: 0 rows means already gone.
-- **Still online-only**: editing or deleting entries that are already uploaded.
+- **Editing and deleting entries** works offline too (`useOutbox().updateEntry / deleteEntry` → `updateEntryOrQueue` / `deleteEntryOrQueue`).
+  - The outbox has `entry-update` and `entry-delete` items. An edit of an entry that never uploaded changes the queued entry; deleting it just removes it. A second edit replaces the first.
+  - While changes to an entry are still queued, new ones queue behind them (`hasQueuedEntryChanges`), even online, so they upload in order.
+  - `lib/entryOverlay.ts` (`applyEntryChanges`, `applyChangesToEntry`) shows queued changes on the timeline, on tank cards and in the edit screen.
+  - Edit opens offline from the saved timeline (`useEntry(id, tankId)`, `entryCache`).
+  - Deleting an entry that's already gone counts as done (`deleteEntryIfThere`).
+  - Timeline menus differ per state (Android dialogs hold at most 3 buttons): Edit / Delete; a failed edit offers Undo edit / Edit / Try again; a failed delete offers Keep entry / Try again.
 - **Session**: offline with an expired access token, supabase-js reports no session but keeps the login. `useSession` then restores the user from the saved login (`getStoredUser`, `offline: true`), and supabase-js refreshes the token once online.
 - **Sign-out** clears the cache. Queued entries stay and upload at the next sign-in of the same account on that phone, and the sign-out dialog warns about them.
 - All Supabase requests time out after 15 s (`lib/supabase.ts`), so weak signal falls back to cache and outbox instead of hanging.
@@ -140,6 +146,8 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - **Editing**: `lab_analysis` and `temperature` entries open in this form (`editsAsAnalysis`, `analysisFormFromSaved`).
     - A value whose name or unit doesn't fit a field (ppm, °F, a second pH) becomes an added field, so nothing is lost.
     - A spoken entry keeps its transcript as `raw_text`.
+- **Tank list**: each card shows up to three latest readings (`cardReadings`: temperature, Brix, density, free SO2…) from the saved timelines plus queued changes (`useTankSummaries`), so it works offline.
+  - A search box ("Find a tank") appears from 6 tanks (`searchTanks`: name incl. "t12", grape, vintage; every word must match).
 - **Latest values** (tank screen, `lib/latestValues.ts`): the newest reading of each value across the timeline, including entries waiting to upload.
   - Analysis entries count in full.
   - Other entries count only real readings: temperature, pH, Free/Total SO2… A bare "SO2" in an addition is an amount added, and "Volume" in a transfer is volume moved, so they don't count.

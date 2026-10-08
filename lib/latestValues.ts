@@ -51,3 +51,14 @@ export function latestValues(entries: readonly EntryLike[]): LatestValue[] {
     .sort(([a], [b]) => rank(a) - rank(b))
     .map(([, value]) => value);
 }
+
+/** What a tank card shows first: the readings that change day to day in the cellar. */
+const CARD_PRIORITY = ['temperature', 'brix', 'density', 'free so2', 'ph', 'alcohol', 'va', 'ta', 'total so2', 'residual sugar'];
+
+/** Up to `count` of the tank's latest readings for its card, most telling first. Numbers only. */
+export function cardReadings(latest: readonly LatestValue[], count = 3): LatestValue[] {
+  const byName = new Map(latest.map((value) => [value.item.name.trim().toLowerCase(), value]));
+  return CARD_PRIORITY.map((name) => byName.get(name))
+    .filter((value): value is LatestValue => value !== undefined && typeof value.item.value === 'number')
+    .slice(0, count);
+}

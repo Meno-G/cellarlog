@@ -16,27 +16,12 @@ import { SyncBanner } from '@/components/SyncBanner';
 import { useEntries } from '@/hooks/useEntries';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
-import { deleteEntry, type Entry } from '@/lib/entries';
+import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { errorMessage } from '@/lib/errors';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
-import type { EntryItem } from '@/lib/outbox';
 import { spacing, useTheme } from '@/theme';
-
-/** A timeline row: an entry on the server, or one saved on this phone and not uploaded yet. */
-type Row = { entry: Entry; queued: EntryItem | null };
-
-function queuedAsEntry(item: EntryItem): Entry {
-  return {
-    id: item.localId,
-    tankId: item.tankId,
-    type: item.type,
-    rawText: item.rawText,
-    parsed: item.parsed,
-    createdAt: item.createdAt,
-  };
-}
 
 export default function TankDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,60 +32,81 @@ export default function TankDetailScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  function entryLabel(entry: Entry): string {
+  function entryLabel(entry: ShownEntry): string {
     return `${ENTRY_TYPE_LABELS[entry.type]} · ${formatEntryTime(entry.createdAt)}`;
   }
 
-  function openEntryActions(entry: Entry) {
-    Alert.alert(entryLabel(entry), undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => confirmDelete(entry) },
-      {
-        text: 'Edit',
-        onPress: () => router.push({ pathname: '/entries/[id]/edit', params: { id: entry.id } }),
-      },
-    ]);
+  function editEntry(entry: ShownEntry) {
+    router.push({ pathname: '/entries/[id]/edit', params: { id: entry.id, tankId: entry.tankId } });
   }
 
-  function openQueuedActions(item: EntryItem) {
-    const label = entryLabel(queuedAsEntry(item));
-    const message =
-      item.status === 'failed'
-        ? `Couldn't upload: ${item.error ?? 'unknown error'}`
-        : 'Saved on this phone. It uploads automatically when you are online.';
-    Alert.alert(label, message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert('Delete this entry?', `${label}\n\nIt was never uploaded, so it will be gone for good.`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => outbox.discard(item.localId) },
-          ]),
-      },
-      { text: 'Try again', onPress: () => outbox.retry(item.localId) },
-    ]);
+  /** Android shows at most three buttons in a dialog, so each state gets its own short menu. */
+  function openEntryActions(entry: ShownEntry) {
+    const label = entryLabel(entry);
+    const upload = entry.upload;
+    const edit = { text: 'Edit', onPress: () => editEntry(entry) };
+    const remove = { text: 'Delete', style: 'destructive' as const, onPress: () => confirmDelete(entry) };
+    const cancel = { text: 'Cancel', style: 'cancel' as const };
+    const tryAgain = upload ? { text: 'Try again', onPress: () => outbox.retry(upload.localId) } : null;
+
+    if (!upload) {
+      Alert.alert(label, undefined, [cancel, remove, edit]);
+    } else if (upload.action === 'delete') {
+      // Only a failed delete is still shown.
+      Alert.alert(label, `Couldn't delete: ${upload.error ?? 'unknown error'}`, [
+        cancel,
+        { text: 'Keep entry', onPress: () => outbox.discard(upload.localId) },
+        ...(tryAgain ? [tryAgain] : []),
+      ]);
+    } else if (upload.status === 'pending') {
+      const message =
+        upload.action === 'edit'
+          ? 'Edited on this phone. The change uploads automatically when you are online.'
+          : 'Saved on this phone. It uploads automatically when you are online.';
+      Alert.alert(label, message, [cancel, remove, edit]);
+    } else if (upload.action === 'edit') {
+      Alert.alert(label, `Couldn't upload this edit: ${upload.error ?? 'unknown error'}`, [
+        { text: 'Undo edit', style: 'destructive', onPress: () => outbox.discard(upload.localId) },
+        edit,
+        ...(tryAgain ? [tryAgain] : []),
+      ], { cancelable: true });
+    } else {
+      Alert.alert(label, `Couldn't upload: ${upload.error ?? 'unknown error'}`, [
+        remove,
+        edit,
+        ...(tryAgain ? [tryAgain] : []),
+      ], { cancelable: true });
+    }
   }
 
-  function confirmDelete(entry: Entry) {
-    Alert.alert('Delete this entry?', `${entryLabel(entry)}\n\nThis can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          setActionError(null);
-          setDeletingId(entry.id);
-          deleteEntry(entry.id)
-            .catch((err: unknown) => setActionError(errorMessage(err)))
-            .finally(() => {
-              setDeletingId(null);
-              entries.refresh();
-            });
+  function confirmDelete(entry: ShownEntry) {
+    const label = entryLabel(entry);
+    const neverUploaded = entry.upload?.action === 'create';
+    Alert.alert(
+      'Delete this entry?',
+      `${label}
+
+${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This can't be undone."}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setActionError(null);
+            setDeletingId(entry.id);
+            // Online it's deleted now; offline it disappears at once and the deletion uploads later.
+            outbox
+              .deleteEntry(entry)
+              .catch((err: unknown) => setActionError(errorMessage(err)))
+              .finally(() => {
+                setDeletingId(null);
+                entries.refresh();
+              });
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   if (tank.loading) {
@@ -151,19 +157,12 @@ export default function TankDetailScreen() {
     );
   }
 
-  // Newest first: entries waiting to upload sit in the timeline at the time they were recorded.
-  const saved = entries.data ?? [];
-  const savedIds = new Set(saved.map((entry) => entry.id));
-  const queued = outbox.items.filter(
-    (item): item is EntryItem => item.kind === 'entry' && item.tankId === id && !savedIds.has(item.localId),
-  );
-  const rows: Row[] = [
-    ...queued.map((item) => ({ entry: queuedAsEntry(item), queued: item })),
-    ...saved.map((entry) => ({ entry, queued: null })),
-  ].sort((a, b) => b.entry.createdAt.localeCompare(a.entry.createdAt));
+  // Newest first, with changes made on this phone applied: new entries sit at the time
+  // they were recorded, edits show their new values, deleted entries are gone.
+  const rows = applyEntryChanges(entries.data ?? [], outbox.items, id);
 
   // Includes entries still waiting to upload, so a reading shows up as soon as it's saved.
-  const latest = latestValues(rows.map((row) => row.entry));
+  const latest = latestValues(rows);
 
   function refreshAll() {
     tank.refresh();
@@ -260,22 +259,15 @@ export default function TankDetailScreen() {
       />
       <FlatList
         data={rows}
-        keyExtractor={(row) => row.entry.id}
-        renderItem={({ item }) =>
-          item.queued ? (
-            <EntryCard
-              entry={item.entry}
-              upload={{ status: item.queued.status, error: item.queued.error }}
-              onPress={() => item.queued && openQueuedActions(item.queued)}
-            />
-          ) : (
-            <EntryCard
-              entry={item.entry}
-              onPress={() => openEntryActions(item.entry)}
-              busy={item.entry.id === deletingId}
-            />
-          )
-        }
+        keyExtractor={(entry) => entry.id}
+        renderItem={({ item }) => (
+          <EntryCard
+            entry={item}
+            upload={item.upload ?? undefined}
+            onPress={() => openEntryActions(item)}
+            busy={item.id === deletingId}
+          />
+        )}
         ListHeaderComponent={header}
         ListEmptyComponent={renderTimelineState()}
         contentContainerStyle={styles.list}

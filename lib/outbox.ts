@@ -1,5 +1,5 @@
-// Changes made on the phone while offline, waiting to be uploaded: new entries,
-// new tanks and tank edits. Oldest first, so a tank created offline always
+// Changes made on the phone while offline, waiting to be uploaded: new, edited
+// and deleted entries, and new, edited and deleted tanks. Oldest first, so a tank created offline always
 // uploads before the entries recorded for it.
 // Pure apart from the key-value store (see ./storage.ts); uploading is in ./sync.ts.
 import { z } from 'zod';
@@ -41,6 +41,26 @@ const entryItemSchema = z.object({
   ...common,
 });
 
+/** An edit of an entry that is already on the server. `tankId` is the tank it belongs to after the edit. */
+const entryUpdateItemSchema = z.object({
+  kind: z.literal('entry-update'),
+  entryId: z.string(),
+  /** When the entry itself was recorded (its place in the timeline). */
+  entryCreatedAt: z.string(),
+  tankId: z.string(),
+  type: z.enum(ENTRY_TYPES),
+  rawText: z.string(),
+  parsed: parsedEntrySchema,
+  ...common,
+});
+
+const entryDeleteItemSchema = z.object({
+  kind: z.literal('entry-delete'),
+  entryId: z.string(),
+  tankId: z.string(),
+  ...common,
+});
+
 const tankCreateItemSchema = z.object({ kind: z.literal('tank-create'), tank: tankInputSchema, ...common });
 
 const tankUpdateItemSchema = z.object({
@@ -58,6 +78,8 @@ const outboxItemSchema = z.preprocess(
     typeof value === 'object' && value !== null && !('kind' in value) ? { ...value, kind: 'entry' } : value,
   z.discriminatedUnion('kind', [
     entryItemSchema,
+    entryUpdateItemSchema,
+    entryDeleteItemSchema,
     tankCreateItemSchema,
     tankUpdateItemSchema,
     tankDeleteItemSchema,
@@ -66,6 +88,8 @@ const outboxItemSchema = z.preprocess(
 
 export type OutboxItem = z.infer<typeof outboxItemSchema>;
 export type EntryItem = z.infer<typeof entryItemSchema>;
+export type EntryUpdateItem = z.infer<typeof entryUpdateItemSchema>;
+export type EntryDeleteItem = z.infer<typeof entryDeleteItemSchema>;
 export type TankCreateItem = z.infer<typeof tankCreateItemSchema>;
 export type TankUpdateItem = z.infer<typeof tankUpdateItemSchema>;
 export type TankDeleteItem = z.infer<typeof tankDeleteItemSchema>;
@@ -118,6 +142,91 @@ export function enqueue(userId: string, entry: ValidEntry, meta: Meta): EntryIte
   };
   append(userId, item);
   return item;
+}
+
+/** True while an entry exists only on this phone (it hasn't uploaded yet). */
+export function isLocalEntry(items: readonly OutboxItem[], entryId: string): boolean {
+  return items.some((item) => item.kind === 'entry' && item.localId === entryId);
+}
+
+/** True when changes to this entry are still queued: new changes must wait behind them. */
+export function hasQueuedEntryChanges(items: readonly OutboxItem[], entryId: string): boolean {
+  return items.some(
+    (item) =>
+      (item.kind === 'entry' && item.localId === entryId) ||
+      ((item.kind === 'entry-update' || item.kind === 'entry-delete') && item.entryId === entryId),
+  );
+}
+
+/**
+ * Queues an edit. An entry that hasn't uploaded yet just gets its queued values
+ * replaced (it keeps its id and recording time); a second edit replaces the first.
+ */
+export function enqueueEntryUpdate(
+  userId: string,
+  saved: { id: string; createdAt: string },
+  entry: ValidEntry,
+  meta: Meta,
+): OutboxItem {
+  const items = listOutbox(userId);
+  const fields = { tankId: entry.tankId, type: entry.type, rawText: entry.rawText, parsed: entry.parsed };
+  const create = items.find((item): item is EntryItem => item.kind === 'entry' && item.localId === saved.id);
+  if (create) {
+    const merged: EntryItem = { ...create, ...fields, status: 'pending', error: null };
+    save(userId, items.map((item) => (item === create ? merged : item)));
+    return merged;
+  }
+  const others = items.filter((item) => !(item.kind === 'entry-update' && item.entryId === saved.id));
+  const update: EntryUpdateItem = {
+    kind: 'entry-update',
+    entryId: saved.id,
+    entryCreatedAt: saved.createdAt,
+    ...fields,
+    ...meta,
+    status: 'pending',
+    error: null,
+  };
+  save(userId, [...others, update]);
+  return update;
+}
+
+/**
+ * Queues deleting an entry; queued edits of it are dropped. An entry that never
+ * uploaded is simply removed from the queue (nothing to delete on the server): returns null.
+ */
+export function enqueueEntryDelete(
+  userId: string,
+  saved: { id: string; tankId: string },
+  meta: Meta,
+): EntryDeleteItem | null {
+  const items = listOutbox(userId);
+  if (isLocalEntry(items, saved.id)) {
+    save(userId, items.filter((item) => !(item.kind === 'entry' && item.localId === saved.id)));
+    return null;
+  }
+  const others = items.filter(
+    (item) => !((item.kind === 'entry-update' || item.kind === 'entry-delete') && item.entryId === saved.id),
+  );
+  const item: EntryDeleteItem = {
+    kind: 'entry-delete',
+    entryId: saved.id,
+    tankId: saved.tankId,
+    ...meta,
+    status: 'pending',
+    error: null,
+  };
+  save(userId, [...others, item]);
+  return item;
+}
+
+/** Drops queued edits of an entry (after it was deleted directly on the server). */
+export function dropQueuedForEntry(userId: string, entryId: string): void {
+  save(
+    userId,
+    listOutbox(userId).filter(
+      (item) => !((item.kind === 'entry-update' || item.kind === 'entry-delete') && item.entryId === entryId),
+    ),
+  );
 }
 
 /** `meta.localId` becomes the new tank's id. */

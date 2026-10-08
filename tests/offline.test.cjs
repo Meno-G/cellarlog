@@ -311,3 +311,21 @@ test('newLocalId: the fallback for phones without crypto.randomUUID', (t) => {
     Object.defineProperty(globalThis, 'crypto', original);
   }
 });
+
+const { searchTanks } = require('../.test-build/tankOverlay.js');
+
+test('search: by name (also "t12"), variety or vintage; every word must match', () => {
+  const tanks = [
+    { name: 'Tank 12', variety: 'Saperavi', vintage: 2025 },
+    { name: 'Tank 2', variety: 'Rkatsiteli', vintage: 2024 },
+    { name: 'Barrique 3', variety: 'Saperavi', vintage: 2024 },
+  ];
+  const names = (query) => searchTanks(tanks, query).map((t) => t.name);
+  assert.deepEqual(names(''), ['Tank 12', 'Tank 2', 'Barrique 3']);
+  assert.deepEqual(names('  '), ['Tank 12', 'Tank 2', 'Barrique 3']);
+  assert.deepEqual(names('t12'), ['Tank 12']);
+  assert.deepEqual(names('saperavi'), ['Tank 12', 'Barrique 3']);
+  assert.deepEqual(names('saperavi 2024'), ['Barrique 3']);
+  assert.deepEqual(names('barr'), ['Barrique 3']);
+  assert.deepEqual(names('merlot'), []);
+});
