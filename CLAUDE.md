@@ -137,6 +137,12 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - "Add field" adds a row where the user types name, value and unit (`ValueRowEditor`, shared with the review screen).
   - Empty fields are skipped; a trailing unit ("13%") is accepted. Saved as `lab_analysis` (or `temperature` if that's the only value).
   - `raw_text` is just the typed note (may be empty). It saves through the same outbox as notes, so it works offline.
+  - **Editing**: `lab_analysis` and `temperature` entries open in this form (`editsAsAnalysis`, `analysisFormFromSaved`).
+    - A value whose name or unit doesn't fit a field (ppm, °F, a second pH) becomes an added field, so nothing is lost.
+    - A spoken entry keeps its transcript as `raw_text`.
+- **Latest values** (tank screen, `lib/latestValues.ts`): the newest reading of each value across the timeline, including entries waiting to upload.
+  - Analysis entries count in full.
+  - Other entries count only real readings: temperature, pH, Free/Total SO2… A bare "SO2" in an addition is an amount added, and "Volume" in a transfer is volume moved, so they don't count.
 
 ## Environment variables
 

@@ -108,3 +108,64 @@ test('errors: tank, non-numbers, out of range, half-filled added field, nothing 
   assert.ok(!gone.ok);
   assert.ok(gone.errors.tank);
 });
+
+const { analysisFormFromSaved, editsAsAnalysis } = require('../.test-build/analysisForm.js');
+
+const savedAnalysis = (items, rawText = '', note = null, type = 'lab_analysis') => ({
+  tankId: 't12',
+  type,
+  rawText,
+  parsed: { tank_name: 'Tank 12', type, items, note },
+});
+
+test('editsAsAnalysis: lab analyses and temperatures only', () => {
+  assert.ok(editsAsAnalysis('lab_analysis'));
+  assert.ok(editsAsAnalysis('temperature'));
+  assert.ok(!editsAsAnalysis('addition'));
+  assert.ok(!editsAsAnalysis('note'));
+});
+
+test('a typed analysis opens in its fields and saves back unchanged', () => {
+  const items = [
+    { name: 'Free SO2', value: 28, unit: 'mg/L' },
+    { name: 'TA', value: 6.5, unit: 'g/L' },
+    { name: 'Volume', value: 48, unit: 'hL' },
+    { name: 'Malic acid', value: 0.8, unit: 'g/L' },
+  ];
+  const saved = savedAnalysis(items, 'after racking', 'after racking');
+  const opened = analysisFormFromSaved(saved);
+  assert.deepEqual(opened.values, { freeSo2: '28', ta: '6.5', volume: '48' });
+  assert.deepEqual(opened.units, { volume: 'hL' });
+  assert.deepEqual(opened.extras.map(({ name, value, unit }) => [name, value, unit]), [['Malic acid', '0.8', 'g/L']]);
+  assert.equal(opened.rawText, null, 'typed: raw_text follows the note');
+
+  const result = validateAnalysisForm(opened, tanks);
+  assert.ok(result.ok);
+  assert.deepEqual(result.entry, { tankId: 't12', type: 'lab_analysis', rawText: 'after racking', parsed: saved.parsed });
+
+  const edited = validateAnalysisForm({ ...opened, note: 'after racking, cold' }, tanks);
+  assert.equal(edited.entry.rawText, 'after racking, cold');
+});
+
+test('values that do not fit a field become added fields, and what was said is kept', () => {
+  const saved = savedAnalysis(
+    [
+      { name: 'Free SO2', value: 30, unit: 'ppm' },
+      { name: 'pH', value: 3.4, unit: null },
+      { name: 'pH', value: 3.5, unit: null },
+      { name: 'SO2', value: 22, unit: null },
+      { name: 'Temperature', value: 64, unit: '°F' },
+    ],
+    'tank 12 free so2 30 ppm ph 3.4 ph 3.5 so2 22 temp 64 f',
+  );
+  const opened = analysisFormFromSaved(saved);
+  assert.deepEqual(opened.values, { ph: '3.4' });
+  assert.deepEqual(
+    opened.extras.map(({ name, value, unit }) => [name, value, unit]),
+    [['Free SO2', '30', 'ppm'], ['pH', '3.5', ''], ['SO2', '22', ''], ['Temperature', '64', '°F']],
+  );
+  const result = validateAnalysisForm(opened, tanks);
+  assert.ok(result.ok);
+  assert.equal(result.entry.rawText, saved.rawText, 'the spoken note is kept');
+  assert.equal(result.entry.parsed.items.length, 5, 'nothing lost');
+});

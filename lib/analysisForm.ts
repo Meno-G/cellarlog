@@ -1,6 +1,6 @@
 // Pure logic for the "Analysis" tab: a fixed list of labelled fields plus
 // fields the user adds by name. It saves the same shape as a parsed note.
-import type { DraftItem, ValidEntry } from './entryDraft';
+import { newDraftItem, type DraftItem, type ValidEntry } from './entryDraft';
 import type { EntryType } from './entryTypes';
 import { parseNumber } from './numbers';
 import type { ParsedItem } from './parser/schema';
@@ -56,6 +56,11 @@ export type AnalysisForm = {
   /** Fields added by the user: name, value, unit typed in. */
   extras: DraftItem[];
   note: string;
+  /**
+   * Editing a spoken entry keeps what was said as raw_text. Null: raw_text
+   * follows the note (new analyses, and analyses typed in this form).
+   */
+  rawText: string | null;
 };
 
 export type AnalysisErrors = {
@@ -73,7 +78,46 @@ const MAX_UNIT = 30;
 const MAX_NOTE = 5000;
 
 export function emptyAnalysisForm(tankId: string | null): AnalysisForm {
-  return { tankId, values: {}, units: {}, extras: [], note: '' };
+  return { tankId, values: {}, units: {}, extras: [], note: '', rawText: null };
+}
+
+/** Lab analyses and temperature readings are edited in this form; other entries in the review form. */
+export function editsAsAnalysis(type: EntryType): boolean {
+  return type === 'lab_analysis' || type === 'temperature';
+}
+
+function fitsField(field: AnalysisField, item: ParsedItem): boolean {
+  if (typeof item.value !== 'number') return false;
+  return item.unit === null ? field.units.length === 0 : field.units.includes(item.unit);
+}
+
+/**
+ * Opens a saved entry in the form. Each value goes into its field when the
+ * name and unit fit; anything else (another unit, a second reading, a custom
+ * value) becomes an added field, so saving without changes loses nothing.
+ */
+export function analysisFormFromSaved(saved: {
+  tankId: string;
+  rawText: string;
+  parsed: { items: readonly ParsedItem[]; note: string | null };
+}): AnalysisForm {
+  const form = emptyAnalysisForm(saved.tankId);
+  for (const item of saved.parsed.items) {
+    const field = ANALYSIS_FIELDS.find((candidate) => candidate.name.toLowerCase() === item.name.toLowerCase());
+    if (field && form.values[field.id] === undefined && fitsField(field, item)) {
+      form.values[field.id] = String(item.value);
+      if (field.units.length > 1 && item.unit !== null) form.units[field.id] = item.unit;
+    } else {
+      form.extras.push(
+        newDraftItem({ name: item.name, value: String(item.value), unit: item.unit ?? '' }),
+      );
+    }
+  }
+  const note = saved.parsed.note ?? '';
+  form.note = note;
+  // A typed analysis has its note as raw_text; anything else was spoken and is kept as it was.
+  form.rawText = saved.rawText.trim() === note.trim() ? null : saved.rawText;
+  return form;
 }
 
 export function unitFor(field: AnalysisField, form: AnalysisForm): string | null {
@@ -161,8 +205,8 @@ export function validateAnalysisForm(
     entry: {
       tankId: tank.id,
       type,
-      // Nothing was spoken: raw_text keeps only what was typed as the note.
-      rawText: note,
+      // Nothing was spoken: raw_text is just the typed note (unless editing a spoken entry).
+      rawText: form.rawText ?? note,
       parsed: { tank_name: tank.name, type, items, note: note === '' ? null : note },
     },
   };

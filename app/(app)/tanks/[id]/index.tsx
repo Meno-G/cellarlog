@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { CachedNote } from '@/components/CachedNote';
 import { EntryCard } from '@/components/EntryCard';
 import { HeaderButton } from '@/components/HeaderButton';
+import { LatestValues } from '@/components/LatestValues';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
@@ -19,6 +20,7 @@ import { deleteEntry, type Entry } from '@/lib/entries';
 import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { errorMessage } from '@/lib/errors';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
+import { latestValues } from '@/lib/latestValues';
 import type { EntryItem } from '@/lib/outbox';
 import { spacing, useTheme } from '@/theme';
 
@@ -160,6 +162,9 @@ export default function TankDetailScreen() {
     ...saved.map((entry) => ({ entry, queued: null })),
   ].sort((a, b) => b.entry.createdAt.localeCompare(a.entry.createdAt));
 
+  // Includes entries still waiting to upload, so a reading shows up as soon as it's saved.
+  const latest = latestValues(rows.map((row) => row.entry));
+
   function refreshAll() {
     tank.refresh();
     entries.refresh();
@@ -206,6 +211,7 @@ export default function TankDetailScreen() {
       ) : upload ? (
         <Banner tone="waiting" message="Saved on this phone · this tank uploads when you're back online." />
       ) : null}
+      <LatestValues values={latest} />
       <View style={styles.timelineHeading}>
         <AppText variant="heading" style={{ color: colors.header }}>
           Timeline
