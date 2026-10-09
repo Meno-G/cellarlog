@@ -1,0 +1,12 @@
+# Vercel builds the web version from source (vercel.json). Upload only what that needs.
+# The Supabase URL and publishable key come from the Vercel project's environment variables.
+.env
+.env.*
+!.env.example
+node_modules
+dist
+android
+ios
+.expo
+.test-build
+*.apk

@@ -47,7 +47,7 @@
     "test": "node scripts/test.mjs",
     "phone": "node scripts/phone.mjs",
     "build:web": "expo export -p web",
-    "deploy:web": "expo export -p web && npx eas-cli@latest deploy --prod"
+    "deploy:web": "npx vercel@latest deploy --prod"
   },
   "private": true
 }

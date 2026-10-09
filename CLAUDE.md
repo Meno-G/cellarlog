@@ -44,11 +44,14 @@ Speech recognition is a native module that Expo Go doesn't include, so CellarLog
 
 ## Web version (browser)
 
-The same app runs in a browser (`react-native-web`, `web.output` "single" = single-page app), hosted on **EAS Hosting**.
+The same app runs in a browser (`react-native-web`, `web.output` "single" = single-page app). It's live at **https://cellarlog.vercel.app**, the Vercel project `cellarlog` on account menognishviligiorgi-7173.
 - `npm run build:web` exports to `dist/` (gitignored).
   - Test the real build locally with `npx expo serve --port 8090` (`.claude/launch.json` "web-build").
-- `npm run deploy:web` exports and deploys to production.
-  - The `EXPO_PUBLIC_*` values from `.env` are baked into the bundle; they're public by design.
+- `npm run deploy:web` (`vercel deploy --prod`) uploads the source and Vercel builds it with `vercel.json` (`expo export -p web` → `dist`, every path rewritten to `/`).
+  - `.vercelignore` keeps `.env`, `node_modules` and the native folders out of the upload.
+- **Environment:** the Supabase URL and publishable key come from the Vercel project's environment variables (Production). They're public by design.
+  - Change them with `npx vercel@latest env`, then redeploy.
+- **No automatic deploys:** pushing to GitHub does nothing on Vercel, because the Vercel account has no GitHub login connection. Deploy with `npm run deploy:web`.
 - **Dialogs:** React Native's `Alert` does nothing on the web. Always use `useDialog()` (`hooks/useDialog.tsx`): on Android it calls `Alert.alert`, and in the browser it draws its own modal. Never call `Alert.alert` directly.
 - **Storage:** `expo-sqlite/localStorage/install` is a no-op on the web, so the browser's own localStorage holds the login, cache and outbox (offline works per browser).
 - **No voice in the browser:** the speech module is native only (`SPEECH_AVAILABLE` false). The record tab shows `voiceInApp` and points to typing and the Analysis tab.

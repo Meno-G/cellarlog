@@ -43,3 +43,6 @@ yarn-error.*
 
 # unit test build output
 .test-build/
+
+.vercel
+.env*
