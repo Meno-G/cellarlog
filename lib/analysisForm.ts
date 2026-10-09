@@ -2,6 +2,7 @@
 // fields the user adds by name. It saves the same shape as a parsed note.
 import { newDraftItem, type DraftItem, type ValidEntry } from './entryDraft';
 import type { EntryType } from './entryTypes';
+import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import type { ParsedItem } from './parser/schema';
 
@@ -147,9 +148,10 @@ export function validateAnalysisForm(
   tanks: readonly TankRef[],
 ): { ok: true; entry: ValidEntry } | { ok: false; errors: AnalysisErrors } {
   const errors: AnalysisErrors = {};
+  const m = strings().messages;
 
   const tank = tanks.find((candidate) => candidate.id === form.tankId);
-  if (!tank) errors.tank = 'Choose the tank this analysis belongs to.';
+  if (!tank) errors.tank = m.chooseTankAnalysis;
 
   const items: ParsedItem[] = [];
   const fieldErrors: Partial<Record<AnalysisFieldId, string>> = {};
@@ -158,9 +160,9 @@ export function validateAnalysisForm(
     if (text.trim() === '') continue;
     const value = readNumber(text, field.units);
     if (value === null || Number.isNaN(value)) {
-      fieldErrors[field.id] = 'Type a number, like ' + field.placeholder + '.';
+      fieldErrors[field.id] = m.typeNumber(field.placeholder);
     } else if (value < field.min || value > field.max) {
-      fieldErrors[field.id] = `Should be between ${formatLimit(field.min)} and ${formatLimit(field.max)}.`;
+      fieldErrors[field.id] = m.between(formatLimit(field.min), formatLimit(field.max));
     } else {
       items.push({ name: field.name, value, unit: unitFor(field, form) });
     }
@@ -175,9 +177,9 @@ export function validateAnalysisForm(
     if (name === '' && valueText === '' && unit === '') continue; // empty row: ignore
 
     if (name === '' || valueText === '') {
-      extraErrors[row.key] = 'Fill in both name and value, or remove this field.';
+      extraErrors[row.key] = m.fillNameAndValueField;
     } else if (name.length > MAX_NAME || valueText.length > MAX_VALUE || unit.length > MAX_UNIT) {
-      extraErrors[row.key] = 'This field is too long.';
+      extraErrors[row.key] = m.fieldTooLong;
     } else {
       // Numbers ("0,8") are saved as numbers so they can be compared later; anything else stays text.
       const number = parseNumber(valueText);
@@ -188,10 +190,10 @@ export function validateAnalysisForm(
   if (Object.keys(extraErrors).length > 0) errors.extras = extraErrors;
 
   const note = form.note.trim();
-  if (note.length > MAX_NOTE) errors.note = `Keep the note under ${MAX_NOTE} characters.`;
+  if (note.length > MAX_NOTE) errors.note = m.noteTooLong(MAX_NOTE);
 
   if (items.length === 0 && !errors.fields && !errors.extras) {
-    errors.form = 'Fill in at least one value.';
+    errors.form = m.fillOneValue;
   }
 
   if (!tank || Object.keys(errors).length > 0) return { ok: false, errors };

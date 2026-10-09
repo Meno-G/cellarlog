@@ -14,10 +14,10 @@ import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { SyncBanner } from '@/components/SyncBanner';
 import { useEntries } from '@/hooks/useEntries';
+import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
-import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { errorMessage } from '@/lib/errors';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
@@ -29,11 +29,12 @@ export default function TankDetailScreen() {
   const entries = useEntries(id);
   const outbox = useOutbox();
   const { colors } = useTheme();
+  const t = useT();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   function entryLabel(entry: ShownEntry): string {
-    return `${ENTRY_TYPE_LABELS[entry.type]} · ${formatEntryTime(entry.createdAt)}`;
+    return `${t.entryTypes[entry.type]} · ${formatEntryTime(entry.createdAt)}`;
   }
 
   function editEntry(entry: ShownEntry) {
@@ -44,34 +45,33 @@ export default function TankDetailScreen() {
   function openEntryActions(entry: ShownEntry) {
     const label = entryLabel(entry);
     const upload = entry.upload;
-    const edit = { text: 'Edit', onPress: () => editEntry(entry) };
-    const remove = { text: 'Delete', style: 'destructive' as const, onPress: () => confirmDelete(entry) };
-    const cancel = { text: 'Cancel', style: 'cancel' as const };
-    const tryAgain = upload ? { text: 'Try again', onPress: () => outbox.retry(upload.localId) } : null;
+    const edit = { text: t.common.edit, onPress: () => editEntry(entry) };
+    const remove = { text: t.common.delete, style: 'destructive' as const, onPress: () => confirmDelete(entry) };
+    const cancel = { text: t.common.cancel, style: 'cancel' as const };
+    const tryAgain = upload ? { text: t.common.tryAgain, onPress: () => outbox.retry(upload.localId) } : null;
+    const error = upload?.error ?? t.messages.somethingWrong;
 
     if (!upload) {
       Alert.alert(label, undefined, [cancel, remove, edit]);
     } else if (upload.action === 'delete') {
       // Only a failed delete is still shown.
-      Alert.alert(label, `Couldn't delete: ${upload.error ?? 'unknown error'}`, [
+      Alert.alert(label, t.tank.couldntDeleteEntry(error), [
         cancel,
-        { text: 'Keep entry', onPress: () => outbox.discard(upload.localId) },
+        { text: t.tank.keepEntry, onPress: () => outbox.discard(upload.localId) },
         ...(tryAgain ? [tryAgain] : []),
       ]);
     } else if (upload.status === 'pending') {
       const message =
-        upload.action === 'edit'
-          ? 'Edited on this phone. The change uploads automatically when you are online.'
-          : 'Saved on this phone. It uploads automatically when you are online.';
+        upload.action === 'edit' ? t.tank.entryEdited : t.tank.entrySaved;
       Alert.alert(label, message, [cancel, remove, edit]);
     } else if (upload.action === 'edit') {
-      Alert.alert(label, `Couldn't upload this edit: ${upload.error ?? 'unknown error'}`, [
-        { text: 'Undo edit', style: 'destructive', onPress: () => outbox.discard(upload.localId) },
+      Alert.alert(label, t.tank.couldntUploadEdit(error), [
+        { text: t.tank.undoEdit, style: 'destructive', onPress: () => outbox.discard(upload.localId) },
         edit,
         ...(tryAgain ? [tryAgain] : []),
       ], { cancelable: true });
     } else {
-      Alert.alert(label, `Couldn't upload: ${upload.error ?? 'unknown error'}`, [
+      Alert.alert(label, t.tank.couldntUploadEntry(error), [
         remove,
         edit,
         ...(tryAgain ? [tryAgain] : []),
@@ -83,14 +83,12 @@ export default function TankDetailScreen() {
     const label = entryLabel(entry);
     const neverUploaded = entry.upload?.action === 'create';
     Alert.alert(
-      'Delete this entry?',
-      `${label}
-
-${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This can't be undone."}`,
+      t.tank.deleteEntryTitle,
+      `${label}\n\n${neverUploaded ? t.tank.neverUploaded : t.tank.cantUndo}`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Delete',
+          text: t.common.delete,
           style: 'destructive',
           onPress: () => {
             setActionError(null);
@@ -121,7 +119,7 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
     return (
       <Screen scroll={false}>
         <ErrorState
-          message={tank.error ?? 'Could not load this tank.'}
+          message={tank.error ?? t.messages.loadTankFailed}
           onRetry={tank.refresh}
           retrying={tank.refreshing}
         />
@@ -140,13 +138,12 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
   function confirmDiscardTank() {
     const waiting = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === id).length;
     Alert.alert(
-      `Delete ${name}?`,
-      'This tank was never uploaded, so it will be gone for good' +
-        (waiting > 0 ? `, together with its ${waiting === 1 ? '1 entry' : `${waiting} entries`}.` : '.'),
+      t.tank.discardTankTitle(name),
+      t.tank.discardTankText(waiting),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Delete',
+          text: t.common.delete,
           style: 'destructive',
           onPress: () => {
             outbox.discardTank(id);
@@ -171,11 +168,11 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
   }
 
   function renderTimelineState() {
-    if (entries.loading) return <LoadingState label="Loading timeline…" />;
+    if (entries.loading) return <LoadingState label={t.tank.loadingTimeline} />;
     if (!entries.data) {
       return (
         <ErrorState
-          message={entries.error ?? 'Could not load the timeline.'}
+          message={entries.error ?? t.messages.loadTimelineFailed}
           onRetry={entries.refresh}
           retrying={entries.refreshing}
         />
@@ -183,14 +180,14 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
     }
     return (
       <View style={styles.empty}>
-        <AppText muted>No entries yet. Tap “Add entry” to log the first one.</AppText>
+        <AppText muted>{t.tank.noEntries}</AppText>
       </View>
     );
   }
 
   const header = (
     <View style={styles.header}>
-      <OfflineBanner message="You're offline. New entries are saved on this phone and upload later." />
+      <OfflineBanner message={t.tank.offline} />
       <SyncBanner />
       <CachedNote cachedAt={tank.cachedAt} error={tank.error} onRetry={refreshAll} />
       {upload?.status === 'failed' && tankItem ? (
@@ -198,17 +195,17 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
           <Banner
             message={
               upload.action === 'delete'
-                ? `Couldn't delete this tank: ${upload.error ?? 'unknown error'}`
-                : `This tank couldn't upload: ${upload.error ?? 'unknown error'} Fix it with Edit, then try again.`
+                ? t.tank.couldntDeleteTank(upload.error ?? t.messages.somethingWrong)
+                : t.tank.couldntUploadTank(upload.error ?? t.messages.somethingWrong)
             }
             onRetry={() => outbox.retry(tankItem.localId)}
           />
           {localOnly ? (
-            <Button variant="danger" title="Delete this tank" onPress={confirmDiscardTank} />
+            <Button variant="danger" title={t.tank.deleteLocalTank} onPress={confirmDiscardTank} />
           ) : null}
         </View>
       ) : upload ? (
-        <Banner tone="waiting" message="Saved on this phone · this tank uploads when you're back online." />
+        <Banner tone="waiting" message={t.tank.tankWaiting} />
       ) : null}
       <LatestValues
         values={latest}
@@ -216,11 +213,11 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
       />
       <View style={styles.timelineHeading}>
         <AppText variant="heading" style={{ color: colors.header }}>
-          Timeline
+          {t.tank.timeline}
         </AppText>
         {rows.length > 0 ? (
           <AppText muted variant="caption">
-            Tap to edit or delete
+            {t.tank.tapToEdit}
           </AppText>
         ) : null}
       </View>
@@ -237,12 +234,12 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
       hero={
         <HeroBand
           title={name}
-          subtitle={[formatWine(variety, vintage) ?? 'No wine set', formatLiters(volumeLiters)].join(' · ')}
+          subtitle={[formatWine(variety, vintage) ?? t.tank.noWine, formatLiters(volumeLiters)].join(' · ')}
         />
       }
       footer={
         <Button
-          title="Add entry"
+          title={t.tank.addEntry}
           icon="microphone"
           onPress={() => router.push({ pathname: '/entries/new', params: { tankId: id } })}
         />
@@ -254,7 +251,7 @@ ${neverUploaded ? 'It was never uploaded, so it will be gone for good.' : "This 
           title: '',
           headerRight: () => (
             <HeaderButton
-              title="Edit"
+              title={t.common.edit}
               onPress={() => router.push({ pathname: '/tanks/[id]/edit', params: { id } })}
             />
           ),

@@ -1,7 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { newDraftItem, type DraftErrors, type DraftItem, type EntryDraft } from '@/lib/entryDraft';
-import { ENTRY_TYPE_LABELS, ENTRY_TYPES } from '@/lib/entryTypes';
+import { ENTRY_TYPES } from '@/lib/entryTypes';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
@@ -22,16 +23,16 @@ type Props = {
   disabled?: boolean;
 };
 
-const TYPE_CHOICES = ENTRY_TYPES.map((value) => ({
-  value,
-  label: ENTRY_TYPE_LABELS[value],
-  icon: ENTRY_TYPE_ICONS[value],
-}));
-
 /** The confirm/edit step: everything the parser produced, editable. */
 export function EntryReview({ draft, onChange, tanks, errors, disabled = false }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   const tankChoices = tanks.map((tank) => ({ value: tank.id, label: tank.name }));
+  const typeChoices = ENTRY_TYPES.map((value) => ({
+    value,
+    label: t.entryTypes[value],
+    icon: ENTRY_TYPE_ICONS[value],
+  }));
 
   function updateItem(key: string, fields: Partial<Omit<DraftItem, 'key'>>) {
     onChange({
@@ -49,12 +50,12 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
       {draft.unmatchedTankName ? (
         <Banner
           tone="info"
-          message={`The note mentions "${draft.unmatchedTankName}", but you have no tank with that name. Choose the tank below.`}
+          message={t.review.unmatchedTank(draft.unmatchedTankName)}
         />
       ) : null}
 
       <ChoiceChips
-        label="Tank"
+        label={t.common.tank}
         choices={tankChoices}
         selected={draft.tankId}
         onSelect={(tankId) => onChange({ ...draft, tankId })}
@@ -63,21 +64,21 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
       />
 
       <ChoiceChips
-        label="Entry type"
-        choices={TYPE_CHOICES}
+        label={t.review.entryType}
+        choices={typeChoices}
         selected={draft.type}
         onSelect={(type) => onChange({ ...draft, type })}
         disabled={disabled}
       />
 
       <View style={styles.section}>
-        <AppText variant="label">Values</AppText>
-        {draft.items.length === 0 ? <AppText muted>No values. Add one if needed.</AppText> : null}
+        <AppText variant="label">{t.review.values}</AppText>
+        {draft.items.length === 0 ? <AppText muted>{t.review.noValues}</AppText> : null}
         {draft.items.map((item, index) => (
           <ValueRowEditor
             key={item.key}
             item={item}
-            title={`Value ${index + 1}`}
+            title={t.review.valueN(index + 1)}
             onChange={(fields) => updateItem(item.key, fields)}
             onRemove={() => removeItem(item.key)}
             error={errors.items?.[item.key]}
@@ -86,7 +87,7 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
         ))}
         <Button
           variant="secondary"
-          title="Add value"
+          title={t.review.addValue}
           icon="plus"
           onPress={() => onChange({ ...draft, items: [...draft.items, newDraftItem()] })}
           disabled={disabled}
@@ -94,7 +95,7 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
       </View>
 
       <TextField
-        label="Note (optional)"
+        label={t.common.noteOptional}
         value={draft.note}
         onChangeText={(note) => onChange({ ...draft, note })}
         error={errors.note}
@@ -107,7 +108,7 @@ export function EntryReview({ draft, onChange, tanks, errors, disabled = false }
       {draft.rawText ? (
         <View style={[styles.said, { backgroundColor: colors.surfaceAlt }]}>
           <AppText muted style={styles.saidLabel}>
-            YOU SAID
+            {t.review.youSaid}
           </AppText>
           <AppText variant="quote">“{draft.rawText}”</AppText>
         </View>

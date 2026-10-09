@@ -7,12 +7,13 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { EntryReview } from '@/components/EntryReview';
-import { HeaderTabs, type HeaderTab } from '@/components/HeaderTabs';
+import { HeaderTabs } from '@/components/HeaderTabs';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { RecordButton } from '@/components/RecordButton';
 import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
+import { useLanguage } from '@/hooks/useLanguage';
 import { MAX_LISTEN_MS, useSpeechToText } from '@/hooks/useSpeechToText';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTanks } from '@/hooks/useTanks';
@@ -41,14 +42,7 @@ type Review = {
   saving: boolean;
 };
 
-const EXAMPLE = 'Tank 12, added 20 g/hl SO2, temp 22°C';
-
 type Tab = 'note' | 'analysis';
-
-const TABS: readonly HeaderTab<Tab>[] = [
-  { value: 'note', label: 'Speak / note', icon: 'microphone' },
-  { value: 'analysis', label: 'Analysis', icon: 'flask-outline' },
-];
 
 type AnalysisState = {
   form: AnalysisForm;
@@ -63,6 +57,7 @@ export default function NewEntryScreen() {
   const tanks = useTanks();
   const outbox = useOutbox();
   const { colors } = useTheme();
+  const { lang, t } = useLanguage();
 
   const [text, setText] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
@@ -111,7 +106,7 @@ export default function NewEntryScreen() {
     return (
       <Screen scroll={false}>
         <ErrorState
-          message={tanks.error ?? 'Could not load your tanks.'}
+          message={tanks.error ?? t.messages.loadTanksFailed}
           onRetry={tanks.refresh}
           retrying={tanks.refreshing}
         />
@@ -122,9 +117,9 @@ export default function NewEntryScreen() {
   if (tankList.length === 0) {
     return (
       <Screen>
-        <AppText variant="title">Create a tank first</AppText>
-        <AppText muted>Entries belong to a tank. Add one, then come back.</AppText>
-        <Button title="+ New tank" onPress={() => router.replace('/tanks/new')} />
+        <AppText variant="title">{t.newEntry.createTankFirst}</AppText>
+        <AppText muted>{t.newEntry.createTankFirstText}</AppText>
+        <Button title={t.newEntry.newTankButton} onPress={() => router.replace('/tanks/new')} />
       </Screen>
     );
   }
@@ -196,25 +191,25 @@ export default function NewEntryScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Screen
-          hero={<HeroBand title="Check and save" />}
+          hero={<HeroBand title={t.newEntry.checkAndSave} />}
           footer={
             <View style={styles.footer}>
-              <Button title="Save entry" icon="check" onPress={() => handleSave(review)} loading={review.saving} />
+              <Button title={t.newEntry.saveEntry} icon="check" onPress={() => handleSave(review)} loading={review.saving} />
               <Button
                 variant="secondary"
-                title="Back to note"
+                title={t.newEntry.backToNote}
                 onPress={() => setReview(null)}
                 disabled={review.saving}
               />
             </View>
           }
         >
-          <OfflineBanner message="You're offline. Saving keeps the entry on this phone; it uploads when you're back online." />
+          <OfflineBanner message={t.newEntry.offlineReview} />
           {review.saveError ? (
             <Banner message={review.saveError} onRetry={() => handleSave(review)} />
           ) : null}
           {hasErrors ? (
-            <Banner message={review.errors.form ?? 'Please fix the highlighted fields.'} />
+            <Banner message={review.errors.form ?? t.common.fixFields} />
           ) : null}
           <EntryReview
             draft={review.draft}
@@ -230,8 +225,12 @@ export default function NewEntryScreen() {
 
   // Tabs are locked while listening, so a finished recording always lands on its note.
   const hero = (
-    <HeroBand subtitle={startTank ? `For ${startTank.name}` : undefined}>
-      <HeaderTabs tabs={TABS} selected={tab} onSelect={setTab} disabled={speech.active || analysis.saving} />
+    <HeroBand subtitle={startTank ? t.newEntry.forTank(startTank.name) : undefined}>
+      <HeaderTabs
+        tabs={[
+          { value: 'note', label: t.newEntry.tabNote, icon: 'microphone' },
+          { value: 'analysis', label: t.newEntry.tabAnalysis, icon: 'flask-outline' },
+        ]} selected={tab} onSelect={setTab} disabled={speech.active || analysis.saving} />
     </HeroBand>
   );
 
@@ -252,19 +251,19 @@ export default function NewEntryScreen() {
           hero={hero}
           footer={
             <Button
-              title="Save analysis"
+              title={t.newEntry.saveAnalysis}
               icon="check"
               onPress={() => handleSaveAnalysis(analysis)}
               loading={analysis.saving}
             />
           }
         >
-          <OfflineBanner message="You're offline. Saving keeps the analysis on this phone; it uploads when you're back online." />
+          <OfflineBanner message={t.newEntry.offlineAnalysis} />
           {analysis.saveError ? (
             <Banner message={analysis.saveError} onRetry={() => handleSaveAnalysis(analysis)} />
           ) : null}
           {hasErrors ? (
-            <Banner message={analysis.errors.form ?? 'Please fix the highlighted fields.'} />
+            <Banner message={analysis.errors.form ?? t.common.fixFields} />
           ) : null}
           <AnalysisFormView
             form={analysis.form}
@@ -294,13 +293,15 @@ export default function NewEntryScreen() {
         footer={
           <Button
             variant="secondary"
-            title="Review note"
+            title={t.newEntry.reviewNote}
             onPress={() => openReview(text)}
             disabled={text.trim() === '' || speech.active}
           />
         }
       >
-        <OfflineBanner message="You're offline. Record or type as usual; entries are saved on this phone and upload later." />
+        <OfflineBanner message={t.newEntry.offlineRecord} />
+        {/* Voice and typed notes are understood in English only; Georgian users get a pointer to the Analysis tab. */}
+        {lang === 'ka' && t.newEntry.speakLanguage ? <Banner tone="info" message={t.newEntry.speakLanguage} /> : null}
 
         {speech.available ? (
           <RecordButton
@@ -313,21 +314,21 @@ export default function NewEntryScreen() {
         ) : (
           <Banner
             tone="info"
-            message="Voice notes need the CellarLog app build. Expo Go doesn't include speech recognition. You can type your note below."
+            message={t.newEntry.voiceNeedsBuild}
           />
         )}
 
         {speech.permission === 'blocked' ? (
           <Banner
-            message="Microphone access is turned off for CellarLog. Turn it on in Settings, or type your note below."
+            message={t.newEntry.micBlocked}
             onRetry={() => void Linking.openSettings()}
-            retryLabel="Open settings"
+            retryLabel={t.newEntry.openSettings}
           />
         ) : null}
         {speech.permission === 'denied' ? (
           <Banner
             tone="info"
-            message="CellarLog needs the microphone to hear your notes. Tap the button and choose Allow, or type below."
+            message={t.newEntry.micDenied}
           />
         ) : null}
         {speech.error && speech.permission !== 'blocked' ? <Banner message={speech.error.message} /> : null}
@@ -336,12 +337,12 @@ export default function NewEntryScreen() {
           <View style={styles.downloadBox}>
             <AppText muted variant="caption">
               {speech.downloadNote ??
-                'Voice uses the internet right now. Download English once (on Wi-Fi) to speak notes in the cellar without signal.'}
+                t.newEntry.downloadText}
             </AppText>
             {speech.downloadNote === null ? (
               <Button
                 variant="secondary"
-                title="Download English for offline"
+                title={t.newEntry.downloadEnglish}
                 onPress={() => void speech.downloadOffline()}
               />
             ) : null}
@@ -351,21 +352,21 @@ export default function NewEntryScreen() {
         {parseError ? (
           <View style={styles.errorBox}>
             <Banner message={parseError} />
-            <Button variant="secondary" title="Fill in yourself" onPress={fillInManually} />
+            <Button variant="secondary" title={t.newEntry.fillInYourself} onPress={fillInManually} />
           </View>
         ) : null}
 
         <View style={styles.divider}>
           <View style={[styles.line, { backgroundColor: colors.border }]} />
-          <AppText muted>{speech.active ? 'what I heard' : 'or type it'}</AppText>
+          <AppText muted>{speech.active ? t.newEntry.whatIHeard : t.newEntry.orTypeIt}</AppText>
           <View style={[styles.line, { backgroundColor: colors.border }]} />
         </View>
 
         <TextField
-          label="Note"
+          label={t.newEntry.note}
           value={speech.active ? speech.transcript : text}
           onChangeText={setText}
-          placeholder={speech.active ? 'Listening…' : EXAMPLE}
+          placeholder={speech.active ? t.newEntry.listening : t.newEntry.example}
           multiline
           textAlignVertical="top"
           editable={!speech.active}

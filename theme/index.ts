@@ -2,7 +2,7 @@ import { useColorScheme } from 'react-native';
 
 import { darkColors, lightColors, type ColorTokens } from './colors';
 
-export { fonts, fontAssets } from './fonts';
+export { fonts, fontAssets, georgianFamily } from './fonts';
 
 export const spacing = {
   xs: 4,

@@ -8,7 +8,8 @@ import {
 
 import { z } from 'zod';
 
-import { AppError, NETWORK_MESSAGE, isNetworkFailure, toAppError } from './errors';
+import { AppError, isNetworkFailure, networkMessage, toAppError } from './errors';
+import { strings } from './i18n';
 import { readJson } from './storage';
 import { getSupabase, sessionStorageKey } from './supabase';
 
@@ -43,52 +44,49 @@ const MIN_PASSWORD_LENGTH = 6;
 
 function validateCredentials(email: string, password: string): void {
   if (!/^\S+@\S+\.\S+$/.test(email)) {
-    throw new AppError('validation', 'Enter a valid email address.');
+    throw new AppError('validation', strings().messages.invalidEmail);
   }
   if (password.length < MIN_PASSWORD_LENGTH) {
-    throw new AppError(
-      'validation',
-      `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
-    );
+    throw new AppError('validation', strings().messages.passwordTooShort(MIN_PASSWORD_LENGTH));
   }
 }
 
 function fromAuthError(error: AuthError): AppError {
   if (isAuthRetryableFetchError(error) || isNetworkFailure(error)) {
-    return new AppError('network', NETWORK_MESSAGE, { cause: error });
+    return new AppError('network', networkMessage(), { cause: error });
   }
   if (isAuthApiError(error)) {
     switch (error.code) {
       case 'invalid_credentials':
-        return new AppError('auth', 'Wrong email or password.', { cause: error });
+        return new AppError('auth', strings().messages.wrongPassword, { cause: error });
       case 'email_not_confirmed':
-        return new AppError('auth', 'Confirm your email first: open the link we sent you.', {
+        return new AppError('auth', strings().messages.confirmEmail, {
           cause: error,
         });
       case 'user_already_exists':
       case 'email_exists':
-        return new AppError('auth', 'An account with this email already exists. Sign in instead.', {
+        return new AppError('auth', strings().messages.accountExists, {
           cause: error,
         });
       case 'weak_password':
-        return new AppError('validation', 'That password is too weak. Try a longer one.', {
+        return new AppError('validation', strings().messages.weakPassword, {
           cause: error,
         });
       case 'email_address_invalid':
-        return new AppError('validation', 'Enter a valid email address.', { cause: error });
+        return new AppError('validation', strings().messages.invalidEmail, { cause: error });
       case 'over_email_send_rate_limit':
       case 'over_request_rate_limit':
-        return new AppError('auth', 'Too many attempts. Wait a minute and try again.', {
+        return new AppError('auth', strings().messages.tooManyAttempts, {
           cause: error,
         });
       case 'signup_disabled':
       case 'email_provider_disabled':
-        return new AppError('auth', 'Sign-up with email is turned off for this project.', {
+        return new AppError('auth', strings().messages.signupDisabled, {
           cause: error,
         });
     }
   }
-  return new AppError('server', 'Could not reach the sign-in service. Please try again.', {
+  return new AppError('server', strings().messages.authUnreachable, {
     cause: error,
   });
 }
@@ -103,7 +101,7 @@ export async function signIn(email: string, password: string): Promise<void> {
     });
     if (error) throw fromAuthError(error);
   } catch (error) {
-    throw toAppError(error, 'Could not sign in. Please try again.');
+    throw toAppError(error, strings().messages.signInFailed);
   }
 }
 
@@ -120,13 +118,13 @@ export async function signUp(email: string, password: string): Promise<SignUpRes
     if (data.user && data.user.identities?.length === 0) {
       throw new AppError(
         'auth',
-        'An account with this email already exists. Sign in with its password instead.',
+        strings().messages.accountExistsUsePassword,
       );
     }
     // With "Confirm email" on, a genuinely new user gets no session until they confirm.
     return { needsEmailConfirmation: data.session === null };
   } catch (error) {
-    throw toAppError(error, 'Could not create the account. Please try again.');
+    throw toAppError(error, strings().messages.signUpFailed);
   }
 }
 
@@ -135,7 +133,7 @@ export async function signOut(): Promise<void> {
     const { error } = await getSupabase().auth.signOut();
     if (error) throw fromAuthError(error);
   } catch (error) {
-    throw toAppError(error, 'Could not sign out. Please try again.');
+    throw toAppError(error, strings().messages.signOutFailed);
   }
 }
 
@@ -145,7 +143,7 @@ export async function getSession(): Promise<Session | null> {
     if (error) throw fromAuthError(error);
     return data.session;
   } catch (error) {
-    throw toAppError(error, 'Could not restore your session.');
+    throw toAppError(error, strings().messages.sessionRestoreFailed);
   }
 }
 

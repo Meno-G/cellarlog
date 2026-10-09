@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { ValidEntry } from './entryDraft';
 import { ENTRY_TYPES } from './entryTypes';
 import { toAppError } from './errors';
+import { strings } from './i18n';
 import { parsedEntrySchema } from './parser/schema';
 import { getStore, userKey, writeJson } from './storage';
 import type { TankInput } from './tanks';
@@ -117,7 +118,7 @@ export function listOutbox(userId: string): OutboxItem[] {
 
 function save(userId: string, items: OutboxItem[]): void {
   if (!writeJson(outboxKey(userId), items)) {
-    throw new Error('Could not save on this phone. The phone storage may be full.');
+    throw new Error(strings().messages.storageFull);
   }
 }
 
@@ -351,7 +352,7 @@ export async function flushQueue(
       removeFromOutbox(userId, item.localId);
       result.uploaded++;
     } catch (error) {
-      const appError = toAppError(error, 'Could not upload.');
+      const appError = toAppError(error, strings().messages.couldNotUpload);
       if (appError.kind === 'network' || appError.kind === 'auth') {
         result.interrupted = true;
         break;

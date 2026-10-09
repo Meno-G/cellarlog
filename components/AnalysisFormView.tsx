@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { useLanguage } from '@/hooks/useLanguage';
 import {
   ANALYSIS_FIELDS,
   unitFor,
@@ -9,7 +10,8 @@ import {
   type AnalysisForm,
 } from '@/lib/analysisForm';
 import { newDraftItem, type DraftItem } from '@/lib/entryDraft';
-import { fonts, fontSize, radius, spacing, touch, useTheme } from '@/theme';
+import { unitName } from '@/lib/i18n';
+import { fonts, fontSize, georgianFamily, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 import { Button } from './Button';
@@ -30,6 +32,7 @@ type Props = {
 /** The "Analysis" tab: one labelled field per analysis, plus fields the user adds by name. */
 export function AnalysisFormView({ form, onChange, tanks, errors, disabled = false }: Props) {
   const { colors } = useTheme();
+  const { lang, t } = useLanguage();
   // "Next" on the keypad jumps to the following field.
   const inputs = useRef<(TextInput | null)[]>([]);
   const tankChoices = tanks.map((tank) => ({ value: tank.id, label: tank.name }));
@@ -48,7 +51,7 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
   return (
     <View style={styles.wrapper}>
       <ChoiceChips
-        label="Tank"
+        label={t.common.tank}
         choices={tankChoices}
         selected={form.tankId}
         onSelect={(tankId) => onChange({ ...form, tankId })}
@@ -60,6 +63,8 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
         {ANALYSIS_FIELDS.map((field, index) => {
           const error = errors.fields?.[field.id];
           const unit = unitFor(field, form);
+          const shownUnit = unit === null ? null : unitName(unit);
+          const label = t.analysis.fields[field.id];
           const last = index === ANALYSIS_FIELDS.length - 1;
           return (
             <View
@@ -70,7 +75,7 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
               ]}
             >
               <View style={styles.fieldRow}>
-                <AppText style={styles.fieldLabel}>{field.label}</AppText>
+                <AppText style={styles.fieldLabel}>{label}</AppText>
                 <TextInput
                   ref={(input) => {
                     inputs.current[index] = input;
@@ -84,7 +89,7 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
                   submitBehavior={last ? 'blurAndSubmit' : 'submit'}
                   onSubmitEditing={() => inputs.current[index + 1]?.focus()}
                   editable={!disabled}
-                  accessibilityLabel={unit ? `${field.label}, in ${unit}` : field.label}
+                  accessibilityLabel={shownUnit ? t.analysis.unitIn(label, shownUnit) : label}
                   style={[
                     styles.input,
                     {
@@ -92,14 +97,15 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
                       backgroundColor: colors.background,
                       borderColor: error ? colors.danger : colors.border,
                     },
+                    lang === 'ka' && { fontFamily: georgianFamily(fonts.bodySemi) },
                   ]}
                 />
                 <AppText muted style={styles.unit}>
-                  {field.units.length > 1 ? '' : (unit ?? '')}
+                  {field.units.length > 1 ? '' : (shownUnit ?? '')}
                 </AppText>
               </View>
               {field.units.length > 1 ? (
-                <View style={styles.unitChoices} accessibilityRole="radiogroup" accessibilityLabel={`${field.label} unit`}>
+                <View style={styles.unitChoices} accessibilityRole="radiogroup" accessibilityLabel={t.analysis.unitChoice(label)}>
                   {field.units.map((choice) => {
                     const active = choice === unit;
                     return (
@@ -108,7 +114,7 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
                         onPress={() => onChange({ ...form, units: { ...form.units, [field.id]: choice } })}
                         disabled={disabled}
                         accessibilityRole="radio"
-                        accessibilityLabel={choice}
+                        accessibilityLabel={unitName(choice)}
                         accessibilityState={{ checked: active, disabled }}
                         style={({ pressed }) => [
                           styles.unitPill,
@@ -125,7 +131,7 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
                             fontFamily: active ? fonts.bodyBold : fonts.bodySemi,
                           }}
                         >
-                          {choice}
+                          {unitName(choice)}
                         </AppText>
                       </Pressable>
                     );
@@ -147,7 +153,7 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
           <ValueRowEditor
             key={item.key}
             item={item}
-            title={`Added field ${index + 1}`}
+            title={t.analysis.addedField(index + 1)}
             onChange={(fields) => updateExtra(item.key, fields)}
             onRemove={() => onChange({ ...form, extras: form.extras.filter((row) => row.key !== item.key) })}
             error={errors.extras?.[item.key]}
@@ -156,16 +162,16 @@ export function AnalysisFormView({ form, onChange, tanks, errors, disabled = fal
         ))}
         <Button
           variant="secondary"
-          title="Add field"
+          title={t.analysis.addField}
           icon="plus"
           onPress={() => onChange({ ...form, extras: [...form.extras, newDraftItem()] })}
           disabled={disabled}
-          accessibilityHint="Adds a field where you type the name, value and unit"
+          accessibilityHint={t.analysis.addFieldHint}
         />
       </View>
 
       <TextField
-        label="Note (optional)"
+        label={t.common.noteOptional}
         value={form.note}
         onChangeText={(note) => onChange({ ...form, note })}
         error={errors.note}

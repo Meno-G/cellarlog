@@ -88,6 +88,25 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   All 7 steps are built. Added on request: editing and deleting a timeline entry (tap entry → Edit / Delete; delete asks twice). Editing keeps the original note (`raw_text`).
   Also added on request: deleting a tank (Edit tank → Delete tank, asked twice, showing how many entries go with it). The database deletes its entries via ON DELETE CASCADE.
 
+## Languages (English / Georgian)
+
+- Every text is in `lib/i18n/en.ts` (source of truth) and `lib/i18n/ka.ts`, typed `Strings`: a missing Georgian text is a type error, and `tests/i18n.test.cjs` checks the shape too.
+- **Adding or changing text:** put it in both files. Never hard-code a visible string in a screen or component.
+- **In components**, use `useT()` / `useLanguage()` (`hooks/useLanguage.ts`, `useSyncExternalStore`). Every component that shows text must call it, so a switch re-renders it.
+- **In `lib/`**, messages come from `strings().messages` at the moment they're created, so `AppError.message` is already in the current language.
+- **Language state:** `lib/i18n/index.ts` (`getLang` / `setLang` / `chooseLang`).
+  - It's saved per phone (`cellarlog:v1:language`). On first start the phone's language decides (`loadLang`, called in `app/_layout.tsx`).
+- **The switch** is `components/LanguageSwitch.tsx` (EN | KA), in the header of the tanks screen and the sign-in band.
+- **Georgian wording:** "tank" is **ცისტერნა**, and the address is formal (თქვენ). Nouns stay singular after numbers ("5 ცისტერნა").
+- **Data stays English:** stored value names ("TA", "Free SO2") and units ("g/L") don't change.
+  - `itemName()` / `unitName()` (and `formatItemValue`) show them in Georgian (`items` / `units` maps in ka.ts).
+- **Dates:** `lib/format.ts` uses the language's words and Georgian month abbreviations (`time.months`).
+- **Fonts:** Cormorant and Source Sans have no Georgian letters.
+  - In Georgian, `AppText` maps each family to Noto Serif / Noto Sans Georgian (`georgianFamily`). It scales serif sizes by 0.8 and keeps line height at least 1.35×.
+  - `TextField` and the Analysis inputs do the same. Pass `lang="en"` for Latin-only labels ("CellarLog", "EN").
+- **Voice and typed notes are English only** (the user's decision: Georgian speech recognition isn't reliable enough). In Georgian, the record tab says so and points to the Analysis tab.
+  - `tankKey` understands "ცისტერნა 12" / "ც12", so an English "tank 12" finds a Georgian-named tank.
+
 ## Offline mode
 
 - **Reading**: `useFocusQuery(load, cache)` shows the cached copy at once (`lib/cache.ts`), refreshes from Supabase, and writes successful results back. When the refresh fails, the cached data stays on screen and `CachedNote` says when it was saved.

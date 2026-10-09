@@ -1,4 +1,5 @@
 // Pure form logic for the tank form (no network), so it can be unit-tested.
+import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import type { Tank, TankInput } from './tanks';
 
@@ -41,22 +42,23 @@ export function validateTankForm(
   values: TankFormValues,
 ): { ok: true; input: TankInput } | { ok: false; errors: TankFormErrors } {
   const errors: TankFormErrors = {};
+  const m = strings().messages;
 
   const name = values.name.trim();
-  if (name === '') errors.name = 'Give the tank a name, e.g. "Tank 12".';
-  else if (name.length > MAX_NAME) errors.name = `Keep the name under ${MAX_NAME} characters.`;
+  if (name === '') errors.name = m.tankNameRequired;
+  else if (name.length > MAX_NAME) errors.name = m.tankNameTooLong(MAX_NAME);
 
   const parsedVolume = parseNumber(values.volume);
   // Stored with one decimal, so 0.04 would become 0.
   const volume = parsedVolume === null ? null : Math.round(parsedVolume * 10) / 10;
-  if (volume === null) errors.volume = 'Enter the volume in liters.';
-  else if (Number.isNaN(volume)) errors.volume = 'Use numbers only, e.g. 5000.';
-  else if (volume <= 0) errors.volume = 'Volume must be more than 0 L.';
-  else if (volume > MAX_VOLUME) errors.volume = 'That volume is too large.';
+  if (volume === null) errors.volume = m.volumeRequired;
+  else if (Number.isNaN(volume)) errors.volume = m.volumeNumbersOnly;
+  else if (volume <= 0) errors.volume = m.volumePositive;
+  else if (volume > MAX_VOLUME) errors.volume = m.volumeTooLarge;
 
   const variety = values.variety.trim();
   if (variety.length > MAX_VARIETY) {
-    errors.variety = `Keep the variety under ${MAX_VARIETY} characters.`;
+    errors.variety = m.varietyTooLong(MAX_VARIETY);
   }
 
   const vintageText = values.vintage.trim();
@@ -64,7 +66,7 @@ export function validateTankForm(
   if (vintageText !== '') {
     vintage = /^\d{4}$/.test(vintageText) ? Number(vintageText) : Number.NaN;
     if (Number.isNaN(vintage) || vintage < MIN_VINTAGE || vintage > MAX_VINTAGE) {
-      errors.vintage = `Enter a year between ${MIN_VINTAGE} and ${MAX_VINTAGE}, or leave it empty.`;
+      errors.vintage = m.vintageRange(MIN_VINTAGE, MAX_VINTAGE);
     }
   }
 

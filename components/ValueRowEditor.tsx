@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { DraftItem } from '@/lib/entryDraft';
+import { useT } from '@/hooks/useLanguage';
 import { fonts, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
@@ -19,6 +20,7 @@ type Props = {
 /** One name / value / unit row the user types in full (review screen, added analysis fields). */
 export function ValueRowEditor({ item, title, onChange, onRemove, error, disabled = false }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   return (
     <View
       style={[
@@ -34,15 +36,15 @@ export function ValueRowEditor({ item, title, onChange, onRemove, error, disable
           onPress={onRemove}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${title.toLowerCase()}${item.name ? `, ${item.name}` : ''}`}
+          accessibilityLabel={t.valueRow.removeLabel(title, item.name)}
           hitSlop={8}
           style={({ pressed }) => [styles.remove, { opacity: pressed ? 0.6 : 1 }]}
         >
-          <AppText style={{ color: colors.danger, fontFamily: fonts.bodyBold }}>Remove</AppText>
+          <AppText style={{ color: colors.danger, fontFamily: fonts.bodyBold }}>{t.common.remove}</AppText>
         </Pressable>
       </View>
       <TextField
-        label="Name"
+        label={t.valueRow.name}
         value={item.name}
         onChangeText={(name) => onChange({ name })}
         placeholder="SO2"
@@ -51,7 +53,7 @@ export function ValueRowEditor({ item, title, onChange, onRemove, error, disable
       <View style={styles.valueRow}>
         <View style={styles.value}>
           <TextField
-            label="Value"
+            label={t.valueRow.value}
             value={item.value}
             onChangeText={(value) => onChange({ value })}
             placeholder="20"
@@ -60,7 +62,7 @@ export function ValueRowEditor({ item, title, onChange, onRemove, error, disable
         </View>
         <View style={styles.unit}>
           <TextField
-            label="Unit"
+            label={t.valueRow.unit}
             value={item.unit}
             onChangeText={(unit) => onChange({ unit })}
             placeholder="g/hL"

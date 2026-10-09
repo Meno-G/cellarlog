@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
@@ -23,8 +24,9 @@ const ICONS: Record<Tone, IconName> = {
   waiting: 'cloud-upload-outline',
 };
 
-export function Banner({ message, tone = 'error', onRetry, retryLabel = 'Try again', icon }: Props) {
+export function Banner({ message, tone = 'error', onRetry, retryLabel, icon }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   const palette = {
     error: { bg: colors.surface, border: colors.danger, text: colors.danger },
     info: { bg: colors.surfaceAlt, border: colors.border, text: colors.text },
@@ -40,7 +42,7 @@ export function Banner({ message, tone = 'error', onRetry, retryLabel = 'Try aga
         <Icon name={icon ?? ICONS[tone]} size={24} color={palette.text} />
         <AppText style={[styles.text, { color: palette.text, fontFamily: fonts.bodySemi }]}>{message}</AppText>
       </View>
-      {onRetry ? <Button variant="secondary" title={retryLabel} onPress={onRetry} /> : null}
+      {onRetry ? <Button variant="secondary" title={retryLabel ?? t.common.tryAgain} onPress={onRetry} /> : null}
     </View>
   );
 }

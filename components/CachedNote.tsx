@@ -1,3 +1,4 @@
+import { useT } from '@/hooks/useLanguage';
 import { formatEntryTime } from '@/lib/format';
 
 import { Banner } from './Banner';
@@ -15,12 +16,13 @@ type Props = {
  * because the server couldn't be reached. Renders nothing for fresh data.
  */
 export function CachedNote({ cachedAt, error, onRetry }: Props) {
+  const t = useT();
   if (!error) return null;
   if (!cachedAt) return <Banner message={error} onRetry={onRetry} />;
   return (
     <Banner
       tone="info"
-      message={`${error} Showing what was saved on this phone (${formatEntryTime(cachedAt)}).`}
+      message={t.cached.showingSaved(error, formatEntryTime(cachedAt))}
       onRetry={onRetry}
     />
   );

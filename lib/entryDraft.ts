@@ -1,5 +1,6 @@
 // Pure logic for the review screen: parse result -> editable draft -> validated entry.
 import type { EntryType } from './entryTypes';
+import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import type { ParsedEntry, ParsedItem, ParseResult } from './parser/schema';
 import { matchTank } from './tankMatch';
@@ -105,9 +106,10 @@ export function validateDraft(
   tanks: readonly TankRef[],
 ): { ok: true; entry: ValidEntry } | { ok: false; errors: DraftErrors } {
   const errors: DraftErrors = {};
+  const m = strings().messages;
 
   const tank = tanks.find((candidate) => candidate.id === draft.tankId);
-  if (!tank) errors.tank = 'Choose the tank this entry belongs to.';
+  if (!tank) errors.tank = m.chooseTank;
 
   const items: ParsedItem[] = [];
   const itemErrors: Record<string, string> = {};
@@ -118,9 +120,9 @@ export function validateDraft(
     if (name === '' && valueText === '' && unit === '') continue; // empty row: ignore
 
     if (name === '' || valueText === '') {
-      itemErrors[row.key] = 'Fill in both name and value, or remove this row.';
+      itemErrors[row.key] = m.fillNameAndValueRow;
     } else if (name.length > MAX_ITEM_NAME || valueText.length > MAX_ITEM_VALUE || unit.length > MAX_UNIT) {
-      itemErrors[row.key] = 'This row is too long.';
+      itemErrors[row.key] = m.rowTooLong;
     } else {
       const number = parseNumber(valueText);
       const value = number === null || Number.isNaN(number) ? valueText : number;
@@ -130,10 +132,10 @@ export function validateDraft(
   if (Object.keys(itemErrors).length > 0) errors.items = itemErrors;
 
   const note = draft.note.trim();
-  if (note.length > MAX_NOTE) errors.note = `Keep the note under ${MAX_NOTE} characters.`;
+  if (note.length > MAX_NOTE) errors.note = m.noteTooLong(MAX_NOTE);
 
   if (items.length === 0 && note === '' && !errors.items) {
-    errors.form = 'Add at least one value or a note.';
+    errors.form = m.addValueOrNote;
   }
 
   if (!tank || Object.keys(errors).length > 0) return { ok: false, errors };

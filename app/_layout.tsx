@@ -10,9 +10,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Screen } from '@/components/Screen';
+import { useT } from '@/hooks/useLanguage';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 import { getConfigProblems } from '@/lib/env';
+import { loadLang } from '@/lib/i18n';
 import { fontAssets, useTheme } from '@/theme';
+
+// The saved choice, or the phone's language on first start (Georgian phones start in Georgian).
+loadLang(Intl.DateTimeFormat().resolvedOptions().locale);
 
 export default function RootLayout() {
   const { dark, colors } = useTheme();
@@ -90,13 +95,11 @@ function RootNavigator() {
 }
 
 function ConfigErrorScreen({ problems }: { problems: string[] }) {
+  const t = useT();
   return (
     <Screen edges={['top', 'bottom']}>
-      <AppText variant="title">Setup needed</AppText>
-      <AppText>
-        The app&apos;s .env file is missing or incomplete. Copy .env.example to .env, fill it in,
-        then restart with: npx expo start --clear
-      </AppText>
+      <AppText variant="title">{t.setup.title}</AppText>
+      <AppText>{t.setup.text}</AppText>
       {problems.map((problem) => (
         <Banner key={problem} message={problem} />
       ))}

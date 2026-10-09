@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Entry } from '@/lib/entries';
+import { useT } from '@/hooks/useLanguage';
 import type { EntryUpload } from '@/lib/entryOverlay';
-import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
+import { itemName, type Strings } from '@/lib/i18n';
 import { formatEntryTime, formatItemValue } from '@/lib/format';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
@@ -19,17 +20,18 @@ type Props = {
   upload?: Pick<EntryUpload, 'status' | 'error' | 'action'>;
 };
 
-function uploadText(upload: NonNullable<Props['upload']>): string {
-  const error = upload.error ?? 'unknown error';
-  if (upload.action === 'delete') return `Couldn't delete: ${error}`;
+function uploadText(upload: NonNullable<Props['upload']>, t: Strings): string {
+  const error = upload.error ?? t.messages.somethingWrong;
+  if (upload.action === 'delete') return t.entryCard.couldntDelete(error);
   if (upload.status === 'failed') {
-    return upload.action === 'edit' ? `Couldn't upload this edit: ${error}` : `Couldn't upload: ${error}`;
+    return upload.action === 'edit' ? t.entryCard.couldntUploadEdit(error) : t.entryCard.couldntUpload(error);
   }
-  return upload.action === 'edit' ? 'Edited on this phone · waiting to upload' : 'Saved on this phone · waiting to upload';
+  return upload.action === 'edit' ? t.entryCard.editedWaiting : t.entryCard.savedWaiting;
 }
 
 export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   const { items, note } = entry.parsed;
   const failed = upload?.status === 'failed' || upload?.action === 'delete';
   // Show the original wording only when it adds something beyond the note.
@@ -42,7 +44,7 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
       onPress={onPress}
       disabled={!onPress || busy}
       accessibilityRole="button"
-      accessibilityHint="Shows options for this entry"
+      accessibilityHint={t.entryCard.a11yHint}
       accessibilityState={{ busy }}
       style={({ pressed }) => [
         styles.card,
@@ -58,7 +60,7 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
       <EntryTypeIcon type={entry.type} waiting={Boolean(upload)} />
       <View style={styles.body}>
         <View style={styles.header}>
-          <AppText variant="label">{ENTRY_TYPE_LABELS[entry.type]}</AppText>
+          <AppText variant="label">{t.entryTypes[entry.type]}</AppText>
           <AppText muted variant="caption">
             {formatEntryTime(entry.createdAt)}
           </AppText>
@@ -69,7 +71,7 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
             {items.map((item, index) => (
               <View key={`${item.name}-${index}`} style={[styles.tile, { backgroundColor: colors.background }]}>
                 <AppText muted style={styles.tileName} numberOfLines={1}>
-                  {item.name}
+                  {itemName(item.name)}
                 </AppText>
                 <AppText style={styles.tileValue} numberOfLines={1}>
                   {formatItemValue(item)}
@@ -80,7 +82,7 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
         ) : (
           items.map((item, index) => (
             <View key={`${item.name}-${index}`} style={styles.item}>
-              <AppText style={styles.itemName}>{item.name}</AppText>
+              <AppText style={styles.itemName}>{itemName(item.name)}</AppText>
               <AppText style={{ fontFamily: fonts.bodyBold }}>{formatItemValue(item)}</AppText>
             </View>
           ))
@@ -96,7 +98,7 @@ export function EntryCard({ entry, onPress, busy = false, upload }: Props) {
 
         {upload ? (
           <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: failed ? colors.danger : colors.warningText }}>
-            {uploadText(upload)}
+            {uploadText(upload, t)}
           </AppText>
         ) : null}
       </View>

@@ -1,4 +1,5 @@
 import { AppError } from '../errors';
+import { strings } from '../i18n';
 import { parseWithRules } from './rules';
 import { parseResultSchema, type ParseResult } from './schema';
 
@@ -18,9 +19,9 @@ const MAX_TEXT = 5000;
  */
 export function parseNote(text: string, context: ParseContext): ParseResult {
   const note = text.trim();
-  if (note === '') throw new AppError('validation', 'Say or type a note first.');
+  if (note === '') throw new AppError('validation', strings().messages.noteFirst);
   if (note.length > MAX_TEXT) {
-    throw new AppError('validation', `Keep the note under ${MAX_TEXT} characters.`);
+    throw new AppError('validation', strings().messages.noteTooLong(MAX_TEXT));
   }
 
   // The rules always produce this shape; validating keeps the contract honest.

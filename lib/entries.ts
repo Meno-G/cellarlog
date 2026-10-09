@@ -1,6 +1,7 @@
 import type { ValidEntry } from './entryDraft';
 import type { EntryType } from './entryTypes';
 import { AppError, fromDbError, toAppError } from './errors';
+import { strings } from './i18n';
 import { parsedEntrySchema, type ParsedEntry } from './parser/schema';
 import { getSupabase } from './supabase';
 
@@ -44,7 +45,7 @@ function fromRow(row: EntryRow): Entry {
 
 /** A tank's timeline, newest first. */
 export async function listEntries(tankId: string): Promise<Entry[]> {
-  if (!UUID.test(tankId)) throw new AppError('not_found', 'That tank no longer exists.');
+  if (!UUID.test(tankId)) throw new AppError('not_found', strings().messages.tankGone);
   try {
     const { data, error } = await getSupabase()
       .from('entries')
@@ -52,10 +53,10 @@ export async function listEntries(tankId: string): Promise<Entry[]> {
       .eq('tank_id', tankId)
       .order('created_at', { ascending: false })
       .limit(TIMELINE_LIMIT);
-    if (error) throw fromDbError(error, 'Could not load the timeline.');
+    if (error) throw fromDbError(error, strings().messages.loadTimelineFailed);
     return data.map(fromRow);
   } catch (error) {
-    throw toAppError(error, 'Could not load the timeline.');
+    throw toAppError(error, strings().messages.loadTimelineFailed);
   }
 }
 
@@ -70,38 +71,38 @@ export async function listRecentEntries(limit = 2000): Promise<Entry[]> {
       .select(COLUMNS)
       .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) throw fromDbError(error, 'Could not load your entries.');
+    if (error) throw fromDbError(error, strings().messages.loadEntriesFailed);
     return data.map(fromRow);
   } catch (error) {
-    throw toAppError(error, 'Could not load your entries.');
+    throw toAppError(error, strings().messages.loadEntriesFailed);
   }
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  if (!UUID.test(id)) throw new AppError('not_found', 'That entry no longer exists.');
+  if (!UUID.test(id)) throw new AppError('not_found', strings().messages.entryGone);
   try {
     const { data, error } = await getSupabase().from('entries').delete().eq('id', id).select('id');
-    if (error) throw fromDbError(error, 'Could not delete the entry.');
+    if (error) throw fromDbError(error, strings().messages.deleteEntryFailed);
     // RLS hides other users' rows, so "nothing deleted" means it's already gone.
-    if (data.length === 0) throw new AppError('not_found', 'That entry was already deleted.');
+    if (data.length === 0) throw new AppError('not_found', strings().messages.entryAlreadyDeleted);
   } catch (error) {
-    throw toAppError(error, 'Could not delete the entry.');
+    throw toAppError(error, strings().messages.deleteEntryFailed);
   }
 }
 
 export async function getEntry(id: string): Promise<Entry> {
-  if (!UUID.test(id)) throw new AppError('not_found', 'That entry no longer exists.');
+  if (!UUID.test(id)) throw new AppError('not_found', strings().messages.entryGone);
   try {
     const { data, error } = await getSupabase()
       .from('entries')
       .select(COLUMNS)
       .eq('id', id)
       .maybeSingle();
-    if (error) throw fromDbError(error, 'Could not load the entry.');
-    if (!data) throw new AppError('not_found', 'That entry no longer exists.');
+    if (error) throw fromDbError(error, strings().messages.loadEntryFailed);
+    if (!data) throw new AppError('not_found', strings().messages.entryGone);
     return fromRow(data);
   } catch (error) {
-    throw toAppError(error, 'Could not load the entry.');
+    throw toAppError(error, strings().messages.loadEntryFailed);
   }
 }
 
@@ -117,7 +118,7 @@ function toRow(entry: ValidEntry) {
 /** Foreign key / RLS failures on tank_id mean the chosen tank is gone or not the user's. */
 function saveError(error: { code: string; message: string }, fallback: string): AppError {
   if (error.code === '23503' || error.code === '42501') {
-    return new AppError('not_found', 'That tank no longer exists. Pick another tank.', {
+    return new AppError('not_found', strings().messages.tankGonePickAnother, {
       cause: error,
       field: 'tank',
     });
@@ -147,17 +148,17 @@ export async function createEntry(
     if (error) {
       // Same id already there: an earlier upload got through but its reply was lost.
       if (error.code === '23505' && options.id) return await getEntry(options.id);
-      throw saveError(error, 'Could not save the entry.');
+      throw saveError(error, strings().messages.saveEntryFailed);
     }
     return fromRow(data);
   } catch (error) {
-    throw toAppError(error, 'Could not save the entry.');
+    throw toAppError(error, strings().messages.saveEntryFailed);
   }
 }
 
 /** Saves edits to an entry. The original note (raw_text) is kept as it was. */
 export async function updateEntry(id: string, entry: ValidEntry): Promise<Entry> {
-  if (!UUID.test(id)) throw new AppError('not_found', 'That entry no longer exists.');
+  if (!UUID.test(id)) throw new AppError('not_found', strings().messages.entryGone);
   try {
     const { data, error } = await getSupabase()
       .from('entries')
@@ -165,10 +166,10 @@ export async function updateEntry(id: string, entry: ValidEntry): Promise<Entry>
       .eq('id', id)
       .select(COLUMNS)
       .maybeSingle();
-    if (error) throw saveError(error, 'Could not save your changes.');
-    if (!data) throw new AppError('not_found', 'That entry was deleted in the meantime.');
+    if (error) throw saveError(error, strings().messages.saveChangesFailed);
+    if (!data) throw new AppError('not_found', strings().messages.entryDeletedMeanwhile);
     return fromRow(data);
   } catch (error) {
-    throw toAppError(error, 'Could not save your changes.');
+    throw toAppError(error, strings().messages.saveChangesFailed);
   }
 }

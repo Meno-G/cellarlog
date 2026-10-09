@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { useIsOffline } from '@/hooks/useNetworkStatus';
 import { useOutbox } from '@/hooks/useOutbox';
 import { fonts, radius, spacing, useTheme } from '@/theme';
@@ -8,23 +9,19 @@ import { AppText } from './AppText';
 import { Button } from './Button';
 import { Icon } from './Icon';
 
-function changes(count: number): string {
-  return count === 1 ? '1 change' : `${count} changes`;
-}
-
 /** Shows changes (entries, tanks) saved on the phone that haven't reached the server yet. Nothing otherwise. */
 export function SyncBanner() {
   const { pendingCount, failedCount, uploading, lastError, uploadNow } = useOutbox();
   const offline = useIsOffline();
   const { colors } = useTheme();
+  const t = useT();
 
   if (pendingCount === 0 && failedCount === 0) return null;
 
   let message: string;
-  if (uploading) message = `Uploading ${changes(pendingCount)}…`;
-  else if (pendingCount > 0 && offline)
-    message = `${changes(pendingCount)} saved on this phone. They upload when you're back online.`;
-  else if (pendingCount > 0) message = lastError ?? `${changes(pendingCount)} waiting to upload.`;
+  if (uploading) message = t.sync.uploading(pendingCount);
+  else if (pendingCount > 0 && offline) message = t.sync.savedOffline(pendingCount);
+  else if (pendingCount > 0) message = lastError ?? t.sync.waiting(pendingCount);
   else message = '';
 
   return (
@@ -40,11 +37,11 @@ export function SyncBanner() {
       ) : null}
       {failedCount > 0 ? (
         <AppText style={[styles.text, { color: colors.danger }]}>
-          {changes(failedCount)} couldn&apos;t upload. Tap the marked tank or entry to fix, retry or delete it.
+          {t.sync.failed(failedCount)}
         </AppText>
       ) : null}
       {pendingCount > 0 && !offline && !uploading ? (
-        <Button variant="secondary" title="Upload now" onPress={uploadNow} />
+        <Button variant="secondary" title={t.sync.uploadNow} onPress={uploadNow} />
       ) : null}
     </View>
   );

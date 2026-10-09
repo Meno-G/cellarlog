@@ -6,6 +6,11 @@ import type {
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import { strings } from '@/lib/i18n';
+
+/** Messages in the current language. */
+const m = () => strings().messages;
+
 // Loaded optionally: the native module only exists in CellarLog's own build,
 // not in Expo Go, and importing 'expo-speech-recognition' directly would crash there.
 type SpeechModule = (typeof import('expo-speech-recognition'))['ExpoSpeechRecognitionModule'];
@@ -41,36 +46,36 @@ function errorFor(code: ExpoSpeechRecognitionErrorCode, offlineReady: boolean): 
       return null;
     case 'no-speech':
     case 'speech-timeout':
-      return { message: "Didn't catch that. Tap the button and speak again.", offerOfflineDownload: false };
+      return { message: m().didntCatch, offerOfflineDownload: false };
     case 'not-allowed':
-      return { message: 'Microphone access is needed to record notes.', offerOfflineDownload: false };
+      return { message: m().micNeeded, offerOfflineDownload: false };
     case 'network':
       return {
         message: offlineReady
-          ? 'Speech recognition lost its connection. Try again.'
-          : 'Voice needs internet until English is downloaded for offline use.',
+          ? m().speechLostConnection
+          : m().speechNeedsInternet,
         offerOfflineDownload: !offlineReady,
       };
     case 'language-not-supported':
       return {
-        message: 'English speech recognition is not installed on this phone.',
+        message: m().englishNotInstalled,
         offerOfflineDownload: true,
       };
     case 'busy':
-      return { message: 'The microphone is busy. Try again in a moment.', offerOfflineDownload: false };
+      return { message: m().micBusy, offerOfflineDownload: false };
     case 'audio-capture':
       return {
-        message: "Couldn't use the microphone. Close other apps that use it and try again.",
+        message: m().micUnavailable,
         offerOfflineDownload: false,
       };
     case 'service-not-allowed':
       return {
         message:
-          "Speech recognition isn't available. Check that Google's “Speech Recognition & Synthesis” app is installed and enabled.",
+          m().speechUnavailable,
         offerOfflineDownload: false,
       };
     default:
-      return { message: 'Speech recognition failed. Please try again.', offerOfflineDownload: false };
+      return { message: m().speechFailed, offerOfflineDownload: false };
   }
 }
 
@@ -204,7 +209,7 @@ export function useSpeechToText({ onFinished, vocabulary }: Options) {
         contextualStrings: [...vocabulary, ...WINE_TERMS],
       });
     } catch {
-      setError({ message: 'Speech recognition could not start. Please try again.', offerOfflineDownload: false });
+      setError({ message: m().speechCouldNotStart, offerOfflineDownload: false });
       setPhase('idle');
     }
   }
@@ -217,17 +222,17 @@ export function useSpeechToText({ onFinished, vocabulary }: Options) {
 
   async function downloadOffline() {
     if (!speech) return;
-    setDownloadNote('Starting download…');
+    setDownloadNote(m().downloadStarting);
     try {
       const result = await speech.androidTriggerOfflineModelDownload({ locale: PREFERRED_LANG });
       if (result.status === 'download_success') {
-        setDownloadNote('English is ready: voice now works offline.');
+        setDownloadNote(m().downloadReady);
         setError(null);
         await checkOffline();
       } else if (result.status === 'download_scheduled') {
-        setDownloadNote('Download scheduled. It finishes on Wi-Fi; voice works online until then.');
+        setDownloadNote(m().downloadScheduled);
       } else {
-        setDownloadNote('Follow the download dialog, then try recording again.');
+        setDownloadNote(m().downloadFollow);
       }
     } catch {
       setDownloadNote("Couldn't download English. Try again when you have Wi-Fi.");

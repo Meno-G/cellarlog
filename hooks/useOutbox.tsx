@@ -14,6 +14,7 @@ import { AppState } from 'react-native';
 import type { Entry } from '@/lib/entries';
 import type { ValidEntry } from '@/lib/entryDraft';
 import { errorMessage } from '@/lib/errors';
+import { strings } from '@/lib/i18n';
 import {
   discardLocalTank,
   hasQueuedEntryChanges,
@@ -89,7 +90,7 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
         const result = await flushOutbox(userId);
         interrupted = result.interrupted;
         if (result.uploaded > 0) setUploadedCount((count) => count + result.uploaded);
-        setLastError(interrupted ? 'Upload paused: no connection. It continues when you are back online.' : null);
+        setLastError(interrupted ? strings().sync.paused : null);
       } catch (error) {
         interrupted = true;
         setLastError(errorMessage(error));

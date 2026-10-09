@@ -9,10 +9,12 @@ import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankForm } from '@/components/TankForm';
 import { useEntries } from '@/hooks/useEntries';
+import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank, useTanks } from '@/hooks/useTanks';
 import { TIMELINE_LIMIT } from '@/lib/entries';
 import { AppError, errorMessage } from '@/lib/errors';
+import { strings } from '@/lib/i18n';
 import { tankToForm } from '@/lib/tankForm';
 import { findDuplicateName } from '@/lib/tankOverlay';
 import type { TankInput } from '@/lib/tanks';
@@ -25,13 +27,14 @@ export default function EditTankScreen() {
   const entries = useEntries(id);
   const outbox = useOutbox();
   const { colors } = useTheme();
+  const t = useT();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleSubmit(input: TankInput) {
     const duplicate = findDuplicateName(input.name, tanks.data ?? [], id);
     if (duplicate) {
-      throw new AppError('validation', `You already have a tank called "${duplicate.name}".`, {
+      throw new AppError('validation', strings().messages.duplicateTank(duplicate.name), {
         field: 'name',
       });
     }
@@ -43,11 +46,11 @@ export default function EditTankScreen() {
   /** "14 entries", "200+ entries", or null when the timeline couldn't be loaded. */
   function entryCountText(): string | null {
     const queued = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === id).length;
-    if (!entries.data) return queued > 0 ? `at least ${queued} entries` : null;
+    if (!entries.data) return queued > 0 ? t.editTank.entryCountAtLeast(queued) : null;
     const saved = entries.data.length;
     const total = saved + queued;
-    if (saved >= TIMELINE_LIMIT) return `${TIMELINE_LIMIT}+ entries`;
-    return total === 1 ? '1 entry' : `${total} entries`;
+    if (saved >= TIMELINE_LIMIT) return t.editTank.entryCountMany(TIMELINE_LIMIT);
+    return t.editTank.entryCount(total);
   }
 
   async function deleteNow() {
@@ -65,22 +68,20 @@ export default function EditTankScreen() {
 
   function confirmDelete(name: string) {
     const count = entryCountText();
-    const noEntries = count === '0 entries';
-    const firstMessage = noEntries
-      ? "It has no entries. This can't be undone."
-      : `This also deletes ${count ? `its ${count}` : 'all of its entries'}: additions, lab analyses, tastings and notes. This can't be undone.`;
-    Alert.alert(`Delete ${name}?`, firstMessage, [
-      { text: 'Cancel', style: 'cancel' },
+    const noEntries = count === t.editTank.entryCount(0);
+    const firstMessage = noEntries ? t.editTank.noEntries : t.editTank.withEntries(count);
+    Alert.alert(t.editTank.confirmTitle(name), firstMessage, [
+      { text: t.common.cancel, style: 'cancel' },
       {
-        text: 'Delete…',
+        text: t.editTank.deleteEllipsis,
         style: 'destructive',
         onPress: () =>
           Alert.alert(
-            'Are you sure?',
-            noEntries ? `${name} will be deleted.` : `${name} and ${count ?? 'all its entries'} will be deleted for good.`,
+            t.editTank.sureTitle,
+            noEntries ? t.editTank.willBeDeleted(name) : t.editTank.willBeDeletedWith(name, count),
             [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete tank', style: 'destructive', onPress: () => void deleteNow() },
+              { text: t.common.cancel, style: 'cancel' },
+              { text: t.editTank.deleteButton, style: 'destructive', onPress: () => void deleteNow() },
             ],
           ),
       },
@@ -99,7 +100,7 @@ export default function EditTankScreen() {
     return (
       <Screen scroll={false}>
         <ErrorState
-          message={tank.error ?? 'Could not load this tank.'}
+          message={tank.error ?? t.messages.loadTankFailed}
           onRetry={tank.refresh}
           retrying={tank.refreshing}
         />
@@ -114,21 +115,21 @@ export default function EditTankScreen() {
       // Re-initialise the form if a different tank is loaded.
       key={tank.data.id}
       initialValues={tankToForm(tank.data)}
-      submitLabel="Save changes"
+      submitLabel={t.common.saveChanges}
       onSubmit={handleSubmit}
-      offlineMessage="You're offline. Your changes are saved on this phone and upload when you're back online."
+      offlineMessage={t.tankForm.offlineEdit}
       footerExtra={
         <View style={[styles.danger, { borderColor: colors.danger }]}>
           <AppText variant="label" style={{ color: colors.danger }}>
-            Delete this tank
+            {t.editTank.dangerTitle}
           </AppText>
           <AppText muted variant="caption">
-            Deletes {name} and all of its entries. You&apos;ll be asked to confirm twice.
+            {t.editTank.dangerText(name)}
           </AppText>
           {deleteError ? <Banner message={deleteError} /> : null}
           <Button
             variant="danger"
-            title="Delete tank"
+            title={t.editTank.deleteButton}
             onPress={() => confirmDelete(name)}
             loading={deleting}
           />

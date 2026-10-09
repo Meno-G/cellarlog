@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, type TextInput } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { AppError, errorMessage } from '@/lib/errors';
 import {
   TANK_FORM_FIELDS,
@@ -32,6 +33,7 @@ function isFormField(field: string | undefined): field is keyof TankFormValues {
 }
 
 export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage, footerExtra }: Props) {
+  const t = useT();
   const [values, setValues] = useState<TankFormValues>(initialValues);
   const [errors, setErrors] = useState<TankFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -82,11 +84,11 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
         {submitError ? <Banner message={submitError} /> : null}
 
         <TextField
-          label="Tank name"
+          label={t.tankForm.name}
           value={values.name}
           onChangeText={(text) => setField('name', text)}
           error={errors.name}
-          placeholder="Tank 12"
+          placeholder={t.tankForm.namePlaceholder}
           autoCapitalize="words"
           returnKeyType="next"
           onSubmitEditing={() => volumeRef.current?.focus()}
@@ -94,7 +96,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
         />
         <TextField
           ref={volumeRef}
-          label="Volume (liters)"
+          label={t.tankForm.volume}
           value={values.volume}
           onChangeText={(text) => setField('volume', text)}
           error={errors.volume}
@@ -106,11 +108,11 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
         />
         <TextField
           ref={varietyRef}
-          label="Wine / grape variety (optional)"
+          label={t.tankForm.variety}
           value={values.variety}
           onChangeText={(text) => setField('variety', text)}
           error={errors.variety}
-          placeholder="Saperavi"
+          placeholder={t.tankForm.varietyPlaceholder}
           autoCapitalize="words"
           returnKeyType="next"
           onSubmitEditing={() => vintageRef.current?.focus()}
@@ -118,7 +120,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
         />
         <TextField
           ref={vintageRef}
-          label="Vintage (optional)"
+          label={t.tankForm.vintage}
           value={values.vintage}
           onChangeText={(text) => setField('vintage', text)}
           error={errors.vintage}

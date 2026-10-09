@@ -11,6 +11,7 @@ import {
 } from './entries';
 import type { ValidEntry } from './entryDraft';
 import { AppError, toAppError } from './errors';
+import { strings } from './i18n';
 import {
   discardLocalTank,
   dropQueuedForEntry,
@@ -54,7 +55,7 @@ async function sendOrQueue(
     await send();
     return 'saved';
   } catch (error) {
-    const appError = toAppError(error, 'Could not save.');
+    const appError = toAppError(error, strings().messages.couldNotSave);
     if (appError.kind !== 'network') throw appError;
     queue();
     return 'queued';

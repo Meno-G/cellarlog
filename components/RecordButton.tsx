@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { fonts, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
@@ -27,6 +28,7 @@ const HALO = SIZE + 76;
 /** One big tap-to-start / tap-to-stop button. Tapping twice is easier with gloves than holding. */
 export function RecordButton({ listening, busy, elapsedMs, maxMs, disabled = false, onPress }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   const inactive = disabled || (busy && !listening);
   // Created once; it drives the halo on the native side.
   const [pulse] = useState(() => new Animated.Value(0));
@@ -56,10 +58,10 @@ export function RecordButton({ listening, busy, elapsedMs, maxMs, disabled = fal
   }, [listening, pulse]);
 
   const label = listening
-    ? `Listening… tap to stop · ${formatClock(elapsedMs)} / ${formatClock(maxMs)}`
+    ? t.record.listening(formatClock(elapsedMs), formatClock(maxMs))
     : busy
-      ? 'Please wait…'
-      : 'Tap and speak';
+      ? t.record.pleaseWait
+      : t.record.tapAndSpeak;
 
   return (
     <View style={styles.wrapper}>
@@ -80,7 +82,7 @@ export function RecordButton({ listening, busy, elapsedMs, maxMs, disabled = fal
           onPress={onPress}
           disabled={inactive}
           accessibilityRole="button"
-          accessibilityLabel={listening ? 'Stop listening' : 'Start speaking'}
+          accessibilityLabel={listening ? t.record.stop : t.record.start}
           accessibilityState={{ disabled: inactive, busy }}
           hitSlop={16}
           style={({ pressed }) => [

@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { formatItemValue, formatRelative } from '@/lib/format';
+import { itemName } from '@/lib/i18n';
 import type { LatestValue } from '@/lib/latestValues';
 import { fonts, radius, spacing, touch, useTheme } from '@/theme';
 
@@ -15,14 +17,15 @@ type Props = {
 /** The newest reading of each value on a tank, with how long ago it was measured. */
 export function LatestValues({ values, onSelect }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   if (values.length === 0) return null;
   return (
     <View style={styles.wrapper}>
       <AppText variant="heading" style={{ color: colors.header }}>
-        Latest values
+        {t.latest.title}
       </AppText>
       <AppText muted variant="caption">
-        Tap a value to see how it changed.
+        {t.latest.hint}
       </AppText>
       <View style={styles.tiles}>
         {values.map(({ item, createdAt }) => {
@@ -36,15 +39,15 @@ export function LatestValues({ values, onSelect }: Props) {
               onPress={() => onSelect(item.name)}
               disabled={!charted}
               accessibilityRole={charted ? 'button' : undefined}
-              accessibilityLabel={`${item.name}: ${value}, ${when}`}
-              accessibilityHint={charted ? 'Shows every reading of this value' : undefined}
+              accessibilityLabel={`${itemName(item.name)}: ${value}, ${when}`}
+              accessibilityHint={charted ? t.latest.a11yHint : undefined}
               style={({ pressed }) => [
                 styles.tile,
                 { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
               ]}
             >
               <AppText muted style={styles.name} numberOfLines={1}>
-                {item.name}
+                {itemName(item.name)}
               </AppText>
               <AppText style={styles.value} numberOfLines={1}>
                 {value}

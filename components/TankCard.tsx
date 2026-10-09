@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import type { TankSummary } from '@/hooks/useTankSummaries';
-import { ENTRY_TYPE_LABELS } from '@/lib/entryTypes';
 import { formatItemValue, formatLiters, formatRelative, formatWine } from '@/lib/format';
+import { itemName } from '@/lib/i18n';
 import { cardReadings } from '@/lib/latestValues';
 import type { ShownTank } from '@/lib/tankOverlay';
 import { fonts, radius, spacing, useTheme } from '@/theme';
@@ -20,12 +21,13 @@ export function TankCard({ tank, summary, onPress }: Props) {
   // A few latest readings, so the cellar can be checked without opening each tank.
   const readings = cardReadings(summary?.latest ?? []);
   const { colors } = useTheme();
+  const t = useT();
   const wine = formatWine(tank.variety, tank.vintage);
   const volume = formatLiters(tank.volumeLiters);
   const failed = tank.upload?.status === 'failed';
   const lastText = last
-    ? `Last: ${ENTRY_TYPE_LABELS[last.type].toLowerCase()} · ${formatRelative(last.createdAt)}`
-    : 'No entries yet';
+    ? t.tankCard.last(t.entryTypes[last.type], formatRelative(last.createdAt))
+    : t.tankCard.noEntries;
 
   return (
     <Pressable
@@ -35,9 +37,9 @@ export function TankCard({ tank, summary, onPress }: Props) {
         tank.name,
         wine,
         volume,
-        ...readings.map(({ item }) => `${item.name} ${formatItemValue(item)}`),
+        ...readings.map(({ item }) => `${itemName(item.name)} ${formatItemValue(item)}`),
         lastText,
-        tank.upload ? 'not uploaded yet' : null,
+        tank.upload ? t.tankCard.notUploaded : null,
       ]
         .filter(Boolean)
         .join(', ')}
@@ -62,14 +64,14 @@ export function TankCard({ tank, summary, onPress }: Props) {
           <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 16, color: colors.primary }}>{volume}</AppText>
         </View>
         <AppText muted numberOfLines={1} style={styles.wine}>
-          {wine ?? 'No wine set'}
+          {wine ?? t.tankCard.noWine}
         </AppText>
         {readings.length > 0 ? (
           <View style={styles.readings}>
             {readings.map(({ item }) => (
               <View key={item.name} style={[styles.reading, { backgroundColor: colors.background }]}>
                 <AppText muted style={styles.readingName} numberOfLines={1}>
-                  {item.name}
+                  {itemName(item.name)}
                 </AppText>
                 <AppText style={styles.readingValue} numberOfLines={1}>
                   {formatItemValue(item)}
@@ -83,8 +85,10 @@ export function TankCard({ tank, summary, onPress }: Props) {
             style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: failed ? colors.danger : colors.warningText }}
           >
             {failed
-              ? `${tank.upload.action === 'delete' ? "Couldn't delete" : "Couldn't upload"}: ${tank.upload.error ?? 'unknown error'}`
-              : 'Saved on this phone · waiting to upload'}
+              ? (tank.upload.action === 'delete' ? t.tankCard.couldntDelete : t.tankCard.couldntUpload)(
+                  tank.upload.error ?? t.messages.somethingWrong,
+                )
+              : t.tankCard.savedWaiting}
           </AppText>
         ) : (
           <AppText muted variant="caption">

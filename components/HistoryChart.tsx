@@ -1,6 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
+import { useT } from '@/hooks/useLanguage';
 import { formatEntryTime, formatItemValue } from '@/lib/format';
+import { itemName } from '@/lib/i18n';
 import type { HistoryPoint } from '@/lib/latestValues';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
@@ -22,6 +24,7 @@ const HEIGHT = 150;
  */
 export function HistoryChart({ name, points }: Props) {
   const { colors } = useTheme();
+  const t = useT();
   const shown = points.slice(-MAX_BARS);
   const first = shown[0];
   const last = shown[shown.length - 1];
@@ -38,10 +41,15 @@ export function HistoryChart({ name, points }: Props) {
     <View
       style={[styles.box, { backgroundColor: colors.surface, borderColor: colors.border }]}
       accessible
-      accessibilityLabel={
-        `Chart of the last ${shown.length} ${name} readings, from ${formatEntryTime(first.createdAt)} ` +
-        `to ${formatEntryTime(last.createdAt)}. Lowest ${label(low)}, highest ${label(high)}, latest ${label(last.value)}.`
-      }
+      accessibilityLabel={t.history.chartLabel(
+        shown.length,
+        itemName(name),
+        formatEntryTime(first.createdAt),
+        formatEntryTime(last.createdAt),
+        label(low),
+        label(high),
+        label(last.value),
+      )}
     >
       <View style={styles.bars}>
         {shown.map((point, index) => {

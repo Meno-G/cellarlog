@@ -2,10 +2,11 @@
 
 type Named = { id: string; name: string };
 
-/** "Tank 12" -> "12", "T-12a" -> "12a", "Barrique 3" -> "barrique3". */
+/** "Tank 12" -> "12", "T-12a" -> "12a", "ცისტერნა 12" -> "12", "Barrique 3" -> "barrique3". */
 export function tankKey(name: string): string {
   const compact = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
-  const numbered = /^(?:tank|t|tk|no|nr)(\d.*)$/.exec(compact);
+  // English and Georgian ("ცისტერნა", "ც") prefixes: a voice note in English finds "ცისტერნა 12".
+  const numbered = /^(?:tank|t|tk|no|nr|ცისტერნა|ც)(\d.*)$/u.exec(compact);
   return numbered?.[1] ?? compact;
 }
 

@@ -1,5 +1,6 @@
 import type { Database } from './database.types';
 import { AppError, fromDbError, toAppError } from './errors';
+import { strings } from './i18n';
 import { getSupabase } from './supabase';
 import { sortTanks } from './tankOverlay';
 
@@ -50,7 +51,7 @@ function toRow(input: TankInput) {
 // ---------------------------------------------------------------------------
 
 function duplicateNameError(name: string, cause: unknown): AppError {
-  return new AppError('validation', `You already have a tank called "${name}".`, {
+  return new AppError('validation', strings().messages.duplicateTank(name), {
     cause,
     field: 'name',
   });
@@ -60,26 +61,26 @@ function duplicateNameError(name: string, cause: unknown): AppError {
 export async function listTanks(): Promise<Tank[]> {
   try {
     const { data, error } = await getSupabase().from('tanks').select(COLUMNS);
-    if (error) throw fromDbError(error, 'Could not load your tanks.');
+    if (error) throw fromDbError(error, strings().messages.loadTanksFailed);
     return sortTanks(data.map(fromRow));
   } catch (error) {
-    throw toAppError(error, 'Could not load your tanks.');
+    throw toAppError(error, strings().messages.loadTanksFailed);
   }
 }
 
 export async function getTank(id: string): Promise<Tank> {
-  if (!UUID.test(id)) throw new AppError('not_found', 'That tank no longer exists.');
+  if (!UUID.test(id)) throw new AppError('not_found', strings().messages.tankGone);
   try {
     const { data, error } = await getSupabase()
       .from('tanks')
       .select(COLUMNS)
       .eq('id', id)
       .maybeSingle();
-    if (error) throw fromDbError(error, 'Could not load this tank.');
-    if (!data) throw new AppError('not_found', 'That tank no longer exists.');
+    if (error) throw fromDbError(error, strings().messages.loadTankFailed);
+    if (!data) throw new AppError('not_found', strings().messages.tankGone);
     return fromRow(data);
   } catch (error) {
-    throw toAppError(error, 'Could not load this tank.');
+    throw toAppError(error, strings().messages.loadTankFailed);
   }
 }
 
@@ -108,11 +109,11 @@ export async function createTank(
         if (options.id && error.message.includes('tanks_pkey')) return await getTank(options.id);
         throw duplicateNameError(input.name, error);
       }
-      throw fromDbError(error, 'Could not save the tank.');
+      throw fromDbError(error, strings().messages.saveTankFailed);
     }
     return fromRow(data);
   } catch (error) {
-    throw toAppError(error, 'Could not save the tank.');
+    throw toAppError(error, strings().messages.saveTankFailed);
   }
 }
 
@@ -121,17 +122,17 @@ export async function createTank(
  * A tank that's already gone counts as deleted, so a retried upload is safe.
  */
 export async function deleteTank(id: string): Promise<void> {
-  if (!UUID.test(id)) throw new AppError('not_found', 'That tank no longer exists.');
+  if (!UUID.test(id)) throw new AppError('not_found', strings().messages.tankGone);
   try {
     const { error } = await getSupabase().from('tanks').delete().eq('id', id).select('id');
-    if (error) throw fromDbError(error, 'Could not delete the tank.');
+    if (error) throw fromDbError(error, strings().messages.deleteTankFailed);
   } catch (error) {
-    throw toAppError(error, 'Could not delete the tank.');
+    throw toAppError(error, strings().messages.deleteTankFailed);
   }
 }
 
 export async function updateTank(id: string, input: TankInput): Promise<Tank> {
-  if (!UUID.test(id)) throw new AppError('not_found', 'That tank no longer exists.');
+  if (!UUID.test(id)) throw new AppError('not_found', strings().messages.tankGone);
   try {
     const { data, error } = await getSupabase()
       .from('tanks')
@@ -141,10 +142,10 @@ export async function updateTank(id: string, input: TankInput): Promise<Tank> {
       .single();
     if (error) {
       if (error.code === '23505') throw duplicateNameError(input.name, error);
-      throw fromDbError(error, 'Could not save your changes.');
+      throw fromDbError(error, strings().messages.saveChangesFailed);
     }
     return fromRow(data);
   } catch (error) {
-    throw toAppError(error, 'Could not save your changes.');
+    throw toAppError(error, strings().messages.saveChangesFailed);
   }
 }

@@ -1,3 +1,5 @@
+import { strings } from './i18n';
+
 export type AppErrorKind =
   | 'network'
   | 'permission'
@@ -29,7 +31,10 @@ export class AppError extends Error {
   }
 }
 
-export const NETWORK_MESSAGE = 'No internet connection. Check your signal and try again.';
+/** In the current language. */
+export function networkMessage(): string {
+  return strings().messages.network;
+}
 
 /** React Native's fetch rejects with a TypeError like "Network request failed". */
 export function isNetworkFailure(error: unknown): boolean {
@@ -39,13 +44,13 @@ export function isNetworkFailure(error: unknown): boolean {
 
 export function toAppError(error: unknown, fallbackMessage: string): AppError {
   if (error instanceof AppError) return error;
-  if (isNetworkFailure(error)) return new AppError('network', NETWORK_MESSAGE, { cause: error });
+  if (isNetworkFailure(error)) return new AppError('network', networkMessage(), { cause: error });
   return new AppError('server', fallbackMessage, { cause: error });
 }
 
 /** For catch blocks in screens: always yields something showable. */
 export function errorMessage(error: unknown): string {
-  return toAppError(error, 'Something went wrong. Please try again.').message;
+  return toAppError(error, strings().messages.somethingWrong).message;
 }
 
 /** Shape of the `error` supabase-js returns from database calls. */
@@ -57,21 +62,21 @@ type DbError = { code: string; message: string };
  */
 export function fromDbError(error: DbError, fallbackMessage: string): AppError {
   if (isNetworkFailure(new Error(error.message))) {
-    return new AppError('network', NETWORK_MESSAGE, { cause: error });
+    return new AppError('network', networkMessage(), { cause: error });
   }
   switch (error.code) {
     case '22P02': // invalid input syntax, e.g. a malformed uuid in the URL
     case 'PGRST116': // .single() matched no rows
-      return new AppError('not_found', 'That item no longer exists.', { cause: error });
+      return new AppError('not_found', strings().messages.notFound, { cause: error });
     case '42501': // row-level security
-      return new AppError('permission', "You don't have access to that.", { cause: error });
+      return new AppError('permission', strings().messages.noAccess, { cause: error });
     case 'PGRST301':
     case 'PGRST303': // JWT expired / invalid
-      return new AppError('auth', 'Your session has expired. Please sign in again.', {
+      return new AppError('auth', strings().messages.sessionExpired, {
         cause: error,
       });
     case '23514': // check constraint
-      return new AppError('validation', 'Some values are out of range. Please check the form.', {
+      return new AppError('validation', strings().messages.outOfRange, {
         cause: error,
       });
   }

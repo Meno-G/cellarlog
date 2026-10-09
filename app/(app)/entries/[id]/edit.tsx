@@ -10,6 +10,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useEntry } from '@/hooks/useEntries';
+import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTanks } from '@/hooks/useTanks';
 import {
@@ -35,6 +36,7 @@ export default function EditEntryScreen() {
   const { id, tankId } = useLocalSearchParams<{ id: string; tankId?: string }>();
   const entry = useEntry(id, tankId);
   const tanks = useTanks();
+  const t = useT();
 
   if (entry.loading || tanks.loading) {
     return (
@@ -51,7 +53,7 @@ export default function EditEntryScreen() {
     return (
       <Screen scroll={false}>
         <ErrorState
-          message={entry.error ?? tanks.error ?? 'Could not load the entry.'}
+          message={entry.error ?? tanks.error ?? t.editEntry.loadFailed}
           onRetry={retry}
           retrying={entry.refreshing || tanks.refreshing}
         />
@@ -67,8 +69,6 @@ export default function EditEntryScreen() {
     <EntryEditor key={entry.data.id} entry={entry.data} tanks={tanks.data} />
   );
 }
-
-const OFFLINE_MESSAGE = "You're offline. Your changes are saved on this phone and upload when you're back online.";
 
 /**
  * Saves now, or on this phone when offline. Then back to the timeline, or to
@@ -92,6 +92,7 @@ function AnalysisEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const saveEdit = useSaveEdit(entry);
+  const t = useT();
 
   async function handleSave() {
     setSaveError(null);
@@ -118,11 +119,11 @@ function AnalysisEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Screen footer={<Button title="Save changes" icon="check" onPress={handleSave} loading={saving} />}>
-        <OfflineBanner message={OFFLINE_MESSAGE} />
+      <Screen footer={<Button title={t.common.saveChanges} icon="check" onPress={handleSave} loading={saving} />}>
+        <OfflineBanner message={t.editEntry.offline} />
         {saveError ? <Banner message={saveError} onRetry={handleSave} /> : null}
         {hasErrors ? (
-          <Banner message={errors.form ?? 'Please fix the highlighted fields.'} />
+          <Banner message={errors.form ?? t.common.fixFields} />
         ) : null}
         <AnalysisFormView form={form} onChange={setForm} tanks={tanks} errors={errors} disabled={saving} />
       </Screen>
@@ -136,6 +137,7 @@ function EntryEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const saveEdit = useSaveEdit(entry);
+  const t = useT();
 
   async function handleSave() {
     setSaveError(null);
@@ -162,11 +164,11 @@ function EntryEditor({ entry, tanks }: { entry: Entry; tanks: Tank[] }) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Screen footer={<Button title="Save changes" onPress={handleSave} loading={saving} />}>
-        <OfflineBanner message={OFFLINE_MESSAGE} />
+      <Screen footer={<Button title={t.common.saveChanges} onPress={handleSave} loading={saving} />}>
+        <OfflineBanner message={t.editEntry.offline} />
         {saveError ? <Banner message={saveError} onRetry={handleSave} /> : null}
         {hasErrors ? (
-          <Banner message={errors.form ?? 'Please fix the highlighted fields.'} />
+          <Banner message={errors.form ?? t.common.fixFields} />
         ) : null}
         <EntryReview
           draft={draft}

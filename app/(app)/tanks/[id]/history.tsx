@@ -7,10 +7,12 @@ import { HistoryChart } from '@/components/HistoryChart';
 import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { useEntries } from '@/hooks/useEntries';
+import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges } from '@/lib/entryOverlay';
 import { formatChange, formatEntryTime, formatItemValue, formatRelative } from '@/lib/format';
+import { itemName } from '@/lib/i18n';
 import { valueHistory, type HistoryPoint } from '@/lib/latestValues';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
@@ -21,13 +23,17 @@ export default function ValueHistoryScreen() {
   const entries = useEntries(id);
   const outbox = useOutbox();
   const { colors } = useTheme();
+  const t = useT();
+  const shownName = itemName(name);
 
-  const hero = <HeroBand title={name} subtitle={tank.data ? `History · ${tank.data.name}` : 'History'} />;
+  const hero = (
+    <HeroBand title={shownName} subtitle={tank.data ? t.history.titleFor(tank.data.name) : t.history.title} />
+  );
 
   if (entries.loading) {
     return (
       <Screen scroll={false} hero={hero}>
-        <LoadingState label="Loading readings…" />
+        <LoadingState label={t.history.loading} />
       </Screen>
     );
   }
@@ -35,7 +41,7 @@ export default function ValueHistoryScreen() {
     return (
       <Screen scroll={false} hero={hero}>
         <ErrorState
-          message={entries.error ?? 'Could not load the readings.'}
+          message={entries.error ?? t.history.loadFailed}
           onRetry={entries.refresh}
           retrying={entries.refreshing}
         />
@@ -54,18 +60,18 @@ export default function ValueHistoryScreen() {
 
   const summary = latest ? (
     <View style={styles.summary}>
-      <Stat label="Latest" value={show(latest)} detail={formatRelative(latest.createdAt)} />
+      <Stat label={t.history.latest} value={show(latest)} detail={formatRelative(latest.createdAt)} />
       {previous ? (
         <Stat
-          label="Change"
+          label={t.history.change}
           value={formatChange(latest.value - previous.value, latest.unit)}
-          detail={`since ${formatRelative(previous.createdAt)}`}
+          detail={t.history.since(formatRelative(previous.createdAt))}
         />
       ) : null}
       {points.length > 1 ? (
         <>
-          <Stat label="Lowest" value={show({ value: Math.min(...values), unit: latest.unit })} />
-          <Stat label="Highest" value={show({ value: Math.max(...values), unit: latest.unit })} />
+          <Stat label={t.history.lowest} value={show({ value: Math.min(...values), unit: latest.unit })} />
+          <Stat label={t.history.highest} value={show({ value: Math.max(...values), unit: latest.unit })} />
         </>
       ) : null}
     </View>
@@ -93,13 +99,12 @@ export default function ValueHistoryScreen() {
             <HistoryChart name={name} points={points} />
             {skipped > 0 ? (
               <AppText muted variant="caption">
-                {skipped === 1 ? '1 reading' : `${skipped} readings`} in another unit or written as text{' '}
-                {skipped === 1 ? "isn't" : "aren't"} included. They are still on the timeline.
+                {t.history.skipped(skipped)}
               </AppText>
             ) : null}
             {points.length > 0 ? (
               <AppText variant="heading" style={{ color: colors.header }}>
-                All readings
+                {t.history.allReadings}
               </AppText>
             ) : null}
           </View>
@@ -128,9 +133,9 @@ export default function ValueHistoryScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <AppText variant="title">No readings yet</AppText>
+            <AppText variant="title">{t.history.noReadingsTitle}</AppText>
             <AppText muted style={styles.emptyText}>
-              Readings of {name} on this tank will show here, from the Analysis tab or a spoken note.
+              {t.history.noReadingsText(shownName)}
             </AppText>
           </View>
         }

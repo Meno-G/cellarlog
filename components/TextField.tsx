@@ -1,7 +1,8 @@
 import type { Ref } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { fonts, fontSize, radius, spacing, touch, useTheme } from '@/theme';
+import { useLanguage } from '@/hooks/useLanguage';
+import { fonts, fontSize, georgianFamily, radius, spacing, touch, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
 
@@ -13,6 +14,7 @@ type Props = TextInputProps & {
 
 export function TextField({ label, error, style, ref, ...rest }: Props) {
   const { colors } = useTheme();
+  const { lang } = useLanguage();
   return (
     <View style={styles.wrapper}>
       <AppText variant="label">{label}</AppText>
@@ -27,6 +29,7 @@ export function TextField({ label, error, style, ref, ...rest }: Props) {
             backgroundColor: colors.surface,
             borderColor: error ? colors.danger : colors.border,
           },
+          lang === 'ka' && { fontFamily: georgianFamily(fonts.body) },
           style,
         ]}
         {...rest}

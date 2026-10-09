@@ -6,8 +6,10 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/Button';
+import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
+import { useT } from '@/hooks/useLanguage';
 import { signIn, signUp } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
 import { fonts, spacing, useTheme } from '@/theme';
@@ -17,6 +19,7 @@ type Mode = 'signIn' | 'signUp';
 export default function SignInScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const t = useT();
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +38,7 @@ export default function SignInScreen() {
       if (isSignUp) {
         const { needsEmailConfirmation } = await signUp(email, password);
         if (needsEmailConfirmation) {
-          setInfo('Account created. Open the confirmation link we emailed you, then sign in.');
+          setInfo(t.auth.accountCreated);
           setMode('signIn');
           setPassword('');
         }
@@ -64,23 +67,26 @@ export default function SignInScreen() {
       <Screen
         hero={
           <View style={[styles.hero, { backgroundColor: colors.header, paddingTop: insets.top + spacing.xl }]}>
+            <View style={[styles.switch, { top: insets.top + spacing.sm }]}>
+              <LanguageSwitch />
+            </View>
             <BrandMark size={42} />
-            <AppText style={[styles.tagline, { color: colors.onHeaderMuted }]}>CELLAR NOTES, SPOKEN</AppText>
+            <AppText style={[styles.tagline, { color: colors.onHeaderMuted }]}>{t.auth.tagline}</AppText>
           </View>
         }
       >
         <AppText variant="heading" style={[styles.heading, { color: colors.header }]}>
-          {isSignUp ? 'Create your account' : 'Welcome back'}
+          {isSignUp ? t.auth.createTitle : t.auth.welcome}
         </AppText>
 
         {info ? <Banner tone="info" message={info} /> : null}
         {error ? <Banner message={error} /> : null}
 
         <TextField
-          label="Email"
+          label={t.auth.email}
           value={email}
           onChangeText={setEmail}
-          placeholder="you@winery.com"
+          placeholder={t.auth.emailPlaceholder}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -92,10 +98,10 @@ export default function SignInScreen() {
         />
         <TextField
           ref={passwordRef}
-          label="Password"
+          label={t.auth.password}
           value={password}
           onChangeText={setPassword}
-          placeholder={isSignUp ? 'At least 6 characters' : undefined}
+          placeholder={isSignUp ? t.auth.passwordHint : undefined}
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
@@ -107,14 +113,14 @@ export default function SignInScreen() {
         />
 
         <Button
-          title={isSignUp ? 'Create account' : 'Sign in'}
+          title={isSignUp ? t.auth.createAccount : t.auth.signIn}
           onPress={handleSubmit}
           loading={submitting}
           disabled={email.trim() === '' || password === ''}
         />
         <Button
           variant="secondary"
-          title={isSignUp ? 'I already have an account' : 'Create an account'}
+          title={isSignUp ? t.auth.haveAccount : t.auth.newAccount}
           onPress={toggleMode}
           disabled={submitting}
         />
@@ -128,4 +134,5 @@ const styles = StyleSheet.create({
   heading: { marginTop: spacing.sm },
   hero: { alignItems: 'center', paddingBottom: spacing.xl, gap: spacing.sm },
   tagline: { fontFamily: fonts.bodySemi, fontSize: 14, letterSpacing: 2 },
+  switch: { position: 'absolute', right: spacing.md },
 });

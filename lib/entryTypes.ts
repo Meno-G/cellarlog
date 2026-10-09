@@ -17,11 +17,4 @@ type Missing = Exclude<EntryType, (typeof ENTRY_TYPES)[number]>;
 const allTypesListed: Missing extends never ? true : false = true;
 void allTypesListed;
 
-export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
-  addition: 'Addition',
-  temperature: 'Temperature',
-  lab_analysis: 'Lab analysis',
-  tasting: 'Tasting',
-  transfer: 'Transfer',
-  note: 'Note',
-};
+// Display names are in lib/i18n (strings().entryTypes), in English and Georgian.

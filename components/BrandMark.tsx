@@ -15,7 +15,7 @@ export function BrandMark({ size = 30 }: { size?: number }) {
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
     >
       <Icon name="glass-wine" size={Math.round(size * 0.95)} color={colors.accent} />
-      <AppText style={{ color: colors.onHeader, fontFamily: fonts.display, fontSize: size, lineHeight: size + 4 }}>
+      <AppText lang="en" style={{ color: colors.onHeader, fontFamily: fonts.display, fontSize: size, lineHeight: size + 4 }}>
         CellarLog
       </AppText>
     </View>
