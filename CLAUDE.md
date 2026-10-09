@@ -42,6 +42,18 @@ Speech recognition is a native module that Expo Go doesn't include, so CellarLog
 - The Supabase URL and publishable key for it come from **EAS environment variables** (environment `preview`), because `.env` is never uploaded. Change them with `npx eas-cli@latest env:set --environment preview ...`.
 - Code changes reach the preview app only through a new preview build.
 
+## Web version (browser)
+
+The same app runs in a browser (`react-native-web`, `web.output` "single" = single-page app), hosted on **EAS Hosting**.
+- `npm run build:web` exports to `dist/` (gitignored).
+  - Test the real build locally with `npx expo serve --port 8090` (`.claude/launch.json` "web-build").
+- `npm run deploy:web` exports and deploys to production.
+  - The `EXPO_PUBLIC_*` values from `.env` are baked into the bundle; they're public by design.
+- **Dialogs:** React Native's `Alert` does nothing on the web. Always use `useDialog()` (`hooks/useDialog.tsx`): on Android it calls `Alert.alert`, and in the browser it draws its own modal. Never call `Alert.alert` directly.
+- **Storage:** `expo-sqlite/localStorage/install` is a no-op on the web, so the browser's own localStorage holds the login, cache and outbox (offline works per browser).
+- **No voice in the browser:** the speech module is native only (`SPEECH_AVAILABLE` false). The record tab shows `voiceInApp` and points to typing and the Analysis tab.
+- **Layout:** `Screen` / `HeroBand` keep content in a centred column (max 720 px) on wide windows. There's no effect on phones.
+
 ## Expo changes fast: check the docs, not memory
 
 Expo ships breaking changes every SDK. Before touching an Expo or React Native API, check the versioned docs for SDK 57 (`https://docs.expo.dev/versions/v57.0.0/`) or `https://docs.expo.dev/llms.txt`.
@@ -73,6 +85,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Buttons:** `Button`'s `onPress` may return a promise; repeat taps are ignored until it settles, so a double tap can't save twice. Pass the async handler (`onPress={handleSave}`) rather than wrapping it in `void`.
 - **Large touch targets:** at least `touch.minHeight` (56 pt) for anything tappable; the record button is `touch.recordButton`. Body text is at least 18 pt. People use the app with wet or gloved hands.
 - **Dark mode:** never hard-code colors in components; use `useTheme().colors`. Add new colors to both palettes in `theme/colors.ts`.
+  - Section headings on the page use `colors.heading`, not `colors.header`: `header` is the band's background and is near-black in the dark palette.
 - **Design: wine-cellar premium.** The mockups are at https://claude.ai/artifact/4aDtWqAJBUweKYw3iju42D.
   - **Colours:** cellar-burgundy header band (`colors.header`), Saperavi primary, barrel-gold accent (rings and marks only, never body text), parchment ground, plus a "dim cellar" dark palette.
   - **Type:** `AppText` variants `display` / `heading` / `title` use Cormorant Garamond. `body` / `label` / `caption` use Source Sans 3. `quote` (serif italic) is for what the user said.

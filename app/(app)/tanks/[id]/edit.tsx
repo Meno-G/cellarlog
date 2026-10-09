@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -10,6 +10,7 @@ import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankForm } from '@/components/TankForm';
 import { useEntries } from '@/hooks/useEntries';
 import { useT } from '@/hooks/useLanguage';
+import { useDialog } from '@/hooks/useDialog';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank, useTanks } from '@/hooks/useTanks';
 import { TIMELINE_LIMIT } from '@/lib/entries';
@@ -28,6 +29,7 @@ export default function EditTankScreen() {
   const outbox = useOutbox();
   const { colors } = useTheme();
   const t = useT();
+  const dialog = useDialog();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -70,13 +72,13 @@ export default function EditTankScreen() {
     const count = entryCountText();
     const noEntries = count === t.editTank.entryCount(0);
     const firstMessage = noEntries ? t.editTank.noEntries : t.editTank.withEntries(count);
-    Alert.alert(t.editTank.confirmTitle(name), firstMessage, [
+    dialog(t.editTank.confirmTitle(name), firstMessage, [
       { text: t.common.cancel, style: 'cancel' },
       {
         text: t.editTank.deleteEllipsis,
         style: 'destructive',
         onPress: () =>
-          Alert.alert(
+          dialog(
             t.editTank.sureTitle,
             noEntries ? t.editTank.willBeDeleted(name) : t.editTank.willBeDeletedWith(name, count),
             [

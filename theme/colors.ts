@@ -14,6 +14,8 @@ export type ColorTokens = {
   warningBorder: string;
   /** The cellar-burgundy header band and its text. */
   header: string;
+  /** Section headings on the page ("Your cellar", "Timeline"): cellar burgundy, light rosé in the dark. */
+  heading: string;
   onHeader: string;
   onHeaderMuted: string;
   /** Barrel gold: rings, marks and small highlights, never body text. */
@@ -40,6 +42,7 @@ export const lightColors: ColorTokens = {
   warningText: '#6A3E0C',
   warningBorder: '#B9853F',
   header: '#4A1322', // cellar
+  heading: '#4A1322',
   onHeader: '#F6F0E6',
   onHeaderMuted: '#E7D9C6',
   accent: '#C9A46A', // barrel gold
@@ -62,6 +65,7 @@ export const darkColors: ColorTokens = {
   warningText: '#F5D08A',
   warningBorder: '#B9853F',
   header: '#2A0E17',
+  heading: '#EBC3CF',
   onHeader: '#F4EDE6',
   onHeaderMuted: '#C9B3AE',
   accent: '#D9B67A',

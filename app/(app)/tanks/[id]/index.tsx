@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -15,6 +15,7 @@ import { ErrorState, LoadingState } from '@/components/StateViews';
 import { SyncBanner } from '@/components/SyncBanner';
 import { useEntries } from '@/hooks/useEntries';
 import { useT } from '@/hooks/useLanguage';
+import { useDialog } from '@/hooks/useDialog';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
@@ -30,6 +31,7 @@ export default function TankDetailScreen() {
   const outbox = useOutbox();
   const { colors } = useTheme();
   const t = useT();
+  const dialog = useDialog();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -52,10 +54,10 @@ export default function TankDetailScreen() {
     const error = upload?.error ?? t.messages.somethingWrong;
 
     if (!upload) {
-      Alert.alert(label, undefined, [cancel, remove, edit]);
+      dialog(label, undefined, [cancel, remove, edit]);
     } else if (upload.action === 'delete') {
       // Only a failed delete is still shown.
-      Alert.alert(label, t.tank.couldntDeleteEntry(error), [
+      dialog(label, t.tank.couldntDeleteEntry(error), [
         cancel,
         { text: t.tank.keepEntry, onPress: () => outbox.discard(upload.localId) },
         ...(tryAgain ? [tryAgain] : []),
@@ -63,26 +65,26 @@ export default function TankDetailScreen() {
     } else if (upload.status === 'pending') {
       const message =
         upload.action === 'edit' ? t.tank.entryEdited : t.tank.entrySaved;
-      Alert.alert(label, message, [cancel, remove, edit]);
+      dialog(label, message, [cancel, remove, edit]);
     } else if (upload.action === 'edit') {
-      Alert.alert(label, t.tank.couldntUploadEdit(error), [
+      dialog(label, t.tank.couldntUploadEdit(error), [
         { text: t.tank.undoEdit, style: 'destructive', onPress: () => outbox.discard(upload.localId) },
         edit,
         ...(tryAgain ? [tryAgain] : []),
-      ], { cancelable: true });
+      ]);
     } else {
-      Alert.alert(label, t.tank.couldntUploadEntry(error), [
+      dialog(label, t.tank.couldntUploadEntry(error), [
         remove,
         edit,
         ...(tryAgain ? [tryAgain] : []),
-      ], { cancelable: true });
+      ]);
     }
   }
 
   function confirmDelete(entry: ShownEntry) {
     const label = entryLabel(entry);
     const neverUploaded = entry.upload?.action === 'create';
-    Alert.alert(
+    dialog(
       t.tank.deleteEntryTitle,
       `${label}\n\n${neverUploaded ? t.tank.neverUploaded : t.tank.cantUndo}`,
       [
@@ -137,7 +139,7 @@ export default function TankDetailScreen() {
 
   function confirmDiscardTank() {
     const waiting = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === id).length;
-    Alert.alert(
+    dialog(
       t.tank.discardTankTitle(name),
       t.tank.discardTankText(waiting),
       [
@@ -212,7 +214,7 @@ export default function TankDetailScreen() {
         onSelect={(valueName) => router.push({ pathname: '/tanks/[id]/history', params: { id, name: valueName } })}
       />
       <View style={styles.timelineHeading}>
-        <AppText variant="heading" style={{ color: colors.header }}>
+        <AppText variant="heading" style={{ color: colors.heading }}>
           {t.tank.timeline}
         </AppText>
         {rows.length > 0 ? (

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { spacing, useTheme } from '@/theme';
@@ -24,14 +24,16 @@ export function Screen({ children, scroll = true, footer, hero, edges = ['bottom
     <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: colors.background }]}>
       {hero}
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.content, styles.column]} keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.root, styles.content]}>{children}</View>
+        <View style={[styles.root, styles.content, styles.column]}>{children}</View>
       )}
       {footer ? (
-        <View style={[styles.footer, { borderTopColor: colors.border }]}>{footer}</View>
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+          <View style={styles.column}>{footer}</View>
+        </View>
       ) : null}
     </SafeAreaView>
   );
@@ -50,13 +52,15 @@ export function HeroBand({ title, subtitle, children }: HeroProps) {
   const { colors } = useTheme();
   return (
     <View style={[styles.hero, { backgroundColor: colors.header }]}>
-      {title ? (
-        <AppText variant="display" style={{ color: colors.onHeader }} numberOfLines={2}>
-          {title}
-        </AppText>
-      ) : null}
-      {subtitle ? <AppText style={{ color: colors.onHeaderMuted, fontSize: 17 }}>{subtitle}</AppText> : null}
-      {children}
+      <View style={[styles.column, styles.heroInner]}>
+        {title ? (
+          <AppText variant="display" style={{ color: colors.onHeader }} numberOfLines={2}>
+            {title}
+          </AppText>
+        ) : null}
+        {subtitle ? <AppText style={{ color: colors.onHeaderMuted, fontSize: 17 }}>{subtitle}</AppText> : null}
+        {children}
+      </View>
     </View>
   );
 }
@@ -64,10 +68,13 @@ export function HeroBand({ title, subtitle, children }: HeroProps) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { padding: spacing.md, gap: spacing.md },
+  // In a wide browser window, a centred column instead of edge-to-edge lines. No effect on phones.
+  column: Platform.OS === 'web' ? { width: '100%', maxWidth: 720, alignSelf: 'center' } : {},
   footer: {
     padding: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  heroInner: { gap: 2 },
   hero: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,

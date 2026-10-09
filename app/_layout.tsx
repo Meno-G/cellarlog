@@ -11,6 +11,7 @@ import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
 import { Screen } from '@/components/Screen';
 import { useT } from '@/hooks/useLanguage';
+import { DialogProvider } from '@/hooks/useDialog';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 import { getConfigProblems } from '@/lib/env';
 import { loadLang } from '@/lib/i18n';
@@ -52,9 +53,11 @@ export default function RootLayout() {
       {configProblems ? (
         <ConfigErrorScreen problems={configProblems} />
       ) : (
-        <SessionProvider>
-          <RootNavigator />
-        </SessionProvider>
+        <DialogProvider>
+          <SessionProvider>
+            <RootNavigator />
+          </SessionProvider>
+        </DialogProvider>
       )}
     </ThemeProvider>
   );

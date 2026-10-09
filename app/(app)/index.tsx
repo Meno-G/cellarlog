@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -15,6 +15,7 @@ import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankCard } from '@/components/TankCard';
 import { TextField } from '@/components/TextField';
 import { useT } from '@/hooks/useLanguage';
+import { useDialog } from '@/hooks/useDialog';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useUser } from '@/hooks/useSession';
 import { useTankSummaries } from '@/hooks/useTankSummaries';
@@ -33,6 +34,7 @@ export default function TanksScreen() {
   const tanks = useTanks();
   const { colors } = useTheme();
   const t = useT();
+  const dialog = useDialog();
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const summaries = useTankSummaries((tanks.data ?? []).map((tank) => tank.id));
@@ -52,7 +54,7 @@ export default function TanksScreen() {
       user.email ? t.home.signedInAs(user.email) : null,
       waiting > 0 ? t.home.signOutWaiting(waiting) : null,
     ].filter((line): line is string => line !== null);
-    Alert.alert(t.home.signOutTitle, lines.join('\n\n') || undefined, [
+    dialog(t.home.signOutTitle, lines.join('\n\n') || undefined, [
       { text: t.common.cancel, style: 'cancel' },
       {
         text: t.home.signOut,
@@ -105,7 +107,7 @@ export default function TanksScreen() {
             <SyncBanner />
             <CachedNote cachedAt={tanks.cachedAt} error={tanks.error} onRetry={tanks.refresh} />
             {tankCount > 0 ? (
-              <AppText variant="heading" style={[styles.heading, { color: colors.header }]}>
+              <AppText variant="heading" style={[styles.heading, { color: colors.heading }]}>
                 {t.home.yourCellar}
               </AppText>
             ) : null}

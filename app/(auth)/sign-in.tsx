@@ -66,8 +66,9 @@ export default function SignInScreen() {
     >
       <Screen
         hero={
-          <View style={[styles.hero, { backgroundColor: colors.header, paddingTop: insets.top + spacing.xl }]}>
-            <View style={[styles.switch, { top: insets.top + spacing.sm }]}>
+          <View style={[styles.hero, { backgroundColor: colors.header, paddingTop: insets.top + spacing.sm }]}>
+            {/* Its own row above the logo, so it never overlaps it on a narrow phone. */}
+            <View style={styles.switch}>
               <LanguageSwitch />
             </View>
             <BrandMark size={42} />
@@ -75,7 +76,7 @@ export default function SignInScreen() {
           </View>
         }
       >
-        <AppText variant="heading" style={[styles.heading, { color: colors.header }]}>
+        <AppText variant="heading" style={[styles.heading, { color: colors.heading }]}>
           {isSignUp ? t.auth.createTitle : t.auth.welcome}
         </AppText>
 
@@ -134,5 +135,5 @@ const styles = StyleSheet.create({
   heading: { marginTop: spacing.sm },
   hero: { alignItems: 'center', paddingBottom: spacing.xl, gap: spacing.sm },
   tagline: { fontFamily: fonts.bodySemi, fontSize: 14, letterSpacing: 2 },
-  switch: { position: 'absolute', right: spacing.md },
+  switch: { alignSelf: 'stretch', alignItems: 'flex-end', paddingHorizontal: spacing.md, marginBottom: spacing.sm },
 });

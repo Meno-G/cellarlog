@@ -21,7 +21,7 @@ export function LatestValues({ values, onSelect }: Props) {
   if (values.length === 0) return null;
   return (
     <View style={styles.wrapper}>
-      <AppText variant="heading" style={{ color: colors.header }}>
+      <AppText variant="heading" style={{ color: colors.heading }}>
         {t.latest.title}
       </AppText>
       <AppText muted variant="caption">

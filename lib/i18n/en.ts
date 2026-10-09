@@ -184,6 +184,7 @@ export const en = {
     forTank: (name: string) => `For ${name}`,
     voiceNeedsBuild:
       "Voice notes need the CellarLog app build. Expo Go doesn't include speech recognition. You can type your note below.",
+    voiceInApp: 'Voice notes work in the CellarLog Android app. Here, type your note below or use the Analysis tab.',
     micBlocked: 'Microphone access is turned off for CellarLog. Turn it on in Settings, or type your note below.',
     openSettings: 'Open settings',
     micDenied: 'CellarLog needs the microphone to hear your notes. Tap the button and choose Allow, or type below.',

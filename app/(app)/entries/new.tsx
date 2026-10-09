@@ -314,7 +314,8 @@ export default function NewEntryScreen() {
         ) : (
           <Banner
             tone="info"
-            message={t.newEntry.voiceNeedsBuild}
+            // In the browser there's no speech module: voice lives in the Android app.
+            message={Platform.OS === 'web' ? t.newEntry.voiceInApp : t.newEntry.voiceNeedsBuild}
           />
         )}
 

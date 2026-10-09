@@ -103,7 +103,7 @@ export default function ValueHistoryScreen() {
               </AppText>
             ) : null}
             {points.length > 0 ? (
-              <AppText variant="heading" style={{ color: colors.header }}>
+              <AppText variant="heading" style={{ color: colors.heading }}>
                 {t.history.allReadings}
               </AppText>
             ) : null}
