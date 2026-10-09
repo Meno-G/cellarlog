@@ -9,7 +9,9 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const PACKAGE = 'com.cellarlog.app'; // the development build (see app.config.ts)
+// The development build (see app.config.ts). Builds made before the Play Store
+// setup used com.cellarlog.app; that id now belongs to the store app.
+const DEV_PACKAGES = ['com.cellarlog.app.dev', 'com.cellarlog.app'];
 const SCHEME = 'cellarlog';
 const PORT = 8081;
 const AUTH_WAIT_S = 60;
@@ -108,10 +110,13 @@ async function main() {
   const onPhone = ['-s', phone.serial];
 
   // 4. The development build must be installed
-  const installed = adb(adbPath, [...onPhone, 'shell', 'pm', 'list', 'packages', PACKAGE]);
-  if (!installed.split(/\r?\n/).some((line) => line.trim() === `package:${PACKAGE}`)) {
+  const installed = adb(adbPath, [...onPhone, 'shell', 'pm', 'list', 'packages', 'com.cellarlog.app'])
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^package:/, ''));
+  const PACKAGE = DEV_PACKAGES.find((id) => installed.includes(id));
+  if (!PACKAGE) {
     fail(
-      `The CellarLog development build (${PACKAGE}) isn't installed on the phone.\n` +
+      "The CellarLog development build (com.cellarlog.app.dev) isn't installed on the phone.\n" +
         '  Build it with: npx eas-cli@latest build --profile development --platform android',
     );
   }

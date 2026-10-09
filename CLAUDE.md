@@ -24,13 +24,15 @@ Run `npm test`, `npm run typecheck` and `npm run lint` before declaring any task
 
 ## Development build (not Expo Go)
 
-Speech recognition is a native module that Expo Go doesn't include, so CellarLog runs as its own **development build** (`eas.json` profile `development`, Android package `com.cellarlog.app`).
+Speech recognition is a native module that Expo Go doesn't include, so CellarLog runs as its own **development build** (`eas.json` profile `development`, Android package `com.cellarlog.app.dev`, name "CellarLog Dev").
+- **App ids** (`app.config.ts`): development `com.cellarlog.app.dev`, preview `com.cellarlog.app.preview`, and production (Play Store) `com.cellarlog.app`, which is permanent once uploaded. All three install side by side.
+  - Dev builds made before the Play Store setup still carry `com.cellarlog.app`; `npm run phone` accepts either until the Dev app is rebuilt.
 - JavaScript/TypeScript changes reload instantly from Metro. No rebuild needed.
 - **Rebuild only after native changes**: adding or removing a package with native code, or editing plugins or permissions in `app.json`.
 - In Expo Go the app still runs; the voice button is replaced by a "needs the CellarLog app build" note (`SPEECH_AVAILABLE` in `hooks/useSpeechToText.ts`).
 - Metro picks up newly installed packages only after a restart (`npx expo start --clear`).
 - **Connecting the phone**: the dev network isolates devices (no LAN, ngrok unreliable), so the phone reaches Metro over USB.
-  - `npm run phone` (`scripts/phone.mjs`) checks Metro and the phone, waits for "Allow USB debugging", runs `adb reverse tcp:8081 tcp:8081`, and reopens `com.cellarlog.app` on `http://127.0.0.1:8081`.
+  - `npm run phone` (`scripts/phone.mjs`) checks Metro and the phone, waits for "Allow USB debugging", runs `adb reverse tcp:8081 tcp:8081`, and reopens the dev build on `http://127.0.0.1:8081`.
   - Re-run it after replugging the cable or restarting the PC.
   - adb is in `%LOCALAPPDATA%\Android\Sdk\platform-tools`, the standard SDK path that Expo CLI's `a` key also uses.
   - Start Metro **without** `--localhost`: that binds IPv6 only, and adb's forward is IPv4.
@@ -38,9 +40,19 @@ Speech recognition is a native module that Expo Go doesn't include, so CellarLog
 ## Preview build (standalone, for the cellar)
 
 `npx eas-cli@latest build --profile preview --platform android` builds an APK with its own code inside: no PC, cable or Metro needed.
-- `app.config.ts` gives it its own package id `com.cellarlog.app.preview` and scheme `cellarlog-preview`, so it installs **next to** the development build. The development build keeps `com.cellarlog.app` and becomes "CellarLog Dev" on its next rebuild.
+- `app.config.ts` gives it its own package id `com.cellarlog.app.preview` and scheme `cellarlog-preview`, so it installs **next to** the development build.
 - The Supabase URL and publishable key for it come from **EAS environment variables** (environment `preview`), because `.env` is never uploaded. Change them with `npx eas-cli@latest env:set --environment preview ...`.
 - Code changes reach the preview app only through a new preview build.
+
+## Google Play (production)
+
+- **Store material:** `docs/play-store/` has the listing texts (English and Georgian), the Data safety and content-rating answers, the release steps, `icon-512.png` and `feature-graphic.png`.
+- **Build:** `npx eas-cli@latest build --profile production --platform android` makes an `.aab`, with EAS-managed signing and `autoIncrement` versionCode.
+  - It needs the Supabase variables in the EAS environment `production`.
+- **Privacy policy:** `public/privacy.html`, static and bilingual, served at https://cellarlog.vercel.app/privacy. The app links to it from sign-in and Account (`lib/links.ts`).
+- **Account deletion** (Google requires it): Account screen (`app/(app)/account.tsx`) → `deleteAccount()` in `lib/auth.ts` → RPC `delete_my_account()` (migration `20261009120000_delete_my_account.sql`).
+  - The RPC is a security-definer function that deletes only `auth.uid()`'s login; tanks and entries go by cascade. The phone's outbox is cleared, then the user is signed out locally.
+  - **Warning:** in a shared Supabase project, every other table with a cascading foreign key to `auth.users` loses that user's rows too.
 
 ## Web version (browser)
 

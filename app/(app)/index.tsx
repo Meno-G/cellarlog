@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
-import { Banner } from '@/components/Banner';
 import { CachedNote } from '@/components/CachedNote';
 import { Button } from '@/components/Button';
 import { HeaderButton } from '@/components/HeaderButton';
@@ -15,13 +14,9 @@ import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TankCard } from '@/components/TankCard';
 import { TextField } from '@/components/TextField';
 import { useT } from '@/hooks/useLanguage';
-import { useDialog } from '@/hooks/useDialog';
 import { useOutbox } from '@/hooks/useOutbox';
-import { useUser } from '@/hooks/useSession';
 import { useTankSummaries } from '@/hooks/useTankSummaries';
 import { useTanks } from '@/hooks/useTanks';
-import { signOut } from '@/lib/auth';
-import { errorMessage } from '@/lib/errors';
 import { searchTanks } from '@/lib/tankOverlay';
 import { spacing, useTheme } from '@/theme';
 
@@ -29,13 +24,10 @@ import { spacing, useTheme } from '@/theme';
 const SEARCH_FROM = 6;
 
 export default function TanksScreen() {
-  const user = useUser();
   const outbox = useOutbox();
   const tanks = useTanks();
   const { colors } = useTheme();
   const t = useT();
-  const dialog = useDialog();
-  const [signOutError, setSignOutError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const summaries = useTankSummaries((tanks.data ?? []).map((tank) => tank.id));
 
@@ -47,25 +39,6 @@ export default function TanksScreen() {
   ]
     .filter(Boolean)
     .join(' · ');
-
-  function confirmSignOut() {
-    const waiting = outbox.items.length;
-    const lines = [
-      user.email ? t.home.signedInAs(user.email) : null,
-      waiting > 0 ? t.home.signOutWaiting(waiting) : null,
-    ].filter((line): line is string => line !== null);
-    dialog(t.home.signOutTitle, lines.join('\n\n') || undefined, [
-      { text: t.common.cancel, style: 'cancel' },
-      {
-        text: t.home.signOut,
-        style: 'destructive',
-        onPress: () => {
-          setSignOutError(null);
-          signOut().catch((err: unknown) => setSignOutError(errorMessage(err)));
-        },
-      },
-    ]);
-  }
 
   function renderBody() {
     if (tanks.loading) return <LoadingState label={t.home.loadingTanks} />;
@@ -158,12 +131,11 @@ export default function TanksScreen() {
           headerRight: () => (
             <View style={styles.headerRight}>
               <LanguageSwitch />
-              <HeaderButton title={t.home.signOut} onPress={confirmSignOut} />
+              <HeaderButton title={t.account.button} onPress={() => router.push('/account')} />
             </View>
           ),
         }}
       />
-      {signOutError ? <Banner message={signOutError} /> : null}
       {renderBody()}
     </Screen>
   );

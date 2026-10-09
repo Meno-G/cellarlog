@@ -9,7 +9,7 @@ import { ENTRY_TYPES } from './entryTypes';
 import { toAppError } from './errors';
 import { strings } from './i18n';
 import { parsedEntrySchema } from './parser/schema';
-import { getStore, userKey, writeJson } from './storage';
+import { getStore, removeKey, userKey, writeJson } from './storage';
 import type { TankInput } from './tanks';
 
 const tankInputSchema = z.object({
@@ -285,6 +285,11 @@ export function dropQueuedForTank(userId: string, tankId: string): void {
 /** True while a tank exists only on this phone (its creation hasn't uploaded yet). */
 export function isLocalTank(items: readonly OutboxItem[], tankId: string): boolean {
   return items.some((item) => item.kind === 'tank-create' && item.localId === tankId);
+}
+
+/** Throws away everything queued for this user (after their account was deleted). */
+export function clearOutbox(userId: string): void {
+  removeKey(outboxKey(userId));
 }
 
 export function removeFromOutbox(userId: string, localId: string): void {

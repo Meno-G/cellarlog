@@ -76,7 +76,12 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      delete_my_account: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
+    };
     Enums: {
       entry_type: 'addition' | 'temperature' | 'lab_analysis' | 'tasting' | 'transfer' | 'note';
     };

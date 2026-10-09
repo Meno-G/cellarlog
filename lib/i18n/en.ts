@@ -31,6 +31,26 @@ export const en = {
     editTank: 'Edit tank',
     addEntry: 'Add entry',
     editEntry: 'Edit entry',
+    account: 'Account',
+  },
+
+  account: {
+    button: 'Account',
+    signedInAs: (email: string) => `Signed in as ${email}`,
+    signOut: 'Sign out',
+    privacy: 'Privacy policy',
+    deleteTitle: 'Delete account',
+    deleteText:
+      'Deletes your account and all your tanks and entries for good, on every phone and in the browser. It needs an internet connection.',
+    deleteButton: 'Delete my account',
+    confirmTitle: 'Delete your account?',
+    confirmText: (email: string) =>
+      `The account ${email} and all its tanks and entries will be deleted. This can't be undone.`,
+    confirmContinue: 'Continue…',
+    sureTitle: 'Delete everything for good?',
+    sureText: 'Your tanks, timelines and analyses will be gone and cannot be recovered.',
+    deleteForever: 'Delete forever',
+    offline: "You're offline. Deleting your account needs an internet connection.",
   },
 
   setup: {
@@ -333,6 +353,7 @@ export const en = {
     signUpFailed: 'Could not create the account. Please try again.',
     signOutFailed: 'Could not sign out. Please try again.',
     sessionRestoreFailed: 'Could not restore your session.',
+    deleteAccountFailed: 'Could not delete your account. Please try again.',
     // Tanks
     tankGone: 'That tank no longer exists.',
     tankGonePickAnother: 'That tank no longer exists. Pick another tank.',

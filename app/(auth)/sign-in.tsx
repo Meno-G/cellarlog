@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View, type TextInput } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, StyleSheet, View, type TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/AppText';
@@ -12,6 +12,7 @@ import { TextField } from '@/components/TextField';
 import { useT } from '@/hooks/useLanguage';
 import { signIn, signUp } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
+import { PRIVACY_URL } from '@/lib/links';
 import { fonts, spacing, useTheme } from '@/theme';
 
 type Mode = 'signIn' | 'signUp';
@@ -124,6 +125,12 @@ export default function SignInScreen() {
           title={isSignUp ? t.auth.haveAccount : t.auth.newAccount}
           onPress={toggleMode}
           disabled={submitting}
+        />
+        <Button
+          variant="secondary"
+          title={t.account.privacy}
+          icon="shield-lock-outline"
+          onPress={() => void Linking.openURL(PRIVACY_URL)}
         />
       </Screen>
     </KeyboardAvoidingView>

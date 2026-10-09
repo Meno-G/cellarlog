@@ -8,8 +8,9 @@ import {
 
 import { z } from 'zod';
 
-import { AppError, isNetworkFailure, networkMessage, toAppError } from './errors';
+import { AppError, fromDbError, isNetworkFailure, networkMessage, toAppError } from './errors';
 import { strings } from './i18n';
+import { clearOutbox } from './outbox';
 import { readJson } from './storage';
 import { getSupabase, sessionStorageKey } from './supabase';
 
@@ -134,6 +135,24 @@ export async function signOut(): Promise<void> {
     if (error) throw fromAuthError(error);
   } catch (error) {
     throw toAppError(error, strings().messages.signOutFailed);
+  }
+}
+
+/**
+ * Deletes the signed-in user's account for good: the login, and with it (in the
+ * database) all their tanks and entries. Needs a connection. Changes still
+ * waiting on this phone are thrown away, then the user is signed out here.
+ */
+export async function deleteAccount(userId: string): Promise<void> {
+  const failed = strings().messages.deleteAccountFailed;
+  try {
+    const { error } = await getSupabase().rpc('delete_my_account');
+    if (error) throw fromDbError(error, failed);
+    clearOutbox(userId);
+    // The login no longer exists on the server; only this phone's copy is left to drop.
+    await getSupabase().auth.signOut({ scope: 'local' });
+  } catch (error) {
+    throw toAppError(error, failed);
   }
 }
 

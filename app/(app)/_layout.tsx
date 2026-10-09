@@ -36,6 +36,7 @@ export default function AppLayout() {
         <Stack.Screen name="tanks/[id]/index" options={{ title: t.titles.tank }} />
         <Stack.Screen name="tanks/[id]/history" options={{ title: '' }} />
         <Stack.Screen name="tanks/[id]/edit" options={{ title: t.titles.editTank, presentation: 'modal' }} />
+        <Stack.Screen name="account" options={{ title: t.titles.account }} />
         <Stack.Screen name="entries/new" options={{ title: t.titles.addEntry }} />
         <Stack.Screen name="entries/[id]/edit" options={{ title: t.titles.editEntry }} />
       </Stack>
