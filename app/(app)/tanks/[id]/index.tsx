@@ -7,6 +7,7 @@ import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { CachedNote } from '@/components/CachedNote';
 import { EntryCard } from '@/components/EntryCard';
+import { FermentPanel } from '@/components/FermentPanel';
 import { HeaderButton } from '@/components/HeaderButton';
 import { LatestValues } from '@/components/LatestValues';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -14,12 +15,14 @@ import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { SyncBanner } from '@/components/SyncBanner';
 import { useEntries } from '@/hooks/useEntries';
+import { useFerments } from '@/hooks/useFerments';
 import { useT } from '@/hooks/useLanguage';
 import { useDialog } from '@/hooks/useDialog';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
+import { updateFerment, type Ferment } from '@/lib/ferments';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
 import { spacing, useTheme } from '@/theme';
@@ -28,6 +31,7 @@ export default function TankDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tank = useTank(id);
   const entries = useEntries(id);
+  const ferments = useFerments(id);
   const outbox = useOutbox();
   const { colors } = useTheme();
   const t = useT();
@@ -137,6 +141,22 @@ export default function TankDetailScreen() {
   );
   const localOnly = tankItem?.kind === 'tank-create';
 
+  function confirmEndFerment(ferment: Ferment) {
+    dialog(t.ferment.endTitle(ferment.name), t.ferment.endText, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.ferment.endButton,
+        onPress: () => {
+          setActionError(null);
+          // Ends now; the entries recorded so far still belong to it.
+          updateFerment(ferment.id, { name: ferment.name, startedAt: ferment.startedAt, endedAt: new Date().toISOString() })
+            .catch((err: unknown) => setActionError(errorMessage(err)))
+            .finally(ferments.refresh);
+        },
+      },
+    ]);
+  }
+
   function confirmDiscardTank() {
     const waiting = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === id).length;
     dialog(
@@ -209,6 +229,13 @@ export default function TankDetailScreen() {
       ) : upload ? (
         <Banner tone="waiting" message={t.tank.tankWaiting} />
       ) : null}
+      <FermentPanel
+        ferments={ferments.data}
+        onStart={() => router.push({ pathname: '/tanks/[id]/ferment-form', params: { id } })}
+        onEnd={confirmEndFerment}
+        onList={() => router.push({ pathname: '/tanks/[id]/ferments', params: { id } })}
+        onChart={() => router.push({ pathname: '/tanks/[id]/curve', params: { id } })}
+      />
       <LatestValues
         values={latest}
         onSelect={(valueName) => router.push({ pathname: '/tanks/[id]/history', params: { id, name: valueName } })}

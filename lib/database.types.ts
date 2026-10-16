@@ -14,6 +14,7 @@ export type Database = {
           volume_liters: number;
           variety: string | null;
           vintage: number | null;
+          kind: Database['public']['Enums']['vessel_kind'];
           created_at: string;
         };
         Insert: {
@@ -23,6 +24,7 @@ export type Database = {
           volume_liters: number;
           variety?: string | null;
           vintage?: number | null;
+          kind?: Database['public']['Enums']['vessel_kind'];
           created_at?: string;
         };
         Update: {
@@ -32,9 +34,48 @@ export type Database = {
           volume_liters?: number;
           variety?: string | null;
           vintage?: number | null;
+          kind?: Database['public']['Enums']['vessel_kind'];
           created_at?: string;
         };
         Relationships: [];
+      };
+      ferments: {
+        Row: {
+          id: string;
+          tank_id: string;
+          user_id: string;
+          name: string;
+          started_at: string;
+          ended_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tank_id: string;
+          user_id?: string;
+          name: string;
+          started_at: string;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tank_id?: string;
+          user_id?: string;
+          name?: string;
+          started_at?: string;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ferments_tank_id_fkey';
+            columns: ['tank_id'];
+            isOneToOne: false;
+            referencedRelation: 'tanks';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       entries: {
         Row: {
@@ -83,7 +124,8 @@ export type Database = {
       };
     };
     Enums: {
-      entry_type: 'addition' | 'temperature' | 'lab_analysis' | 'tasting' | 'transfer' | 'note';
+      entry_type: 'addition' | 'temperature' | 'lab_analysis' | 'tasting' | 'transfer' | 'note' | 'decision';
+      vessel_kind: 'tank' | 'qvevri' | 'barrel';
     };
     CompositeTypes: { [_ in never]: never };
   };

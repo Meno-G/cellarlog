@@ -29,7 +29,7 @@ const ANALYSIS_TYPES: readonly EntryType[] = ['lab_analysis', 'temperature'];
 const FIELD_ORDER = ANALYSIS_FIELDS.map((field) => field.name.toLowerCase());
 
 /** Whether this value in this entry is a measurement of the tank (see READINGS). */
-function isReading(type: EntryType, name: string): boolean {
+export function isReading(type: EntryType, name: string): boolean {
   return ANALYSIS_TYPES.includes(type) || READINGS.has(name.trim().toLowerCase());
 }
 

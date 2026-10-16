@@ -9,9 +9,10 @@ import {
   type TankFormErrors,
   type TankFormValues,
 } from '@/lib/tankForm';
-import type { TankInput } from '@/lib/tanks';
+import { VESSEL_KINDS, type TankInput } from '@/lib/tanks';
 
 import { Banner } from './Banner';
+import { ChoiceChips } from './ChoiceChips';
 import { OfflineBanner } from './OfflineBanner';
 import { Button } from './Button';
 import { Screen } from './Screen';
@@ -43,7 +44,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
   const varietyRef = useRef<TextInput>(null);
   const vintageRef = useRef<TextInput>(null);
 
-  function setField(field: keyof TankFormValues, text: string) {
+  function setField(field: keyof TankFormErrors, text: string) {
     setValues((current) => ({ ...current, [field]: text }));
     // Clear the error for a field as soon as the user edits it.
     if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }));
@@ -83,6 +84,13 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
         <OfflineBanner message={offlineMessage} />
         {submitError ? <Banner message={submitError} /> : null}
 
+        <ChoiceChips
+          label={t.tankForm.kind}
+          choices={VESSEL_KINDS.map((kind) => ({ value: kind, label: t.vesselKinds[kind] }))}
+          selected={values.kind}
+          onSelect={(kind) => setValues((current) => ({ ...current, kind }))}
+          disabled={submitting}
+        />
         <TextField
           label={t.tankForm.name}
           value={values.name}

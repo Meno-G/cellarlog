@@ -2,18 +2,20 @@
 import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import type { Tank, TankInput } from './tanks';
+import type { VesselKind } from './vesselKinds';
 
 /** Raw text from the form inputs. */
 export type TankFormValues = {
   name: string;
+  kind: VesselKind;
   volume: string;
   variety: string;
   vintage: string;
 };
 
-export type TankFormErrors = Partial<Record<keyof TankFormValues, string>>;
+export type TankFormErrors = Partial<Record<Exclude<keyof TankFormValues, 'kind'>, string>>;
 
-export const TANK_FORM_FIELDS: readonly (keyof TankFormValues)[] = [
+export const TANK_FORM_FIELDS: readonly (keyof TankFormErrors)[] = [
   'name',
   'volume',
   'variety',
@@ -27,11 +29,12 @@ const MAX_VOLUME = 999_999_999.9; // numeric(10, 1)
 const MIN_VINTAGE = 1900;
 const MAX_VINTAGE = 2100;
 
-export const emptyTankForm: TankFormValues = { name: '', volume: '', variety: '', vintage: '' };
+export const emptyTankForm: TankFormValues = { name: '', kind: 'tank', volume: '', variety: '', vintage: '' };
 
 export function tankToForm(tank: Tank): TankFormValues {
   return {
     name: tank.name,
+    kind: tank.kind,
     volume: String(tank.volumeLiters),
     variety: tank.variety ?? '',
     vintage: tank.vintage === null ? '' : String(tank.vintage),
@@ -74,6 +77,6 @@ export function validateTankForm(
 
   return {
     ok: true,
-    input: { name, volumeLiters: volume, variety: variety === '' ? null : variety, vintage },
+    input: { name, kind: values.kind, volumeLiters: volume, variety: variety === '' ? null : variety, vintage },
   };
 }

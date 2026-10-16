@@ -3,10 +3,12 @@
 import { z } from 'zod';
 
 import type { Entry } from './entries';
+import type { Ferment } from './ferments';
 import { ENTRY_TYPES } from './entryTypes';
 import { parsedEntrySchema } from './parser/schema';
 import { readJson, removeKey, userKey, writeJson } from './storage';
 import type { Tank } from './tanks';
+import { VESSEL_KINDS } from './vesselKinds';
 
 export type Cached<T> = { data: T; savedAt: string };
 
@@ -19,6 +21,8 @@ export type CacheAdapter<T> = {
 const tankSchema = z.object({
   id: z.string(),
   name: z.string(),
+  // Copies saved before vessel kinds existed read as plain tanks.
+  kind: z.enum(VESSEL_KINDS).catch('tank'),
   volumeLiters: z.number(),
   variety: z.string().nullable(),
   vintage: z.number().nullable(),
@@ -34,11 +38,22 @@ const entrySchema = z.object({
   createdAt: z.string(),
 }) satisfies z.ZodType<Entry>;
 
+const fermentSchema = z.object({
+  id: z.string(),
+  tankId: z.string(),
+  name: z.string(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable(),
+  createdAt: z.string(),
+}) satisfies z.ZodType<Ferment>;
+
+const cachedFermentsSchema = z.object({ data: z.array(fermentSchema), savedAt: z.string() });
 const cachedTanksSchema = z.object({ data: z.array(tankSchema), savedAt: z.string() });
 const cachedEntriesSchema = z.object({ data: z.array(entrySchema), savedAt: z.string() });
 
 const tanksKey = (userId: string) => userKey(userId, 'tanks');
 const entriesKey = (userId: string, tankId: string) => userKey(userId, `entries:${tankId}`);
+const fermentsKey = (userId: string, tankId: string) => userKey(userId, `ferments:${tankId}`);
 
 const now = () => new Date().toISOString();
 
@@ -101,6 +116,16 @@ export function entryCache(userId: string, tankId: string, entryId: string): Cac
   };
 }
 
+/** One vessel's ferments, newest first. */
+export function fermentsCache(userId: string, tankId: string): CacheAdapter<Ferment[]> {
+  return {
+    read: () => readJson(fermentsKey(userId, tankId), cachedFermentsSchema),
+    write: (data) => {
+      writeJson(fermentsKey(userId, tankId), { data, savedAt: now() });
+    },
+  };
+}
+
 /**
  * Saves the tank list and every tank's timeline at once, from the user's
  * recent entries (newest first), so all of them open offline, not only the
@@ -111,6 +136,7 @@ export function saveOfflineCopy(
   tanks: Tank[],
   recentEntries: Entry[],
   perTank: number,
+  ferments?: Ferment[],
 ): void {
   tanksCache(userId).write(tanks);
   const byTank = new Map<string, Entry[]>();
@@ -120,6 +146,11 @@ export function saveOfflineCopy(
     byTank.set(entry.tankId, list);
   }
   for (const tank of tanks) entriesCache(userId, tank.id).write(byTank.get(tank.id) ?? []);
+  if (ferments) {
+    for (const tank of tanks) {
+      fermentsCache(userId, tank.id).write(ferments.filter((ferment) => ferment.tankId === tank.id));
+    }
+  }
 }
 
 /** Drops a deleted tank and its timeline from the saved copy. */
@@ -132,6 +163,7 @@ export function removeTankFromCache(userId: string, tankId: string): void {
     });
   }
   removeKey(entriesKey(userId, tankId));
+  removeKey(fermentsKey(userId, tankId));
 }
 
 /** Drops a deleted entry from its tank's saved timeline. */
@@ -147,6 +179,9 @@ export function removeEntryFromCache(userId: string, tankId: string, entryId: st
 /** Removes this user's cached tanks and timelines (on sign out). */
 export function clearCache(userId: string): void {
   const tanks = tanksCache(userId).read();
-  for (const tank of tanks?.data ?? []) removeKey(entriesKey(userId, tank.id));
+  for (const tank of tanks?.data ?? []) {
+    removeKey(entriesKey(userId, tank.id));
+    removeKey(fermentsKey(userId, tank.id));
+  }
   removeKey(tanksKey(userId));
 }

@@ -3,12 +3,17 @@ import { AppError, fromDbError, toAppError } from './errors';
 import { strings } from './i18n';
 import { getSupabase } from './supabase';
 import { sortTanks } from './tankOverlay';
+import type { VesselKind } from './vesselKinds';
+
+export type { VesselKind };
+export { VESSEL_KINDS } from './vesselKinds';
 
 type TankRow = Omit<Database['public']['Tables']['tanks']['Row'], 'user_id'>;
 
 export type Tank = {
   id: string;
   name: string;
+  kind: VesselKind;
   volumeLiters: number;
   variety: string | null;
   vintage: number | null;
@@ -18,18 +23,20 @@ export type Tank = {
 /** Validated values ready to be saved. */
 export type TankInput = {
   name: string;
+  kind: VesselKind;
   volumeLiters: number;
   variety: string | null;
   vintage: number | null;
 };
 
-const COLUMNS = 'id, name, volume_liters, variety, vintage, created_at';
+const COLUMNS = 'id, name, kind, volume_liters, variety, vintage, created_at';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fromRow(row: TankRow): Tank {
   return {
     id: row.id,
     name: row.name,
+    kind: row.kind,
     volumeLiters: Number(row.volume_liters),
     variety: row.variety,
     vintage: row.vintage,
@@ -40,6 +47,7 @@ function fromRow(row: TankRow): Tank {
 function toRow(input: TankInput) {
   return {
     name: input.name,
+    kind: input.kind,
     volume_liters: input.volumeLiters,
     variety: input.variety,
     vintage: input.vintage,

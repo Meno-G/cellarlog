@@ -141,7 +141,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 
 - **Reading**: `useFocusQuery(load, cache)` shows the cached copy at once (`lib/cache.ts`), refreshes from Supabase, and writes successful results back. When the refresh fails, the cached data stays on screen and `CachedNote` says when it was saved.
   - Tanks and timelines are cached per user. Cache adapters must be memoized (`useMemo`).
-  - Whenever the app is online (on start, when the connection returns, on foreground), `OutboxProvider` uploads the queue and then runs `refreshOfflineCopy()`. That's two requests, which save **every** tank's timeline, not just the ones opened (`saveOfflineCopy` in `lib/cache.ts`).
+  - Whenever the app is online (on start, when the connection returns, on foreground), `OutboxProvider` uploads the queue and then runs `refreshOfflineCopy()`. That's three requests (tanks, entries, ferments), which save **every** tank's timeline and ferments, not just the ones opened (`saveOfflineCopy` in `lib/cache.ts`).
 - **Speech:** Android's on-device recognizer often ends a session with `ERROR_CLIENT`. After words were recognised, that counts as a normal end (`useSpeechToText`).
 - **Writing new entries**: `useOutbox().saveEntry()` → `lib/sync.ts` `saveOrQueue()`.
   - Online, it saves directly. Offline, or on a network error, the entry goes into the outbox (`lib/outbox.ts`, localStorage, per user) and shows on the timeline as "waiting to upload".
@@ -203,6 +203,21 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Latest values** (tank screen, `lib/latestValues.ts`): the newest reading of each value across the timeline, including entries waiting to upload.
   - Analysis entries count in full.
   - Other entries count only real readings: temperature, pH, Free/Total SO2… A bare "SO2" in an addition is an amount added, and "Volume" in a transfer is volume moved, so they don't count.
+
+## Vessels and ferments (fermentation tracking)
+
+- **Vessel type:** every tank has a `kind`: tank, qvevri (ქვევრი) or barrel (კასრი) (`lib/vesselKinds.ts`, picked in the tank form). The tank card names the type unless it's a plain tank. Old saved copies and queued tanks without `kind` read as "tank" (`.catch('tank')` in the zod schemas).
+- **Ferment** = a vessel plus a start date and an optional end date (`ferments` table, migration `20261016120000_vessel_kinds_and_ferments.sql`). **Entries belong to a ferment by date**: the ones recorded on that vessel between start and end (no link column). So past ferments can be added later, and old entries fall into them.
+  - Two ferments in one vessel can't overlap (`validateFermentForm`), and a running one (no end) blocks a new one until it's ended.
+  - The end date includes its whole day (end of the local day).
+- **Pure logic:** `lib/fermentCurves.ts` (active ferment, day counting, entries in a ferment, `fermentCurves`, `compareAtDay`) and `lib/fermentForm.ts`. Data access: `lib/ferments.ts`.
+  - A curve is one value (Density or Temperature) against **days since that ferment's start**, so ferments of different years line up. Only the most common unit is drawn; the rest is counted as skipped. "What counts as a reading" is `isReading` from `lib/latestValues.ts`.
+- **Screens:** the tank screen's `FermentPanel` (running ferment and day, End, Chart, All ferments), `tanks/[id]/ferments.tsx` (list), `ferment-form.tsx` (start/edit/end/delete) and `curve.tsx`.
+  - The chart (`components/CurveChart.tsx`) draws with plain Views and rotated Views for lines, with no chart library and no native module. It estimates its width from the window until measured, because a hidden browser pane never delivers layout events.
+  - Below the chart, "On day N" puts this ferment's newest reading beside each earlier ferment's reading within a day of it.
+- **Offline:** ferments are read from the saved copy (`fermentsCache`, saved by `refreshOfflineCopy`), so the panel, list and chart work offline. **Starting, editing, ending or deleting a ferment needs a connection** (not queued in the outbox).
+- **"My decision"** is a new entry type (`decision`): what the winemaker decided (re-tested, cooled), kept apart from measurements. It's in the type picker and counts as a plain note, not as a reading.
+- **Typed routes:** after adding a screen, `tsc` complains until `.expo/types/router.d.ts` is regenerated. Starting `npx expo start` once rewrites it.
 
 ## Environment variables
 

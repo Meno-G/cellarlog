@@ -11,9 +11,12 @@ import { strings } from './i18n';
 import { parsedEntrySchema } from './parser/schema';
 import { getStore, removeKey, userKey, writeJson } from './storage';
 import type { TankInput } from './tanks';
+import { VESSEL_KINDS } from './vesselKinds';
 
 const tankInputSchema = z.object({
   name: z.string(),
+  // Changes queued before vessel kinds existed are plain tanks.
+  kind: z.enum(VESSEL_KINDS).catch('tank'),
   volumeLiters: z.number(),
   variety: z.string().nullable(),
   vintage: z.number().nullable(),

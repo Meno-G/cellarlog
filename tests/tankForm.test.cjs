@@ -13,7 +13,7 @@ test('parseNumber', () => {
   for (const bad of ['abc', '5L', '1e5', '5..0', '5,0,0']) assert.ok(Number.isNaN(parseNumber(bad)), bad);
 });
 
-const base = { name: 'Tank 12', volume: '5000', variety: 'Saperavi', vintage: '2025' };
+const base = { name: 'Tank 12', kind: 'tank', volume: '5000', variety: 'Saperavi', vintage: '2025' };
 const errs = (values) => {
   const result = validateTankForm({ ...base, ...values });
   assert.ok(!result.ok);
@@ -23,11 +23,11 @@ const errs = (values) => {
 test('valid tank form', () => {
   assert.deepEqual(validateTankForm(base), {
     ok: true,
-    input: { name: 'Tank 12', volumeLiters: 5000, variety: 'Saperavi', vintage: 2025 },
+    input: { name: 'Tank 12', kind: 'tank', volumeLiters: 5000, variety: 'Saperavi', vintage: 2025 },
   });
   assert.deepEqual(validateTankForm({ ...base, name: '  T1 ', variety: '  ', vintage: '' }), {
     ok: true,
-    input: { name: 'T1', volumeLiters: 5000, variety: null, vintage: null },
+    input: { name: 'T1', kind: 'tank', volumeLiters: 5000, variety: null, vintage: null },
   });
   const rounded = validateTankForm({ ...base, volume: '1234,56' });
   assert.ok(rounded.ok && rounded.input.volumeLiters === 1234.6);

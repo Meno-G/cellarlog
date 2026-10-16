@@ -35,6 +35,9 @@ export default function AppLayout() {
         <Stack.Screen name="tanks/new" options={{ title: t.titles.newTank, presentation: 'modal' }} />
         <Stack.Screen name="tanks/[id]/index" options={{ title: t.titles.tank }} />
         <Stack.Screen name="tanks/[id]/history" options={{ title: '' }} />
+        <Stack.Screen name="tanks/[id]/ferments" options={{ title: t.ferment.listTitle }} />
+        <Stack.Screen name="tanks/[id]/ferment-form" options={{ title: t.ferment.newTitle, presentation: 'modal' }} />
+        <Stack.Screen name="tanks/[id]/curve" options={{ title: t.ferment.chartTitle }} />
         <Stack.Screen name="tanks/[id]/edit" options={{ title: t.titles.editTank, presentation: 'modal' }} />
         <Stack.Screen name="account" options={{ title: t.titles.account }} />
         <Stack.Screen name="entries/new" options={{ title: t.titles.addEntry }} />

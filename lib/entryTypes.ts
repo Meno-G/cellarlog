@@ -10,6 +10,7 @@ export const ENTRY_TYPES = [
   'tasting',
   'transfer',
   'note',
+  'decision',
 ] as const satisfies readonly EntryType[];
 
 // Compile-time check that ENTRY_TYPES covers the whole database enum.

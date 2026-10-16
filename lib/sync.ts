@@ -30,6 +30,7 @@ import {
   type FlushResult,
   type OutboxItem,
 } from './outbox';
+import { listAllFerments } from './ferments';
 import { createTank, deleteTank, listTanks, updateTank, type TankInput } from './tanks';
 
 export type SaveResult = 'saved' | 'queued';
@@ -174,12 +175,12 @@ export async function deleteTankOrQueue(
 }
 
 /**
- * Downloads the tank list and every timeline and saves them on the phone.
- * Two requests, whatever the number of tanks. Throws on failure (offline).
+ * Downloads the tank list, every timeline and every ferment and saves them on
+ * the phone. Three requests, whatever the number of tanks. Throws on failure (offline).
  */
 export async function refreshOfflineCopy(userId: string): Promise<void> {
-  const [tanks, entries] = await Promise.all([listTanks(), listRecentEntries()]);
-  saveOfflineCopy(userId, tanks, entries, TIMELINE_LIMIT);
+  const [tanks, entries, ferments] = await Promise.all([listTanks(), listRecentEntries(), listAllFerments()]);
+  saveOfflineCopy(userId, tanks, entries, TIMELINE_LIMIT, ferments);
 }
 
 /** Sends one queued change. The ids chosen on the phone make every retry safe. */

@@ -12,6 +12,7 @@ export const ENTRY_TYPE_ICONS: Record<EntryType, IconName> = {
   tasting: 'glass-wine',
   transfer: 'swap-horizontal',
   note: 'note-text-outline',
+  decision: 'check-decagram-outline',
 };
 
 type Props = {

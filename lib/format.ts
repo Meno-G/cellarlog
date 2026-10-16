@@ -42,6 +42,12 @@ function formatDay(date: Date, withYear: boolean): string {
   return (withYear ? dayMonthYear : dayMonth).format(date);
 }
 
+/** "3 Oct" or "3 Oct 2025": a calendar day without a time. */
+export function formatDate(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  return formatDay(date, date.getFullYear() !== now.getFullYear());
+}
+
 function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }

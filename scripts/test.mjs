@@ -9,6 +9,7 @@ const OUT = '.test-build';
 // Modules with no React Native / Supabase imports at runtime.
 const PURE_MODULES = [
   'lib/numbers.ts',
+  'lib/vesselKinds.ts',
   'lib/i18n/index.ts',
   'lib/i18n/en.ts',
   'lib/i18n/ka.ts',
@@ -26,6 +27,8 @@ const PURE_MODULES = [
   'lib/outbox.ts',
   'lib/tankOverlay.ts',
   'lib/entryOverlay.ts',
+  'lib/fermentCurves.ts',
+  'lib/fermentForm.ts',
   'lib/format.ts',
 ];
 

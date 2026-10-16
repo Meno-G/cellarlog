@@ -1,8 +1,9 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 
-import { entriesCache } from '@/lib/cache';
+import { entriesCache, fermentsCache } from '@/lib/cache';
 import { applyEntryChanges } from '@/lib/entryOverlay';
+import { activeFerment, fermentDay } from '@/lib/fermentCurves';
 import type { EntryType } from '@/lib/entryTypes';
 import { latestValues, type LatestValue } from '@/lib/latestValues';
 
@@ -16,6 +17,8 @@ export type TankSummary = {
   last: LastActivity | undefined;
   /** The newest reading of each value (see lib/latestValues.ts). */
   latest: LatestValue[];
+  /** The running ferment and what day it's on, from the saved copy. */
+  ferment: { name: string; day: number } | null;
 };
 
 /**
@@ -39,9 +42,11 @@ export function useTankSummaries(tankIds: readonly string[]): Map<string, TankSu
       const saved = entriesCache(userId, tankId).read()?.data ?? [];
       const timeline = applyEntryChanges(saved, items, tankId);
       const newest = timeline[0];
+      const running = activeFerment(fermentsCache(userId, tankId).read()?.data ?? []);
       summaries.set(tankId, {
         last: newest ? { type: newest.type, createdAt: newest.createdAt } : undefined,
         latest: latestValues(timeline),
+        ferment: running ? { name: running.name, day: fermentDay(running.startedAt, new Date()) } : null,
       });
     }
     return summaries;

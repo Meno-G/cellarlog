@@ -22,7 +22,10 @@ export function TankCard({ tank, summary, onPress }: Props) {
   const readings = cardReadings(summary?.latest ?? []);
   const { colors } = useTheme();
   const t = useT();
-  const wine = formatWine(tank.variety, tank.vintage);
+  // "Qvevri · Saperavi · 2025": the type is only mentioned when it isn't a plain tank.
+  const wine = [tank.kind === 'tank' ? null : t.vesselKinds[tank.kind], formatWine(tank.variety, tank.vintage)]
+    .filter((part): part is string => part !== null)
+    .join(' · ') || null;
   const volume = formatLiters(tank.volumeLiters);
   const failed = tank.upload?.status === 'failed';
   const lastText = last
@@ -79,6 +82,11 @@ export function TankCard({ tank, summary, onPress }: Props) {
               </View>
             ))}
           </View>
+        ) : null}
+        {summary?.ferment ? (
+          <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: colors.primary }}>
+            {t.ferment.runningLine(summary.ferment.name, summary.ferment.day)}
+          </AppText>
         ) : null}
         {tank.upload ? (
           <AppText
