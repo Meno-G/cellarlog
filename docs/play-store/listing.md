@@ -5,7 +5,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 - **App name** (max 30): `CellarLog`
 - **Package name**: `com.cellarlog.app` (permanent once uploaded)
 - **Category**: Business. Tags: productivity, wine.
-- **Contact email**: [CONTACT EMAIL]
+- **Contact email**: menognishviligiorgi@gmail.com
 - **Website**: https://cellarlog.vercel.app
 - **Privacy policy URL**: https://cellarlog.vercel.app/privacy
 
