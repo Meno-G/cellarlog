@@ -77,6 +77,47 @@ export type Database = {
           },
         ];
       };
+      alert_rules: {
+        Row: {
+          id: string;
+          tank_id: string;
+          user_id: string;
+          kind: Database['public']['Enums']['alert_kind'];
+          enabled: boolean;
+          params: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tank_id: string;
+          user_id?: string;
+          kind: Database['public']['Enums']['alert_kind'];
+          enabled?: boolean;
+          params: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tank_id?: string;
+          user_id?: string;
+          kind?: Database['public']['Enums']['alert_kind'];
+          enabled?: boolean;
+          params?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'alert_rules_tank_id_fkey';
+            columns: ['tank_id'];
+            isOneToOne: false;
+            referencedRelation: 'tanks';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       entries: {
         Row: {
           id: string;
@@ -126,6 +167,7 @@ export type Database = {
     Enums: {
       entry_type: 'addition' | 'temperature' | 'lab_analysis' | 'tasting' | 'transfer' | 'note' | 'decision';
       vessel_kind: 'tank' | 'qvevri' | 'barrel';
+      alert_kind: 'density_stall' | 'temperature_range';
     };
     CompositeTypes: { [_ in never]: never };
   };

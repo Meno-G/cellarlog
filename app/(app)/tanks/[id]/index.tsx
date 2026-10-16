@@ -7,6 +7,7 @@ import { Banner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { CachedNote } from '@/components/CachedNote';
 import { EntryCard } from '@/components/EntryCard';
+import { AlertPanel } from '@/components/AlertPanel';
 import { FermentPanel } from '@/components/FermentPanel';
 import { HeaderButton } from '@/components/HeaderButton';
 import { LatestValues } from '@/components/LatestValues';
@@ -19,9 +20,11 @@ import { useFerments } from '@/hooks/useFerments';
 import { useT } from '@/hooks/useLanguage';
 import { useDialog } from '@/hooks/useDialog';
 import { useOutbox } from '@/hooks/useOutbox';
+import { useRules } from '@/hooks/useRules';
 import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
+import { evaluateRules } from '@/lib/alertRules';
 import { updateFerment, type Ferment } from '@/lib/ferments';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
@@ -32,6 +35,7 @@ export default function TankDetailScreen() {
   const tank = useTank(id);
   const entries = useEntries(id);
   const ferments = useFerments(id);
+  const rules = useRules(id);
   const outbox = useOutbox();
   const { colors } = useTheme();
   const t = useT();
@@ -182,6 +186,8 @@ export default function TankDetailScreen() {
 
   // Includes entries still waiting to upload, so a reading shows up as soon as it's saved.
   const latest = latestValues(rows);
+  // Checked on the phone against the running ferment, so it also works offline.
+  const alertResults = evaluateRules(rules.data ?? [], rows, ferments.data ?? []);
 
   function refreshAll() {
     tank.refresh();
@@ -235,6 +241,12 @@ export default function TankDetailScreen() {
         onEnd={confirmEndFerment}
         onList={() => router.push({ pathname: '/tanks/[id]/ferments', params: { id } })}
         onChart={() => router.push({ pathname: '/tanks/[id]/curve', params: { id } })}
+      />
+      <AlertPanel
+        rules={rules.data}
+        results={alertResults}
+        onRules={() => router.push({ pathname: '/tanks/[id]/alerts', params: { id } })}
+        onDecision={() => router.push({ pathname: '/entries/new', params: { tankId: id } })}
       />
       <LatestValues
         values={latest}

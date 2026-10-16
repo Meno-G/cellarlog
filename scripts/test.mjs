@@ -29,6 +29,7 @@ const PURE_MODULES = [
   'lib/entryOverlay.ts',
   'lib/fermentCurves.ts',
   'lib/fermentForm.ts',
+  'lib/alertRules.ts',
   'lib/format.ts',
 ];
 

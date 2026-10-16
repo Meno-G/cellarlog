@@ -141,7 +141,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 
 - **Reading**: `useFocusQuery(load, cache)` shows the cached copy at once (`lib/cache.ts`), refreshes from Supabase, and writes successful results back. When the refresh fails, the cached data stays on screen and `CachedNote` says when it was saved.
   - Tanks and timelines are cached per user. Cache adapters must be memoized (`useMemo`).
-  - Whenever the app is online (on start, when the connection returns, on foreground), `OutboxProvider` uploads the queue and then runs `refreshOfflineCopy()`. That's three requests (tanks, entries, ferments), which save **every** tank's timeline and ferments, not just the ones opened (`saveOfflineCopy` in `lib/cache.ts`).
+  - Whenever the app is online (on start, when the connection returns, on foreground), `OutboxProvider` uploads the queue and then runs `refreshOfflineCopy()`. That's four requests (tanks, entries, ferments, alert rules), which save **every** tank's timeline and ferments, not just the ones opened (`saveOfflineCopy` in `lib/cache.ts`).
 - **Speech:** Android's on-device recognizer often ends a session with `ERROR_CLIENT`. After words were recognised, that counts as a normal end (`useSpeechToText`).
 - **Writing new entries**: `useOutbox().saveEntry()` → `lib/sync.ts` `saveOrQueue()`.
   - Online, it saves directly. Offline, or on a network error, the entry goes into the outbox (`lib/outbox.ts`, localStorage, per user) and shows on the timeline as "waiting to upload".
@@ -218,6 +218,18 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Offline:** ferments are read from the saved copy (`fermentsCache`, saved by `refreshOfflineCopy`), so the panel, list and chart work offline. **Starting, editing, ending or deleting a ferment needs a connection** (not queued in the outbox).
 - **"My decision"** is a new entry type (`decision`): what the winemaker decided (re-tested, cooled), kept apart from measurements. It's in the type picker and counts as a plain note, not as a reading.
 - **Typed routes:** after adding a screen, `tsc` complains until `.expo/types/router.d.ts` is regenerated. Starting `npx expo start` once rewrites it.
+
+## Alert rules
+
+- **Two rules per vessel, set by the winemaker** (`alert_rules` table, migration `20261017120000_alert_rules.sql`, one row per kind per vessel):
+  - `density_stall`: the density must fall by at least `minDrop` within `hours`; at or below `dryBelow` the ferment counts as finished (no alert).
+  - `temperature_range`: the newest temperature must be within `minC`..`maxC` (°C only; other units are not guessed).
+- **Checked on the phone** (`lib/alertRules.ts`, `evaluateRules`, pure) against the **running ferment's** readings, from the saved copy plus changes waiting to upload, so alerts work offline. No running ferment: nothing is checked. Rules start switched off; defaults are labelled as defaults, not winemaking advice (`densityDefaults` follows the user's density scale: 1.060 or 1060).
+- **Density comparison:** the newest reading is compared with the newest reading that is at least `hours` old. No such reading ("too-early") or nothing newer ("no-new-reading") is reported as "cannot check yet", never as an alert.
+- **Wording:** an alert says only what was **observed** and which **rule** tripped. Never a diagnosis or advice. A "Record my decision" button opens a new entry (type "My decision").
+- **UI:** `AlertPanel` on the tank screen, a badge on the tank card (`useTankSummaries`), and the rules screen `tanks/[id]/alerts.tsx`. Saving rules needs a connection; reading them works offline (`rulesCache`).
+- **No push notifications yet:** that needs a native module (expo-notifications) and a rebuild.
+- **Numbers:** `parseNumber` reads "0,003" as a decimal (a comma after a leading 0 is never a thousands separator).
 
 ## Environment variables
 

@@ -1,7 +1,8 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 
-import { entriesCache, fermentsCache } from '@/lib/cache';
+import { evaluateRules, trippedAlerts } from '@/lib/alertRules';
+import { entriesCache, fermentsCache, rulesCache } from '@/lib/cache';
 import { applyEntryChanges } from '@/lib/entryOverlay';
 import { activeFerment, fermentDay } from '@/lib/fermentCurves';
 import type { EntryType } from '@/lib/entryTypes';
@@ -19,6 +20,8 @@ export type TankSummary = {
   latest: LatestValue[];
   /** The running ferment and what day it's on, from the saved copy. */
   ferment: { name: string; day: number } | null;
+  /** How many alert rules have tripped on the running ferment. */
+  alerts: number;
 };
 
 /**
@@ -42,11 +45,14 @@ export function useTankSummaries(tankIds: readonly string[]): Map<string, TankSu
       const saved = entriesCache(userId, tankId).read()?.data ?? [];
       const timeline = applyEntryChanges(saved, items, tankId);
       const newest = timeline[0];
-      const running = activeFerment(fermentsCache(userId, tankId).read()?.data ?? []);
+      const ferments = fermentsCache(userId, tankId).read()?.data ?? [];
+      const running = activeFerment(ferments);
+      const alerts = trippedAlerts(evaluateRules(rulesCache(userId, tankId).read()?.data ?? [], timeline, ferments)).length;
       summaries.set(tankId, {
         last: newest ? { type: newest.type, createdAt: newest.createdAt } : undefined,
         latest: latestValues(timeline),
         ferment: running ? { name: running.name, day: fermentDay(running.startedAt, new Date()) } : null,
+        alerts,
       });
     }
     return summaries;

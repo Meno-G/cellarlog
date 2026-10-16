@@ -83,6 +83,12 @@ export function TankCard({ tank, summary, onPress }: Props) {
             ))}
           </View>
         ) : null}
+        {summary && summary.alerts > 0 ? (
+          <AppText style={{ fontFamily: fonts.bodyBold, fontSize: 15, color: colors.danger }}>
+            {'⚠ '}
+            {t.alerts.badge(summary.alerts)}
+          </AppText>
+        ) : null}
         {summary?.ferment ? (
           <AppText style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: colors.primary }}>
             {t.ferment.runningLine(summary.ferment.name, summary.ferment.day)}

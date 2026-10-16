@@ -8,8 +8,8 @@ export function parseNumber(text: string): number | null {
   if (cleaned === '') return null;
   const negative = cleaned.startsWith('-');
   if (negative) cleaned = cleaned.slice(1);
-  if (cleaned.includes('.') || /^\d{1,3}(,\d{3})+$/.test(cleaned)) {
-    // "5,000.5" or "12,500": commas are thousands separators.
+  if (cleaned.includes('.') || /^[1-9]\d{0,2}(,\d{3})+$/.test(cleaned)) {
+    // "5,000.5" or "12,500": commas are thousands separators. ("0,003" starts with 0: a decimal.)
     cleaned = cleaned.replace(/,/g, '');
   } else {
     // "5000,5": a comma is the decimal separator.

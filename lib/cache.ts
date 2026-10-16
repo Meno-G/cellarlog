@@ -3,7 +3,9 @@
 import { z } from 'zod';
 
 import type { Entry } from './entries';
+import type { SavedRule } from './alerts';
 import type { Ferment } from './ferments';
+import { densityStallParamsSchema, temperatureRangeParamsSchema } from './alertRules';
 import { ENTRY_TYPES } from './entryTypes';
 import { parsedEntrySchema } from './parser/schema';
 import { readJson, removeKey, userKey, writeJson } from './storage';
@@ -47,6 +49,24 @@ const fermentSchema = z.object({
   createdAt: z.string(),
 }) satisfies z.ZodType<Ferment>;
 
+const ruleSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('density_stall'),
+    enabled: z.boolean(),
+    params: densityStallParamsSchema,
+    id: z.string(),
+    tankId: z.string(),
+  }),
+  z.object({
+    kind: z.literal('temperature_range'),
+    enabled: z.boolean(),
+    params: temperatureRangeParamsSchema,
+    id: z.string(),
+    tankId: z.string(),
+  }),
+]) satisfies z.ZodType<SavedRule>;
+
+const cachedRulesSchema = z.object({ data: z.array(ruleSchema), savedAt: z.string() });
 const cachedFermentsSchema = z.object({ data: z.array(fermentSchema), savedAt: z.string() });
 const cachedTanksSchema = z.object({ data: z.array(tankSchema), savedAt: z.string() });
 const cachedEntriesSchema = z.object({ data: z.array(entrySchema), savedAt: z.string() });
@@ -54,6 +74,7 @@ const cachedEntriesSchema = z.object({ data: z.array(entrySchema), savedAt: z.st
 const tanksKey = (userId: string) => userKey(userId, 'tanks');
 const entriesKey = (userId: string, tankId: string) => userKey(userId, `entries:${tankId}`);
 const fermentsKey = (userId: string, tankId: string) => userKey(userId, `ferments:${tankId}`);
+const rulesKey = (userId: string, tankId: string) => userKey(userId, `rules:${tankId}`);
 
 const now = () => new Date().toISOString();
 
@@ -126,6 +147,16 @@ export function fermentsCache(userId: string, tankId: string): CacheAdapter<Ferm
   };
 }
 
+/** One vessel's alert rules. */
+export function rulesCache(userId: string, tankId: string): CacheAdapter<SavedRule[]> {
+  return {
+    read: () => readJson(rulesKey(userId, tankId), cachedRulesSchema),
+    write: (data) => {
+      writeJson(rulesKey(userId, tankId), { data, savedAt: now() });
+    },
+  };
+}
+
 /**
  * Saves the tank list and every tank's timeline at once, from the user's
  * recent entries (newest first), so all of them open offline, not only the
@@ -137,6 +168,7 @@ export function saveOfflineCopy(
   recentEntries: Entry[],
   perTank: number,
   ferments?: Ferment[],
+  rules?: SavedRule[],
 ): void {
   tanksCache(userId).write(tanks);
   const byTank = new Map<string, Entry[]>();
@@ -151,6 +183,9 @@ export function saveOfflineCopy(
       fermentsCache(userId, tank.id).write(ferments.filter((ferment) => ferment.tankId === tank.id));
     }
   }
+  if (rules) {
+    for (const tank of tanks) rulesCache(userId, tank.id).write(rules.filter((rule) => rule.tankId === tank.id));
+  }
 }
 
 /** Drops a deleted tank and its timeline from the saved copy. */
@@ -164,6 +199,7 @@ export function removeTankFromCache(userId: string, tankId: string): void {
   }
   removeKey(entriesKey(userId, tankId));
   removeKey(fermentsKey(userId, tankId));
+  removeKey(rulesKey(userId, tankId));
 }
 
 /** Drops a deleted entry from its tank's saved timeline. */
@@ -182,6 +218,7 @@ export function clearCache(userId: string): void {
   for (const tank of tanks?.data ?? []) {
     removeKey(entriesKey(userId, tank.id));
     removeKey(fermentsKey(userId, tank.id));
+    removeKey(rulesKey(userId, tank.id));
   }
   removeKey(tanksKey(userId));
 }
