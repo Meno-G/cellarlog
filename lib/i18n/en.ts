@@ -318,6 +318,24 @@ export const en = {
     barrel: 'Barrel',
   },
 
+  transfer: {
+    button: 'Transfer wine',
+    title: 'Transfer wine',
+    from: (name: string) => `From ${name}`,
+    to: 'Move to',
+    volume: 'Volume moved (liters, optional)',
+    endFerment: (name: string) => `End the running ferment "${name}"?`,
+    moveGrape: 'Move the grape and vintage with the wine?',
+    moveGrapeHint: (name: string) => `The receiving vessel takes the grape and vintage, and ${name} is left without them.`,
+    yes: 'Yes',
+    no: 'No',
+    save: 'Record transfer',
+    noOtherTanks: 'You need a second vessel to transfer to.',
+    offlineNote:
+      "You're offline. The transfer entries are saved on this phone. Ending a ferment needs a connection.",
+    partialFailed: (error: string) => `The transfer is recorded, but one step failed: ${error}`,
+  },
+
   voiceTest: {
     open: 'Georgian voice test',
     title: 'Georgian voice test',
@@ -524,6 +542,8 @@ export const en = {
     sessionRestoreFailed: 'Could not restore your session.',
     deleteAccountFailed: 'Could not delete your account. Please try again.',
     exportFailed: 'Could not export the data.',
+    transferChooseDestination: 'Choose the vessel the wine goes to.',
+    transferVolume: 'Enter the volume in liters, or leave it empty.',
     alertHoursRange: 'Hours must be a whole number from 1 to 720.',
     alertPositive: 'Enter a number above 0.',
     alertNumber: 'Enter a number.',

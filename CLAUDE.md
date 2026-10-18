@@ -219,6 +219,14 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **"My decision"** is a new entry type (`decision`): what the winemaker decided (re-tested, cooled), kept apart from measurements. It's in the type picker and counts as a plain note, not as a reading.
 - **Typed routes:** after adding a screen, `tsc` complains until `.expo/types/router.d.ts` is regenerated. Starting `npx expo start` once rewrites it.
 
+## Transferring wine between vessels
+
+- **Tank screen → "Transfer wine"** (`tanks/[id]/transfer.tsx`): pick the receiving vessel, optionally the liters and a note.
+- `lib/transfer.ts` (pure, tested): `planTransfer` builds **one `transfer` entry in each vessel**. The source's has items `Destination` (the other vessel's name) and `Volume` (L); the receiver's has `Source` and `Volume`. The note is saved on both. `moveGrape` gives the receiving vessel the source's grape and vintage and leaves the source without them (the vessel type and volume stay).
+- Optional steps on the same screen: **end the running ferment** (`updateFerment`, needs a connection) and **move the grape and vintage** (`outbox.updateTank` ×2, queues offline like any tank edit).
+- The entries go through `outbox.saveEntry`, so the transfer itself works offline. A step that fails afterwards (e.g. offline when ending the ferment) is reported in a dialog; the entries are not undone. A ref remembers which entry was already saved, so retrying never duplicates one.
+- There is no stored link between the two vessels: the two entries name each other by name.
+
 ## Alert rules
 
 - **Two rules per vessel, set by the winemaker** (`alert_rules` table, migration `20261017120000_alert_rules.sql`, one row per kind per vessel):

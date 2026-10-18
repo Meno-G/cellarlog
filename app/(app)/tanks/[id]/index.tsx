@@ -281,6 +281,12 @@ export default function TankDetailScreen() {
         onList={() => router.push({ pathname: '/tanks/[id]/ferments', params: { id } })}
         onChart={() => router.push({ pathname: '/tanks/[id]/curve', params: { id } })}
       />
+      <Button
+        variant="secondary"
+        title={t.transfer.button}
+        icon="swap-horizontal"
+        onPress={() => router.push({ pathname: '/tanks/[id]/transfer', params: { id } })}
+      />
       <AlertPanel
         rules={rules.data}
         results={alertResults}

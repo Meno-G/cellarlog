@@ -33,6 +33,7 @@ const PURE_MODULES = [
   'lib/exportCsv.ts',
   'lib/reportHtml.ts',
   'lib/voiceTest.ts',
+  'lib/transfer.ts',
   'lib/format.ts',
 ];
 
