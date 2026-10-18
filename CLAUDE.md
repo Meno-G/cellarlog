@@ -248,6 +248,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - `lib/voiceTest.ts` (pure, tested) holds the sentences and the scoring: word recall (words in order, extra words don't count against it, endings one letter off are accepted), numbers right (digits only; "6,5" or "6 მთელი 5" count as 6.5), whether numbers came as digits or words, and a plain verdict (`verdictOf`: none / words / reliable / mixed / poor).
 - `useSpeechToText({ language })` takes a language; anything but English skips the offline English model and its download.
 - **Purpose:** decide with data whether Georgian voice notes are worth building (they would also need a Georgian parser). Voice notes themselves stay English-only for now.
+- **Result (18 Oct 2026, Samsung Galaxy S25):** Georgian is **not available** in the phone's speech recognition. Both the app (`ka-GE`) and the Gboard microphone returned English words, and Georgian is not in Google's voice-language list. So Georgian voice notes are not possible with the phone's own recognizer. The only route would be a separate cloud speech service (e.g. Google Cloud Speech-to-Text), which costs money, sends audio to a third party and changes the privacy policy. Decision: **voice stays English-only**; the test screen stays for re-testing on other phones or after Google adds Georgian.
 
 ## "Record my decision"
 
