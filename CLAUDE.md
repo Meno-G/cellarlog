@@ -231,13 +231,27 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **No push notifications yet:** that needs a native module (expo-notifications) and a rebuild.
 - **Numbers:** `parseNumber` reads "0,003" as a decimal (a comma after a leading 0 is never a thousands separator).
 
-## CSV export
+## Exports (CSV and PDF report)
 
 - **Tank screen → "Export data (CSV)"** exports the vessel's timeline (with changes still waiting to upload). If the vessel has ferments, a dialog offers the whole vessel or its running (else newest) ferment.
 - `lib/exportCsv.ts` (pure, tested): one row per measured value (long format) with vessel, type, ferment name, day of the ferment, local and UTC time, entry type, name, value, unit, note and what was said. Headers are always English. An entry without values (tasting, note, decision) is one row.
   - Text starting with = + - @ gets a leading apostrophe (spreadsheet formula injection); numbers are written bare. Delimiter is a comma, decimals use a point.
 - `lib/shareFile.ts`: on the **web** it downloads a file (UTF-8 with a byte order mark, so Excel reads Georgian text); on the **phone** it opens the share menu with the CSV as text. That needs no native module (a real file would need expo-file-system and expo-sharing, so a rebuild).
 - The ferment name is part of the file name; letters of any script are kept (`csvFilename`).
+- **Batch report (PDF)** (tank screen, same whole-vessel / ferment choice): `lib/reportHtml.ts` (pure, tested) builds one HTML page: facts, latest value of each measurement, and every entry oldest first with the day of the ferment. Everything typed is HTML-escaped. It restates records only, with no judgement or advice.
+  - **Phone:** `expo-print` makes an A4 PDF file and `expo-sharing` opens the share menu. **These are native modules: they need a new build** (the web works without).
+  - **Web:** `expo-print` can only print the *current page* there, so `lib/shareFile.ts` prints the report through a hidden iframe (the browser's print dialog: "Save as PDF").
+
+## Georgian voice test
+
+- **Account → "Georgian voice test"** (`app/(app)/voice-test.tsx`): the winemaker reads 30 cellar sentences in Georgian and the phone's recognizer (`ka-GE`, online only) is scored. Nothing is saved or sent; the results can be shared as CSV.
+- `lib/voiceTest.ts` (pure, tested) holds the sentences and the scoring: word recall (words in order, extra words don't count against it, endings one letter off are accepted), numbers right (digits only; "6,5" or "6 მთელი 5" count as 6.5), whether numbers came as digits or words, and a plain verdict (`verdictOf`: none / words / reliable / mixed / poor).
+- `useSpeechToText({ language })` takes a language; anything but English skips the offline English model and its download.
+- **Purpose:** decide with data whether Georgian voice notes are worth building (they would also need a Georgian parser). Voice notes themselves stay English-only for now.
+
+## "Record my decision"
+
+An alert's button opens `entries/new` with `decision=1`: it goes straight to the review form with the **My decision** type chosen and the vessel preselected; a note is required.
 
 ## Environment variables
 

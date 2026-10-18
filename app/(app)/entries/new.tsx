@@ -52,7 +52,7 @@ type AnalysisState = {
 };
 
 export default function NewEntryScreen() {
-  const { tankId } = useLocalSearchParams<{ tankId?: string }>();
+  const { tankId, decision } = useLocalSearchParams<{ tankId?: string; decision?: string }>();
   const startTankId = tankId ?? null;
   const tanks = useTanks();
   const outbox = useOutbox();
@@ -61,7 +61,12 @@ export default function NewEntryScreen() {
 
   const [text, setText] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
-  const [review, setReview] = useState<Review | null>(null);
+  // From an alert's "Record my decision": straight to the form, with the decision type chosen.
+  const [review, setReview] = useState<Review | null>(() =>
+    decision === '1'
+      ? { draft: { ...manualDraft('', startTankId), type: 'decision' }, errors: {}, saveError: null, saving: false }
+      : null,
+  );
   const [tab, setTab] = useState<Tab>('note');
   const [analysis, setAnalysis] = useState<AnalysisState>(() => ({
     form: emptyAnalysisForm(startTankId),

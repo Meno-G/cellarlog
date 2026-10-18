@@ -26,9 +26,10 @@ import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
 import { evaluateRules } from '@/lib/alertRules';
 import { csvFilename, entriesForScope, entriesToCsv } from '@/lib/exportCsv';
+import { buildReportHtml, reportTitle } from '@/lib/reportHtml';
 import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
-import { shareCsv } from '@/lib/shareFile';
+import { shareCsv, sharePdf } from '@/lib/shareFile';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
 import { spacing, useTheme } from '@/theme';
@@ -164,18 +165,27 @@ export default function TankDetailScreen() {
     ]);
   }
 
-  /** A CSV of the whole vessel, or of its running (else newest) ferment. */
-  function exportData() {
+  /** A CSV or a printable report of the whole vessel, or of its running (else newest) ferment. */
+  function exportData(format: 'csv' | 'pdf') {
     const all = ferments.data ?? [];
     const current = activeFerment(all) ?? all[0];
-    const send = (scope: 'all' | string, fermentName: string | null) => {
+    const kind = tank.data?.kind ?? 'tank';
+    const send = (scope: 'all' | string, ferment: Ferment | null) => {
       setActionError(null);
       const now = new Date();
       const chosen = entriesForScope(rows, all, scope, now);
-      const csv = entriesToCsv({ vessel: { name, kind: tank.data?.kind ?? 'tank' }, ferments: all, entries: chosen });
-      shareCsv(csvFilename(name, fermentName, now), csv, t.exportData.shareTitle(name)).catch((err: unknown) =>
-        setActionError(errorMessage(err)),
-      );
+      const done =
+        format === 'csv'
+          ? shareCsv(
+              csvFilename(name, ferment?.name ?? null, now),
+              entriesToCsv({ vessel: { name, kind }, ferments: all, entries: chosen }),
+              t.exportData.shareTitle(name),
+            )
+          : sharePdf(
+              buildReportHtml({ vessel: { name, kind, variety, vintage, volumeLiters }, ferment, entries: chosen, now }),
+              reportTitle(name, ferment?.name ?? null),
+            );
+      done.catch((err: unknown) => setActionError(errorMessage(err)));
     };
     if (rows.length === 0) {
       setActionError(t.exportData.nothing);
@@ -185,7 +195,7 @@ export default function TankDetailScreen() {
       dialog(t.exportData.title, t.exportData.text, [
         { text: t.common.cancel, style: 'cancel' },
         { text: t.exportData.wholeVessel, onPress: () => send('all', null) },
-        { text: current.name, onPress: () => send(current.id, current.name) },
+        { text: current.name, onPress: () => send(current.id, current) },
       ]);
     }
   }
@@ -275,13 +285,14 @@ export default function TankDetailScreen() {
         rules={rules.data}
         results={alertResults}
         onRules={() => router.push({ pathname: '/tanks/[id]/alerts', params: { id } })}
-        onDecision={() => router.push({ pathname: '/entries/new', params: { tankId: id } })}
+        onDecision={() => router.push({ pathname: '/entries/new', params: { tankId: id, decision: '1' } })}
       />
       <LatestValues
         values={latest}
         onSelect={(valueName) => router.push({ pathname: '/tanks/[id]/history', params: { id, name: valueName } })}
       />
-      <Button variant="secondary" title={t.exportData.button} icon="file-delimited-outline" onPress={exportData} />
+      <Button variant="secondary" title={t.exportData.pdfButton} icon="file-pdf-box" onPress={() => exportData('pdf')} />
+      <Button variant="secondary" title={t.exportData.button} icon="file-delimited-outline" onPress={() => exportData('csv')} />
       <View style={styles.timelineHeading}>
         <AppText variant="heading" style={{ color: colors.heading }}>
           {t.tank.timeline}

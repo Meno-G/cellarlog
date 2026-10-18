@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -84,6 +85,12 @@ export default function AccountScreen() {
       {error ? <Banner message={error} /> : null}
 
       <Button variant="secondary" title={t.account.signOut} icon="logout" onPress={confirmSignOut} disabled={deleting} />
+      <Button
+        variant="secondary"
+        title={t.voiceTest.open}
+        icon="microphone-outline"
+        onPress={() => router.push('/voice-test')}
+      />
       <Button
         variant="secondary"
         title={t.account.privacy}

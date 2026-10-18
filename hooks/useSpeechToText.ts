@@ -40,7 +40,7 @@ const WINE_TERMS = [
   'malolactic', 'pump over', 'punch down', 'barrique', 'Saperavi', 'Rkatsiteli',
 ];
 
-function errorFor(code: ExpoSpeechRecognitionErrorCode, offlineReady: boolean): SpeechError | null {
+function errorFor(code: ExpoSpeechRecognitionErrorCode, offlineReady: boolean, english = true): SpeechError | null {
   switch (code) {
     case 'aborted':
       return null;
@@ -57,6 +57,7 @@ function errorFor(code: ExpoSpeechRecognitionErrorCode, offlineReady: boolean): 
         offerOfflineDownload: !offlineReady,
       };
     case 'language-not-supported':
+      if (!english) return { message: m().speechLanguageUnavailable, offerOfflineDownload: false };
       return {
         message: m().englishNotInstalled,
         offerOfflineDownload: true,
@@ -84,13 +85,16 @@ type Options = {
   onFinished: (transcript: string) => void;
   /** Extra words to prime recognition with, e.g. the user's tank names. */
   vocabulary: readonly string[];
+  /** Recognition language (default English). Anything else uses online recognition only. */
+  language?: string;
 };
 
 /**
  * Live speech-to-text with the phone's own recognizer. Prefers on-device
  * English (works offline); otherwise Google's online recognition.
  */
-export function useSpeechToText({ onFinished, vocabulary }: Options) {
+export function useSpeechToText({ onFinished, vocabulary, language = PREFERRED_LANG }: Options) {
+  const english = language.toLowerCase().startsWith('en');
   const [phase, setPhase] = useState<Phase>('idle');
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<SpeechError | null>(null);
@@ -110,6 +114,12 @@ export function useSpeechToText({ onFinished, vocabulary }: Options) {
 
   async function checkOffline() {
     if (!speech) return;
+    // The offline English model and its download only concern English.
+    if (!english) {
+      setOfflineLang(null);
+      setOfflineChecked(true);
+      return;
+    }
     let lang: string | null = null;
     try {
       if (Platform.OS === 'android' && speech.supportsOnDeviceRecognition()) {
@@ -161,7 +171,7 @@ export function useSpeechToText({ onFinished, vocabulary }: Options) {
       event.error === 'no-speech' || event.error === 'speech-timeout' || event.error === 'client';
     if (endedNormally && fullText() !== '') return;
     if (event.error === 'not-allowed') setPermission('blocked');
-    setError(errorFor(event.error, offlineLang !== null));
+    setError(errorFor(event.error, offlineLang !== null, english));
   });
   const onEnd = useEffectEvent(() => {
     const text = fullText();
@@ -200,13 +210,13 @@ export function useSpeechToText({ onFinished, vocabulary }: Options) {
       }
       setPermission('granted');
       speech.start({
-        lang: offlineLang ?? PREFERRED_LANG,
+        lang: offlineLang ?? language,
         interimResults: true,
         continuous: true,
         maxAlternatives: 1,
         requiresOnDeviceRecognition: offlineLang !== null,
         addsPunctuation: offlineLang !== null,
-        contextualStrings: [...vocabulary, ...WINE_TERMS],
+        contextualStrings: english ? [...vocabulary, ...WINE_TERMS] : [...vocabulary],
       });
     } catch {
       setError({ message: m().speechCouldNotStart, offerOfflineDownload: false });

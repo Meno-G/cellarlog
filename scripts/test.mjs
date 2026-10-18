@@ -31,6 +31,8 @@ const PURE_MODULES = [
   'lib/fermentForm.ts',
   'lib/alertRules.ts',
   'lib/exportCsv.ts',
+  'lib/reportHtml.ts',
+  'lib/voiceTest.ts',
   'lib/format.ts',
 ];
 
