@@ -318,6 +318,15 @@ export const en = {
     barrel: 'Barrel',
   },
 
+  exportData: {
+    button: 'Export data (CSV)',
+    title: 'Export data',
+    text: 'Which data should the file contain?',
+    wholeVessel: 'Whole vessel',
+    nothing: 'There is nothing to export yet.',
+    shareTitle: (tank: string) => `CellarLog · ${tank}`,
+  },
+
   alerts: {
     title: 'Alerts',
     noneTripped: 'No rule has tripped.',
@@ -460,6 +469,7 @@ export const en = {
     signOutFailed: 'Could not sign out. Please try again.',
     sessionRestoreFailed: 'Could not restore your session.',
     deleteAccountFailed: 'Could not delete your account. Please try again.',
+    exportFailed: 'Could not export the data.',
     alertHoursRange: 'Hours must be a whole number from 1 to 720.',
     alertPositive: 'Enter a number above 0.',
     alertNumber: 'Enter a number.',

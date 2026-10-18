@@ -312,6 +312,15 @@ export const ka: Strings = {
     barrel: 'კასრი',
   },
 
+  exportData: {
+    button: 'მონაცემების გატანა (CSV)',
+    title: 'მონაცემების გატანა',
+    text: 'რომელი მონაცემები უნდა იყოს ფაილში?',
+    wholeVessel: 'მთელი ჭურჭელი',
+    nothing: 'გასატანი მონაცემები ჯერ არ არის.',
+    shareTitle: (tank) => `CellarLog · ${tank}`,
+  },
+
   alerts: {
     title: 'გაფრთხილებები',
     noneTripped: 'არცერთი წესი არ ამოქმედებულა.',
@@ -473,6 +482,7 @@ export const ka: Strings = {
     signOutFailed: 'გასვლა ვერ მოხერხდა. სცადეთ ხელახლა.',
     sessionRestoreFailed: 'სესიის აღდგენა ვერ მოხერხდა.',
     deleteAccountFailed: 'ანგარიში ვერ წაიშალა. სცადეთ ხელახლა.',
+    exportFailed: 'მონაცემების გატანა ვერ მოხერხდა.',
     alertHoursRange: 'საათები მთელი რიცხვი უნდა იყოს 1-დან 720-მდე.',
     alertPositive: 'შეიყვანეთ რიცხვი 0-ზე მეტი.',
     alertNumber: 'შეიყვანეთ რიცხვი.',

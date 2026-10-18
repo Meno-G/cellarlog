@@ -231,6 +231,14 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **No push notifications yet:** that needs a native module (expo-notifications) and a rebuild.
 - **Numbers:** `parseNumber` reads "0,003" as a decimal (a comma after a leading 0 is never a thousands separator).
 
+## CSV export
+
+- **Tank screen → "Export data (CSV)"** exports the vessel's timeline (with changes still waiting to upload). If the vessel has ferments, a dialog offers the whole vessel or its running (else newest) ferment.
+- `lib/exportCsv.ts` (pure, tested): one row per measured value (long format) with vessel, type, ferment name, day of the ferment, local and UTC time, entry type, name, value, unit, note and what was said. Headers are always English. An entry without values (tasting, note, decision) is one row.
+  - Text starting with = + - @ gets a leading apostrophe (spreadsheet formula injection); numbers are written bare. Delimiter is a comma, decimals use a point.
+- `lib/shareFile.ts`: on the **web** it downloads a file (UTF-8 with a byte order mark, so Excel reads Georgian text); on the **phone** it opens the share menu with the CSV as text. That needs no native module (a real file would need expo-file-system and expo-sharing, so a rebuild).
+- The ferment name is part of the file name; letters of any script are kept (`csvFilename`).
+
 ## Environment variables
 
 See `.env.example`. After changing `.env`, restart with `npx expo start --clear`.

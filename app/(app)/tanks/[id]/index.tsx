@@ -25,7 +25,10 @@ import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
 import { evaluateRules } from '@/lib/alertRules';
+import { csvFilename, entriesForScope, entriesToCsv } from '@/lib/exportCsv';
+import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
+import { shareCsv } from '@/lib/shareFile';
 import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
 import { spacing, useTheme } from '@/theme';
@@ -161,6 +164,32 @@ export default function TankDetailScreen() {
     ]);
   }
 
+  /** A CSV of the whole vessel, or of its running (else newest) ferment. */
+  function exportData() {
+    const all = ferments.data ?? [];
+    const current = activeFerment(all) ?? all[0];
+    const send = (scope: 'all' | string, fermentName: string | null) => {
+      setActionError(null);
+      const now = new Date();
+      const chosen = entriesForScope(rows, all, scope, now);
+      const csv = entriesToCsv({ vessel: { name, kind: tank.data?.kind ?? 'tank' }, ferments: all, entries: chosen });
+      shareCsv(csvFilename(name, fermentName, now), csv, t.exportData.shareTitle(name)).catch((err: unknown) =>
+        setActionError(errorMessage(err)),
+      );
+    };
+    if (rows.length === 0) {
+      setActionError(t.exportData.nothing);
+    } else if (!current) {
+      send('all', null);
+    } else {
+      dialog(t.exportData.title, t.exportData.text, [
+        { text: t.common.cancel, style: 'cancel' },
+        { text: t.exportData.wholeVessel, onPress: () => send('all', null) },
+        { text: current.name, onPress: () => send(current.id, current.name) },
+      ]);
+    }
+  }
+
   function confirmDiscardTank() {
     const waiting = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === id).length;
     dialog(
@@ -252,6 +281,7 @@ export default function TankDetailScreen() {
         values={latest}
         onSelect={(valueName) => router.push({ pathname: '/tanks/[id]/history', params: { id, name: valueName } })}
       />
+      <Button variant="secondary" title={t.exportData.button} icon="file-delimited-outline" onPress={exportData} />
       <View style={styles.timelineHeading}>
         <AppText variant="heading" style={{ color: colors.heading }}>
           {t.tank.timeline}

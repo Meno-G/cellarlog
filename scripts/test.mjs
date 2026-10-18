@@ -30,6 +30,7 @@ const PURE_MODULES = [
   'lib/fermentCurves.ts',
   'lib/fermentForm.ts',
   'lib/alertRules.ts',
+  'lib/exportCsv.ts',
   'lib/format.ts',
 ];
 
