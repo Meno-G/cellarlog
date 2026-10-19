@@ -3,6 +3,7 @@
 // optionally taking the grape and vintage, and optionally a new vessel created
 // for the wine. Also: working out whether a transfer empties the source (so the
 // app can offer to delete it or keep it empty). Pure.
+import { mergeParts, partsOf, resize, summary, type BlendPart } from './blend';
 import type { ValidEntry } from './entryDraft';
 import type { EntryType } from './entryTypes';
 import type { FermentLike } from './fermentCurves';
@@ -25,6 +26,8 @@ type Vessel = {
   contentLiters: number | null;
   variety: string | null;
   vintage: number | null;
+  /** The parts of the wine when it is a blend. */
+  blend?: BlendPart[] | null;
 };
 
 /** The "destination" value that means "a vessel that doesn't exist yet". */
@@ -117,11 +120,11 @@ export function planTransfer(
       if (duplicate) errors.newName = m.duplicateTank(duplicate.name);
       else if (volume !== null && volume > form.input.volumeLiters + SLACK) errors.newVolume = m.transferNewTooSmall;
       else {
+        // The new vessel holds this wine (a blend stays a blend, in the liters moved).
         newTank = {
           ...form.input,
           contentLiters: volume,
-          variety: giveContents ? source.variety : null,
-          vintage: giveContents ? source.vintage : null,
+          ...summary(giveContents ? resize(partsOf(source), volume) : []),
         };
         destination = { id: '', name: form.input.name };
       }
@@ -170,38 +173,35 @@ export function planTransfer(
   };
 }
 
-const asInput = (
-  vessel: Vessel,
-  contentLiters: number | null,
-  variety: string | null,
-  vintage: number | null,
-): TankInput => ({
+type Wine = { variety: string | null; vintage: number | null; blend: BlendPart[] | null };
+
+const asInput = (vessel: Vessel, contentLiters: number | null, wine: Wine): TankInput => ({
   name: vessel.name,
   kind: vessel.kind,
   volumeLiters: vessel.volumeLiters,
   contentLiters,
-  variety,
-  vintage,
+  ...wine,
 });
 
+const noWine: Wine = { variety: null, vintage: null, blend: null };
+const wineOf = (vessel: Vessel): Wine => ({ variety: vessel.variety, vintage: vessel.vintage, blend: vessel.blend ?? null });
+
 const sameAs = (vessel: Vessel, input: TankInput): boolean =>
-  input.contentLiters === vessel.contentLiters && input.variety === vessel.variety && input.vintage === vessel.vintage;
+  input.contentLiters === vessel.contentLiters && JSON.stringify(wineOf(vessel)) === JSON.stringify({ variety: input.variety, vintage: input.vintage, blend: input.blend });
 
 /**
  * The receiving (existing) vessel after the wine came in: it holds `moved` liters
- * more (when both amounts are known) and optionally takes the grape and vintage
- * of the wine. Null when nothing changes.
+ * more (when both amounts are known). With `giveContents` the wine is recorded in it:
+ * an empty vessel takes the grape and vintage, a vessel that already holds wine
+ * becomes a blend of the two (the same grape and vintage just add up). Null when
+ * nothing changes.
  */
 export function receive(source: Vessel, destination: Vessel, moved: number | null, giveContents: boolean): TankInput | null {
   const before = contentBefore(destination);
   const content = moved !== null && before !== null ? round1(before + moved) : destination.contentLiters;
-  const gives = giveContents && (source.variety !== null || source.vintage !== null);
-  const next = asInput(
-    destination,
-    content,
-    gives ? source.variety : destination.variety,
-    gives ? source.vintage : destination.vintage,
-  );
+  const incoming = giveContents ? resize(partsOf(source), moved) : [];
+  const wine = incoming.length > 0 ? summary(mergeParts(partsOf(destination), incoming)) : wineOf(destination);
+  const next = asInput(destination, content, wine);
   return sameAs(destination, next) ? null : next;
 }
 
@@ -212,9 +212,12 @@ export function receive(source: Vessel, destination: Vessel, moved: number | nul
  */
 export function sendOut(source: Vessel, moved: number | null, empty: boolean): TankInput | null {
   let next: TankInput;
-  if (empty) next = asInput(source, 0, null, null);
+  if (empty) next = asInput(source, 0, noWine);
   else if (moved !== null && source.contentLiters !== null) {
-    next = asInput(source, Math.max(0, round1(source.contentLiters - moved)), source.variety, source.vintage);
+    const left = Math.max(0, round1(source.contentLiters - moved));
+    // A blend keeps its shares in the smaller amount.
+    const blend = source.blend && source.blend.length > 0 ? resize(source.blend, left) : null;
+    next = asInput(source, left, { variety: source.variety, vintage: source.vintage, blend });
   } else return null;
   return sameAs(source, next) ? null : next;
 }

@@ -68,7 +68,7 @@ test('errors: no destination, the same vessel, a bad volume', () => {
 });
 
 test('the receiving vessel can take the grape and vintage; the source keeps its own', () => {
-  assert.deepEqual(receive(nine, fourteen, null, true), { name: 'Tank 14', kind: 'tank', volumeLiters: 3000, contentLiters: null, variety: 'Rkatsiteli', vintage: 2026 });
+  assert.deepEqual(receive(nine, fourteen, null, true), { name: 'Tank 14', kind: 'tank', volumeLiters: 3000, contentLiters: null, variety: 'Rkatsiteli', vintage: 2026, blend: null });
   assert.equal(receive(nine, fourteen, null, false), null, 'nothing changes when nothing is given and the liters are unknown');
   assert.equal(receive(fourteen, nine, null, true), null, 'nothing to give from a vessel without a grape');
   const qvevri = receive(v('q', 'Qvevri 1', 'Kisi', null, 'qvevri'), v('t', 'Tank 5', null, null, 'barrel'), null, true);
@@ -86,7 +86,7 @@ test('wine amounts: the receiver gets more, the source gets less', () => {
   assert.equal(sendOut(full, 800, false).contentLiters, 1200);
   assert.equal(sendOut(full, 800, false).variety, 'Saperavi', 'the same wine stays in it');
   assert.equal(sendOut(v('e', 'T', 'Kisi', 2025), 800, false), null, 'unknown content: nothing to update');
-  assert.deepEqual(sendOut(full, 2000, true), { name: 'Tank 1', kind: 'tank', volumeLiters: 3000, contentLiters: 0, variety: null, vintage: null });
+  assert.deepEqual(sendOut(full, 2000, true), { name: 'Tank 1', kind: 'tank', volumeLiters: 3000, contentLiters: 0, variety: null, vintage: null, blend: null });
   assert.equal(sendOut(v('f', 'T', null, null, 'tank', 0), 0, true), null, 'already empty');
 });
 
@@ -119,7 +119,7 @@ test('a new vessel: created first, with the entered name, type and volume, and t
     false,
   );
   assert.ok(result.ok);
-  assert.deepEqual(result.plan.newTank, { name: 'Tank 15', kind: 'qvevri', volumeLiters: 2000, contentLiters: 2000, variety: null, vintage: null });
+  assert.deepEqual(result.plan.newTank, { name: 'Tank 15', kind: 'qvevri', volumeLiters: 2000, contentLiters: 2000, blend: null, variety: null, vintage: null });
   assert.equal(result.destination.name, 'Tank 15');
   assert.deepEqual(result.plan.sourceEntry.parsed.items[0], { name: 'Destination', value: 'Tank 15', unit: null });
   assert.equal(result.plan.destinationEntry.tankId, '', 'the id is only known once the vessel is created');

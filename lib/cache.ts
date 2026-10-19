@@ -6,6 +6,7 @@ import type { Entry } from './entries';
 import type { SavedRule } from './alerts';
 import type { Ferment } from './ferments';
 import { densityStallParamsSchema, temperatureRangeParamsSchema } from './alertRules';
+import { blendSchema } from './blend';
 import { ENTRY_TYPES } from './entryTypes';
 import { parsedEntrySchema } from './parser/schema';
 import { readJson, removeKey, userKey, writeJson } from './storage';
@@ -28,6 +29,7 @@ const tankSchema = z.object({
   volumeLiters: z.number(),
   // Copies saved before the amount of wine was recorded have none.
   contentLiters: z.number().nullable().catch(null),
+  blend: blendSchema,
   variety: z.string().nullable(),
   vintage: z.number().nullable(),
   createdAt: z.string(),

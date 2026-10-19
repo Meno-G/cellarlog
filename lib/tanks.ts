@@ -1,3 +1,4 @@
+import { blendSchema, type BlendPart } from './blend';
 import type { Database } from './database.types';
 import { AppError, fromDbError, toAppError } from './errors';
 import { strings } from './i18n';
@@ -20,6 +21,8 @@ export type Tank = {
   contentLiters: number | null;
   variety: string | null;
   vintage: number | null;
+  /** The parts of the wine when it is a blend; null = one wine (variety / vintage). */
+  blend: BlendPart[] | null;
   createdAt: string;
 };
 
@@ -31,9 +34,10 @@ export type TankInput = {
   contentLiters: number | null;
   variety: string | null;
   vintage: number | null;
+  blend: BlendPart[] | null;
 };
 
-const COLUMNS = 'id, name, kind, volume_liters, content_liters, variety, vintage, created_at';
+const COLUMNS = 'id, name, kind, volume_liters, content_liters, blend, variety, vintage, created_at';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fromRow(row: TankRow): Tank {
@@ -45,6 +49,7 @@ function fromRow(row: TankRow): Tank {
     contentLiters: row.content_liters === null ? null : Number(row.content_liters),
     variety: row.variety,
     vintage: row.vintage,
+    blend: blendSchema.parse(row.blend),
     createdAt: row.created_at,
   };
 }
@@ -55,6 +60,7 @@ function toRow(input: TankInput) {
     kind: input.kind,
     volume_liters: input.volumeLiters,
     content_liters: input.contentLiters,
+    blend: input.blend,
     variety: input.variety,
     vintage: input.vintage,
   };

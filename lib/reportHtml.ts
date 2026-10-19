@@ -3,7 +3,8 @@
 // report only restates the records, as entered: no judgement, no advice.
 import type { ExportEntry } from './exportCsv';
 import { fermentDay, type FermentLike } from './fermentCurves';
-import { formatDate, formatEntryTime, formatItemValue, formatLiters, formatWine } from './format';
+import { describeWine, type BlendPart } from './blend';
+import { formatDate, formatEntryTime, formatItemValue, formatLiters } from './format';
 import { getLang, itemName, strings } from './i18n';
 import { latestValues } from './latestValues';
 import type { VesselKind } from './vesselKinds';
@@ -15,6 +16,7 @@ export type ReportVessel = {
   vintage: number | null;
   volumeLiters: number;
   contentLiters?: number | null;
+  blend?: BlendPart[] | null;
 };
 
 /** HTML-escapes text from the records. */
@@ -67,7 +69,7 @@ export function buildReportHtml(input: {
   if (vessel.contentLiters !== null && vessel.contentLiters !== undefined) {
     facts.push([t.report.content, formatLiters(vessel.contentLiters)]);
   }
-  const wine = formatWine(vessel.variety, vessel.vintage);
+  const wine = describeWine({ variety: vessel.variety, vintage: vessel.vintage, blend: vessel.blend ?? null });
   if (wine) facts.push([t.report.wine, wine]);
   if (ferment) {
     const end = ferment.endedAt ?? now.toISOString();

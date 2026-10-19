@@ -13,6 +13,7 @@ export type Database = {
           name: string;
           volume_liters: number;
           content_liters: number | null;
+          blend: Json | null;
           variety: string | null;
           vintage: number | null;
           kind: Database['public']['Enums']['vessel_kind'];
@@ -24,6 +25,7 @@ export type Database = {
           name: string;
           volume_liters: number;
           content_liters?: number | null;
+          blend?: Json | null;
           variety?: string | null;
           vintage?: number | null;
           kind?: Database['public']['Enums']['vessel_kind'];
@@ -35,6 +37,7 @@ export type Database = {
           name?: string;
           volume_liters?: number;
           content_liters?: number | null;
+          blend?: Json | null;
           variety?: string | null;
           vintage?: number | null;
           kind?: Database['public']['Enums']['vessel_kind'];

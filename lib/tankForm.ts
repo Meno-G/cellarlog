@@ -92,6 +92,6 @@ export function validateTankForm(
 
   return {
     ok: true,
-    input: { name, kind: values.kind, volumeLiters: volume, contentLiters: content, variety: variety === '' ? null : variety, vintage },
+    input: { name, kind: values.kind, volumeLiters: volume, contentLiters: content, blend: null, variety: variety === '' ? null : variety, vintage },
   };
 }

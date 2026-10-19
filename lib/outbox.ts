@@ -5,6 +5,7 @@
 import { z } from 'zod';
 
 import type { ValidEntry } from './entryDraft';
+import { blendSchema } from './blend';
 import { ENTRY_TYPES } from './entryTypes';
 import { toAppError } from './errors';
 import { strings } from './i18n';
@@ -20,6 +21,7 @@ const tankInputSchema = z.object({
   volumeLiters: z.number(),
   // Changes queued before the amount of wine was recorded have none.
   contentLiters: z.number().nullable().catch(null),
+  blend: blendSchema,
   variety: z.string().nullable(),
   vintage: z.number().nullable(),
 }) satisfies z.ZodType<TankInput>;

@@ -35,6 +35,7 @@ const PURE_MODULES = [
   'lib/voiceTest.ts',
   'lib/transfer.ts',
   'lib/format.ts',
+  'lib/blend.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

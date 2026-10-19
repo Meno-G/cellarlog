@@ -331,6 +331,10 @@ export const en = {
     emptyQuestion: (name: string) => `Is ${name} now empty?`,
     emptyHintYes: (left: number) => `By the volumes recorded, nothing is left in it (${left} L).`,
     emptyHintNo: 'If you answer Yes, you can delete the vessel or keep it empty. If wine is left, answer No.',
+    blend: (name: string) => `Blend this wine into the wine already in ${name}?`,
+    blendHint:
+      'If you answer Yes, the receiving vessel shows the mix: the grapes and vintages, with their shares when the liters are known. If No, it keeps what it had.',
+    result: (text: string) => `The receiving vessel will hold: ${text}.`,
     carry: 'Copy the lab data and notes to the receiving vessel?',
     carryHint: (count: number, name: string) =>
       `${count} entries about this wine (analyses, additions, tastings, notes) are copied to ${name} with their original dates, so its latest values show there too.`,

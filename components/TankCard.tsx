@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useT } from '@/hooks/useLanguage';
 import type { TankSummary } from '@/hooks/useTankSummaries';
-import { formatFill, formatItemValue, formatRelative, formatWine } from '@/lib/format';
+import { describeWine } from '@/lib/blend';
+import { formatFill, formatItemValue, formatRelative } from '@/lib/format';
 import { itemName } from '@/lib/i18n';
 import { cardReadings } from '@/lib/latestValues';
 import type { ShownTank } from '@/lib/tankOverlay';
@@ -23,7 +24,7 @@ export function TankCard({ tank, summary, onPress }: Props) {
   const { colors } = useTheme();
   const t = useT();
   // "Qvevri · Saperavi · 2025": the type is only mentioned when it isn't a plain tank.
-  const wine = [tank.kind === 'tank' ? null : t.vesselKinds[tank.kind], formatWine(tank.variety, tank.vintage)]
+  const wine = [tank.kind === 'tank' ? null : t.vesselKinds[tank.kind], describeWine(tank)]
     .filter((part): part is string => part !== null)
     .join(' · ') || null;
   const volume = formatFill(tank.contentLiters, tank.volumeLiters);

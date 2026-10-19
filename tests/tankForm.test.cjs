@@ -23,11 +23,11 @@ const errs = (values) => {
 test('valid tank form', () => {
   assert.deepEqual(validateTankForm(base), {
     ok: true,
-    input: { name: 'Tank 12', kind: 'tank', volumeLiters: 5000, contentLiters: null, variety: 'Saperavi', vintage: 2025 },
+    input: { name: 'Tank 12', kind: 'tank', volumeLiters: 5000, contentLiters: null, blend: null, variety: 'Saperavi', vintage: 2025 },
   });
   assert.deepEqual(validateTankForm({ ...base, name: '  T1 ', variety: '  ', vintage: '' }), {
     ok: true,
-    input: { name: 'T1', kind: 'tank', volumeLiters: 5000, contentLiters: null, variety: null, vintage: null },
+    input: { name: 'T1', kind: 'tank', volumeLiters: 5000, contentLiters: null, blend: null, variety: null, vintage: null },
   });
   const rounded = validateTankForm({ ...base, volume: '1234,56' });
   assert.ok(rounded.ok && rounded.input.volumeLiters === 1234.6);

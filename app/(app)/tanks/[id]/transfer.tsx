@@ -20,6 +20,7 @@ import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
 import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
+import { describeWine, partsOf } from '@/lib/blend';
 import { formatFill } from '@/lib/format';
 import { parseNumber } from '@/lib/numbers';
 import type { ShownTank } from '@/lib/tankOverlay';
@@ -154,6 +155,13 @@ function TransferEditor({
   const existingDestination = others.find((candidate) => candidate.id === destinationId);
   // A new or empty vessel gets the history by default; one that already holds other wine only if asked.
   const receiverHoldsWine = existingDestination !== undefined && contentBefore(existingDestination) !== 0;
+  // Wine going into a vessel that already holds wine is a blend; the user sees what it will read.
+  const receiverHasWine = existingDestination !== undefined && partsOf(existingDestination).length > 0;
+  const resultText = !giveContents
+    ? null
+    : existingDestination
+      ? describeWine(receive(source, existingDestination, moving, true) ?? existingDestination)
+      : describeWine(source);
   const carry = (carryAnswer ?? !receiverHoldsWine) && carried.length > 0;
 
   const yesNo = [
@@ -385,15 +393,20 @@ function TransferEditor({
         {hasContents ? (
           <>
             <ChoiceChips
-              label={t.transfer.giveGrape}
+              label={receiverHasWine && existingDestination ? t.transfer.blend(existingDestination.name) : t.transfer.giveGrape}
               choices={yesNo}
               selected={giveContents ? 'yes' : 'no'}
               onSelect={(value) => setGiveContents(value === 'yes')}
               disabled={saving}
             />
             <AppText muted variant="caption">
-              {t.transfer.giveGrapeHint(source.name)}
+              {receiverHasWine ? t.transfer.blendHint : t.transfer.giveGrapeHint(source.name)}
             </AppText>
+            {resultText ? (
+              <AppText variant="caption" style={{ color: colors.primary, fontFamily: fonts.bodySemi }}>
+                {t.transfer.result(resultText)}
+              </AppText>
+            ) : null}
           </>
         ) : null}
         <ChoiceChips
