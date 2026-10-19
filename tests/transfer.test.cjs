@@ -85,3 +85,54 @@ test('messages follow the language', () => {
   assert.notEqual(none.errors.destination, 'Choose the vessel the wine goes to.');
   assert.ok(none.errors.destination.length > 5);
 });
+
+const { NEW_TANK, emptied } = require('../.test-build/transfer.js');
+
+test('a new vessel: created first, with the entered name, type and volume, and the entries name it', () => {
+  const result = planTransfer(
+    nine,
+    all,
+    { destinationId: NEW_TANK, volume: '2000', note: '', newName: ' Tank 15 ', newKind: 'qvevri', newVolume: '2000' },
+    false,
+  );
+  assert.ok(result.ok);
+  assert.deepEqual(result.plan.newTank, { name: 'Tank 15', kind: 'qvevri', volumeLiters: 2000, variety: null, vintage: null });
+  assert.equal(result.destination.name, 'Tank 15');
+  assert.deepEqual(result.plan.sourceEntry.parsed.items[0], { name: 'Destination', value: 'Tank 15', unit: null });
+  assert.equal(result.plan.destinationEntry.tankId, '', 'the id is only known once the vessel is created');
+  assert.equal(result.plan.destinationEntry.parsed.tank_name, 'Tank 15');
+  assert.deepEqual(result.plan.destinationEntry.parsed.items[0], { name: 'Source', value: 'Tank 9', unit: null });
+});
+
+test('a new vessel is created with the grape and vintage when they move with the wine', () => {
+  const result = planTransfer(nine, all, { destinationId: NEW_TANK, volume: '', note: '', newName: 'Tank 15', newVolume: '2000' }, true);
+  assert.ok(result.ok);
+  assert.equal(result.plan.newTank.variety, 'Rkatsiteli');
+  assert.equal(result.plan.newTank.vintage, 2026);
+  assert.equal(result.plan.newTank.kind, 'tank', 'a plain tank unless chosen otherwise');
+  assert.deepEqual(emptied(nine), { name: 'Tank 9', kind: 'tank', volumeLiters: 3000, variety: null, vintage: null });
+  assert.equal(emptied(fourteen), null);
+});
+
+test('a new vessel needs a name and a volume, and the name must be free', () => {
+  const empty = planTransfer(nine, all, { destinationId: NEW_TANK, volume: '', note: '', newName: '', newVolume: '' });
+  assert.ok(!empty.ok);
+  assert.ok(empty.errors.newName && empty.errors.newVolume);
+
+  const noVolume = planTransfer(nine, all, { destinationId: NEW_TANK, volume: '2000', note: '', newName: 'Tank 15', newVolume: '' });
+  assert.ok(!noVolume.ok);
+  assert.ok(noVolume.errors.newVolume && !noVolume.errors.newName);
+
+  const taken = planTransfer(nine, all, { destinationId: NEW_TANK, volume: '', note: '', newName: 'tank 14', newVolume: '500' });
+  assert.ok(!taken.ok);
+  assert.equal(taken.errors.newName, 'You already have a tank called "Tank 14".');
+  const spelled = planTransfer(nine, all, { destinationId: NEW_TANK, volume: '', note: '', newName: 'T2', newVolume: '500' });
+  assert.ok(!spelled.ok, '"T2" is "Tank 2"');
+});
+
+test('choosing an existing vessel still ignores the new-vessel fields', () => {
+  const result = planTransfer(nine, all, { destinationId: 't14', volume: '', note: '', newName: '', newVolume: '' });
+  assert.ok(result.ok);
+  assert.equal(result.plan.newTank, null);
+  assert.equal(result.plan.destinationEntry.tankId, 't14');
+});

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/AppText';
@@ -19,12 +19,14 @@ import { errorMessage } from '@/lib/errors';
 import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
 import type { ShownTank } from '@/lib/tankOverlay';
-import { moveGrape, planTransfer, type TransferErrors } from '@/lib/transfer';
+import { VESSEL_KINDS, type VesselKind } from '@/lib/vesselKinds';
+import { NEW_TANK, emptied, moveGrape, planTransfer, type TransferErrors } from '@/lib/transfer';
 import { spacing } from '@/theme';
 
 /**
- * Wine moves from this vessel to another: a transfer entry in each, and
- * optionally the running ferment ends and the grape and vintage move too.
+ * Wine moves from this vessel to another (an existing one, or a new one that is
+ * created on the spot): a transfer entry in each, and optionally the running
+ * ferment ends and the grape and vintage move too.
  */
 export default function TransferScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -56,11 +58,10 @@ export default function TransferScreen() {
     );
   }
 
-  const others = tanks.data.filter((candidate) => candidate.id !== id);
   return (
     <TransferEditor
       source={tank.data}
-      others={others}
+      all={tanks.data}
       running={activeFerment(ferments.data ?? [])}
       hero={hero}
     />
@@ -69,38 +70,60 @@ export default function TransferScreen() {
 
 function TransferEditor({
   source,
-  others,
+  all,
   running,
   hero,
 }: {
   source: ShownTank;
-  others: ShownTank[];
+  all: ShownTank[];
   running: Ferment | undefined;
-  hero: React.ReactNode;
+  hero: ReactNode;
 }) {
   const t = useT();
   const dialog = useDialog();
   const outbox = useOutbox();
-  const [destinationId, setDestinationId] = useState<string | null>(null);
+  const others = all.filter((candidate) => candidate.id !== source.id);
+  // With no other vessel yet, the only choice is a new one.
+  const [destinationId, setDestinationId] = useState<string | null>(others.length === 0 ? NEW_TANK : null);
   const [volume, setVolume] = useState('');
   const [note, setNote] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newKind, setNewKind] = useState<VesselKind>('tank');
+  const [newVolume, setNewVolume] = useState('');
+  // The new vessel's volume follows the liters moved until it has been typed in by hand.
+  const newVolumeTyped = useRef(false);
   // Usually the wine is done fermenting when it moves, and the grape goes with it.
   const [endFerment, setEndFerment] = useState(true);
-  const [moveContents, setMoveContents] = useState(source.variety !== null || source.vintage !== null);
+  const hasContents = source.variety !== null || source.vintage !== null;
+  const [moveContents, setMoveContents] = useState(hasContents);
   const [errors, setErrors] = useState<TransferErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Kept across retries, so a second tap never records the same entry twice.
-  const saved = useRef({ source: false, destination: false });
+  // Kept across retries, so a second tap never creates the vessel or records an entry twice.
+  const done = useRef<{ tankId: string | null; source: boolean; destination: boolean }>({
+    tankId: null,
+    source: false,
+    destination: false,
+  });
 
   const yesNo = [
     { value: 'yes', label: t.transfer.yes },
     { value: 'no', label: t.transfer.no },
   ] as const;
 
+  function changeVolume(text: string) {
+    setVolume(text);
+    if (!newVolumeTyped.current) setNewVolume(text);
+  }
+
   async function handleSave() {
     setError(null);
-    const result = planTransfer(source, [source, ...others], { destinationId, volume, note });
+    const result = planTransfer(
+      source,
+      all,
+      { destinationId, volume, note, newName, newKind, newVolume },
+      moveContents,
+    );
     if (!result.ok) {
       setErrors(result.errors);
       return;
@@ -108,14 +131,19 @@ function TransferEditor({
     setErrors({});
     setSaving(true);
     try {
-      // The entries work offline (they queue); the steps below are tried afterwards.
-      if (!saved.current.source) {
-        await outbox.saveEntry(result.plan.sourceEntry);
-        saved.current.source = true;
+      // A new vessel is created first (it works offline: it queues), then both entries.
+      let destinationTankId = result.destination.id;
+      if (result.plan.newTank) {
+        if (done.current.tankId === null) done.current.tankId = (await outbox.createTank(result.plan.newTank)).id;
+        destinationTankId = done.current.tankId;
       }
-      if (!saved.current.destination) {
-        await outbox.saveEntry(result.plan.destinationEntry);
-        saved.current.destination = true;
+      if (!done.current.source) {
+        await outbox.saveEntry(result.plan.sourceEntry);
+        done.current.source = true;
+      }
+      if (!done.current.destination) {
+        await outbox.saveEntry({ ...result.plan.destinationEntry, tankId: destinationTankId });
+        done.current.destination = true;
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -131,12 +159,20 @@ function TransferEditor({
         problems.push(errorMessage(err));
       }
     }
-    const grape = moveContents ? moveGrape(source, result.destination) : null;
-    if (grape) {
+    if (moveContents) {
       try {
-        // Both queue offline like any tank edit.
-        await outbox.updateTank(result.destination.id, grape.destination);
-        await outbox.updateTank(source.id, grape.source);
+        // Both queue offline like any tank edit. A new vessel already got the grape when it was created.
+        const existing = all.find((candidate) => candidate.id === destinationId);
+        if (existing) {
+          const moved = moveGrape(source, existing);
+          if (moved) {
+            await outbox.updateTank(existing.id, moved.destination);
+            await outbox.updateTank(source.id, moved.source);
+          }
+        } else {
+          const empty = emptied(source);
+          if (empty) await outbox.updateTank(source.id, empty);
+        }
       } catch (err) {
         problems.push(errorMessage(err));
       }
@@ -149,14 +185,6 @@ function TransferEditor({
     }
   }
 
-  if (others.length === 0) {
-    return (
-      <Screen hero={hero}>
-        <Banner tone="info" message={t.transfer.noOtherTanks} />
-      </Screen>
-    );
-  }
-
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen hero={hero} footer={<Button title={t.transfer.save} icon="check" onPress={handleSave} loading={saving} />}>
@@ -165,16 +193,56 @@ function TransferEditor({
 
         <ChoiceChips
           label={t.transfer.to}
-          choices={others.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+          choices={[
+            ...others.map((candidate) => ({ value: candidate.id, label: candidate.name })),
+            { value: NEW_TANK, label: t.transfer.newTank },
+          ]}
           selected={destinationId}
           onSelect={setDestinationId}
           error={errors.destination}
           disabled={saving}
         />
+
+        {destinationId === NEW_TANK ? (
+          <>
+            <AppText muted variant="caption">
+              {t.transfer.newHint}
+            </AppText>
+            <TextField
+              label={t.transfer.newName}
+              value={newName}
+              onChangeText={setNewName}
+              error={errors.newName}
+              placeholder={t.tankForm.namePlaceholder}
+              autoCapitalize="words"
+              editable={!saving}
+            />
+            <ChoiceChips
+              label={t.tankForm.kind}
+              choices={VESSEL_KINDS.map((kind) => ({ value: kind, label: t.vesselKinds[kind] }))}
+              selected={newKind}
+              onSelect={setNewKind}
+              disabled={saving}
+            />
+            <TextField
+              label={t.transfer.newVolume}
+              value={newVolume}
+              onChangeText={(text) => {
+                newVolumeTyped.current = true;
+                setNewVolume(text);
+              }}
+              error={errors.newVolume}
+              keyboardType="decimal-pad"
+              placeholder="5000"
+              editable={!saving}
+            />
+          </>
+        ) : null}
+
         <TextField
           label={t.transfer.volume}
           value={volume}
-          onChangeText={setVolume}
+          onChangeText={changeVolume}
           error={errors.volume}
           keyboardType="decimal-pad"
           placeholder="2000"
@@ -200,7 +268,7 @@ function TransferEditor({
             disabled={saving}
           />
         ) : null}
-        {source.variety !== null || source.vintage !== null ? (
+        {hasContents ? (
           <>
             <ChoiceChips
               label={t.transfer.moveGrape}

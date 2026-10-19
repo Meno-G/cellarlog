@@ -330,9 +330,12 @@ export const en = {
     yes: 'Yes',
     no: 'No',
     save: 'Record transfer',
-    noOtherTanks: 'You need a second vessel to transfer to.',
+    newTank: '+ New vessel',
+    newHint: 'The vessel is created when you record the transfer.',
+    newName: 'Name of the new vessel',
+    newVolume: 'Volume of the new vessel (liters)',
     offlineNote:
-      "You're offline. The transfer entries are saved on this phone. Ending a ferment needs a connection.",
+      "You're offline. The new vessel and the transfer entries are saved on this phone. Ending a ferment needs a connection.",
     partialFailed: (error: string) => `The transfer is recorded, but one step failed: ${error}`,
   },
 

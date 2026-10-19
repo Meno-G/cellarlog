@@ -225,6 +225,10 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - `lib/transfer.ts` (pure, tested): `planTransfer` builds **one `transfer` entry in each vessel**. The source's has items `Destination` (the other vessel's name) and `Volume` (L); the receiver's has `Source` and `Volume`. The note is saved on both. `moveGrape` gives the receiving vessel the source's grape and vintage and leaves the source without them (the vessel type and volume stay).
 - Optional steps on the same screen: **end the running ferment** (`updateFerment`, needs a connection) and **move the grape and vintage** (`outbox.updateTank` ×2, queues offline like any tank edit).
 - The entries go through `outbox.saveEntry`, so the transfer itself works offline. A step that fails afterwards (e.g. offline when ending the ferment) is reported in a dialog; the entries are not undone. A ref remembers which entry was already saved, so retrying never duplicates one.
+- **Into a vessel that doesn't exist yet:** the destination list ends with **"+ New vessel"** (the only choice when there is no other vessel). It asks for a name, a type and a **required volume** (it follows the liters moved until typed by hand), with the same checks as the tank form plus no duplicate name (`NEW_TANK` in `lib/transfer.ts`).
+  - On save the vessel is created first (`outbox.createTank`, which queues offline), then both entries (the receiver's `tankId` is filled in with the new id; entries for a not-yet-uploaded tank wait for it).
+  - If the grape moves too, the new vessel is **created with** the source's grape and vintage, and only the source is emptied (`emptied`).
+  - A ref keeps the created id and which entries were saved, so a retry after a failure never makes a second vessel or entry.
 - There is no stored link between the two vessels: the two entries name each other by name.
 
 ## Alert rules
