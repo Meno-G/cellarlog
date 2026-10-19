@@ -79,7 +79,7 @@ test('times, units and value names in Georgian', () => {
 });
 
 test('lib messages follow the language', () => {
-  const bad = { name: '', volume: 'abc', variety: '', vintage: '1800' };
+  const bad = { name: '', volume: 'abc', content: '', variety: '', vintage: '1800' };
   let result = validateTankForm(bad);
   assert.equal(result.errors.name, 'Give the tank a name, e.g. "Tank 12".');
   i18n.setLang('ka');

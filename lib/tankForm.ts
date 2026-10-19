@@ -9,6 +9,8 @@ export type TankFormValues = {
   name: string;
   kind: VesselKind;
   volume: string;
+  /** Wine in it now (liters); empty = not recorded. */
+  content: string;
   variety: string;
   vintage: string;
 };
@@ -18,6 +20,7 @@ export type TankFormErrors = Partial<Record<Exclude<keyof TankFormValues, 'kind'
 export const TANK_FORM_FIELDS: readonly (keyof TankFormErrors)[] = [
   'name',
   'volume',
+  'content',
   'variety',
   'vintage',
 ];
@@ -29,13 +32,14 @@ const MAX_VOLUME = 999_999_999.9; // numeric(10, 1)
 const MIN_VINTAGE = 1900;
 const MAX_VINTAGE = 2100;
 
-export const emptyTankForm: TankFormValues = { name: '', kind: 'tank', volume: '', variety: '', vintage: '' };
+export const emptyTankForm: TankFormValues = { name: '', kind: 'tank', volume: '', content: '', variety: '', vintage: '' };
 
 export function tankToForm(tank: Tank): TankFormValues {
   return {
     name: tank.name,
     kind: tank.kind,
     volume: String(tank.volumeLiters),
+    content: tank.contentLiters === null ? '' : String(tank.contentLiters),
     variety: tank.variety ?? '',
     vintage: tank.vintage === null ? '' : String(tank.vintage),
   };
@@ -59,6 +63,17 @@ export function validateTankForm(
   else if (volume <= 0) errors.volume = m.volumePositive;
   else if (volume > MAX_VOLUME) errors.volume = m.volumeTooLarge;
 
+  // The wine in it is optional, and can't be more than fits.
+  let content: number | null = null;
+  if (values.content.trim() !== '') {
+    const parsedContent = parseNumber(values.content);
+    const rounded = parsedContent === null ? null : Math.round(parsedContent * 10) / 10;
+    if (rounded === null || Number.isNaN(rounded) || rounded < 0) errors.content = m.volumeNumbersOnly;
+    else if (rounded > MAX_VOLUME) errors.content = m.volumeTooLarge;
+    else if (volume !== null && !Number.isNaN(volume) && rounded > volume) errors.content = m.contentTooLarge;
+    else content = rounded;
+  }
+
   const variety = values.variety.trim();
   if (variety.length > MAX_VARIETY) {
     errors.variety = m.varietyTooLong(MAX_VARIETY);
@@ -77,6 +92,6 @@ export function validateTankForm(
 
   return {
     ok: true,
-    input: { name, kind: values.kind, volumeLiters: volume, variety: variety === '' ? null : variety, vintage },
+    input: { name, kind: values.kind, volumeLiters: volume, contentLiters: content, variety: variety === '' ? null : variety, vintage },
   };
 }

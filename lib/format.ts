@@ -16,6 +16,11 @@ export function formatLiters(value: number): string {
   return `${liters.format(value)} ${unitName('L')}`;
 }
 
+/** "5 000 / 10 000 L" (wine in it / capacity), or just the capacity when the wine isn't recorded. */
+export function formatFill(content: number | null, capacity: number): string {
+  return content === null ? formatLiters(capacity) : `${liters.format(content)} / ${formatLiters(capacity)}`;
+}
+
 /** "Saperavi · 2025", "Saperavi", "2025", or null when both are empty. */
 export function formatWine(variety: string | null, vintage: number | null): string | null {
   const parts = [variety, vintage === null ? null : String(vintage)].filter(

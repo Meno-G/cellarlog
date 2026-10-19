@@ -18,6 +18,8 @@ const tankInputSchema = z.object({
   // Changes queued before vessel kinds existed are plain tanks.
   kind: z.enum(VESSEL_KINDS).catch('tank'),
   volumeLiters: z.number(),
+  // Changes queued before the amount of wine was recorded have none.
+  contentLiters: z.number().nullable().catch(null),
   variety: z.string().nullable(),
   vintage: z.number().nullable(),
 }) satisfies z.ZodType<TankInput>;

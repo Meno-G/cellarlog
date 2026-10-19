@@ -20,16 +20,18 @@ import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
 import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
+import { formatFill } from '@/lib/format';
 import { parseNumber } from '@/lib/numbers';
 import type { ShownTank } from '@/lib/tankOverlay';
 import {
   NEW_TANK,
-  emptied,
-  giveGrape,
   isEmptyLeft,
   litersLeft,
   planTransfer,
+  receive,
+  sendOut,
   type TransferErrors,
+  type TransferPlan,
 } from '@/lib/transfer';
 import { VESSEL_KINDS, type VesselKind } from '@/lib/vesselKinds';
 import { fonts, spacing, useTheme } from '@/theme';
@@ -38,8 +40,9 @@ type Step = 'vessel' | 'entries' | 'more';
 
 /**
  * Wine moves from this vessel to another (an existing one, or a new one that is
- * created on the spot): a transfer entry in each. The receiving vessel can take
- * the grape and vintage; the source keeps its own unless it is now empty.
+ * created on the spot): a transfer entry in each, and the wine in each vessel
+ * updated. The receiving vessel can take the grape and vintage; the source keeps
+ * its own unless it is now empty, and then it can be deleted or kept empty.
  */
 export default function TransferScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -129,6 +132,8 @@ function TransferEditor({
   const suggestedEmpty = isEmptyLeft(left);
   const [emptyAnswer, setEmptyAnswer] = useState<boolean | null>(null);
   const markEmpty = emptyAnswer ?? suggestedEmpty;
+  const [emptyAction, setEmptyAction] = useState<'delete' | 'keep'>('delete');
+  const deleting = markEmpty && emptyAction === 'delete';
   const [errors, setErrors] = useState<TransferErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -140,6 +145,8 @@ function TransferEditor({
     destination: false,
   });
 
+  const existingDestination = others.find((candidate) => candidate.id === destinationId);
+
   const yesNo = [
     { value: 'yes', label: t.transfer.yes },
     { value: 'no', label: t.transfer.no },
@@ -150,7 +157,7 @@ function TransferEditor({
     if (!newVolumeTyped.current) setNewVolume(text);
   }
 
-  async function handleSave() {
+  function handleSave() {
     setError(null);
     const result = planTransfer(source, all, { destinationId, volume, note, newName, newKind, newVolume }, giveContents);
     if (!result.ok) {
@@ -158,22 +165,33 @@ function TransferEditor({
       return;
     }
     setErrors({});
+    if (!deleting) return save(result.plan);
+    // Deleting the emptied vessel also deletes its entries: ask first, saying how many.
+    const queued = outbox.items.filter((item) => item.kind === 'entry' && item.tankId === source.id).length;
+    dialog(t.transfer.deleteTitle(source.name), t.transfer.deleteText(String(timeline.length + queued)), [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.transfer.deleteConfirm, style: 'destructive', onPress: () => void save(result.plan) },
+    ]);
+  }
+
+  async function save(plan: TransferPlan) {
     setSaving(true);
     try {
       // A new vessel is created first (it works offline: it queues), then both entries.
-      let destinationTankId = result.destination.id;
-      if (result.plan.newTank) {
+      let destinationTankId = destinationId ?? '';
+      if (plan.newTank) {
         setStep('vessel');
-        if (done.current.tankId === null) done.current.tankId = (await outbox.createTank(result.plan.newTank)).id;
+        if (done.current.tankId === null) done.current.tankId = (await outbox.createTank(plan.newTank)).id;
         destinationTankId = done.current.tankId;
       }
       setStep('entries');
-      if (!done.current.source) {
-        await outbox.saveEntry(result.plan.sourceEntry);
+      // A vessel that is about to be deleted keeps no record: its entries go with it.
+      if (!deleting && !done.current.source) {
+        await outbox.saveEntry(plan.sourceEntry);
         done.current.source = true;
       }
       if (!done.current.destination) {
-        await outbox.saveEntry({ ...result.plan.destinationEntry, tankId: destinationTankId });
+        await outbox.saveEntry({ ...plan.destinationEntry, tankId: destinationTankId });
         done.current.destination = true;
       }
     } catch (err) {
@@ -186,26 +204,31 @@ function TransferEditor({
     // The rest doesn't depend on each other, so it runs at the same time: one slow request holds up only itself.
     setStep('more');
     const tasks: Promise<unknown>[] = [];
-    if (endFerment && running) {
+    if (endFerment && running && !deleting) {
       tasks.push(updateFerment(running.id, { name: running.name, startedAt: running.startedAt, endedAt: new Date().toISOString() }));
     }
     const existing = all.find((candidate) => candidate.id === destinationId);
-    if (giveContents && existing) {
-      const grape = giveGrape(source, existing);
-      if (grape) tasks.push(outbox.updateTank(existing.id, grape));
+    if (existing) {
+      const received = receive(source, existing, plan.volumeLiters, giveContents);
+      if (received) tasks.push(outbox.updateTank(existing.id, received));
     }
-    // The source keeps its grape and vintage unless it is now empty.
-    const empty = markEmpty ? emptied(source) : null;
-    if (empty) tasks.push(outbox.updateTank(source.id, empty));
+    // The source keeps its grape and vintage unless it is now empty; then it is deleted or emptied.
+    if (deleting) tasks.push(outbox.deleteTank(source.id));
+    else {
+      const left = sendOut(source, plan.volumeLiters, markEmpty);
+      if (left) tasks.push(outbox.updateTank(source.id, left));
+    }
 
     const settled = await Promise.allSettled(tasks);
     const problems = settled.flatMap((outcome) => (outcome.status === 'rejected' ? [errorMessage(outcome.reason)] : []));
+    // The deleted vessel's own screen is gone, so go back to the list; otherwise back to the vessel.
+    const leave = () => (deleting ? router.dismissTo('/') : router.back()); // the screens refetch on focus
     if (problems.length > 0) {
       dialog(t.transfer.title, t.transfer.partialFailed([...new Set(problems)].join(' ')), [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: leave },
       ]);
     } else {
-      router.back(); // the screens refetch on focus
+      leave();
     }
     setSaving(false);
     setStep(null);
@@ -227,6 +250,9 @@ function TransferEditor({
         }
       >
         <OfflineBanner message={t.transfer.offlineNote} />
+        <AppText muted variant="caption">
+          {t.transfer.inside(source.name, formatFill(source.contentLiters, source.volumeLiters))}
+        </AppText>
         {error ? <Banner message={error} onRetry={handleSave} /> : null}
 
         <ChoiceChips
@@ -240,6 +266,15 @@ function TransferEditor({
           error={errors.destination}
           disabled={saving}
         />
+
+        {existingDestination ? (
+          <AppText muted variant="caption">
+            {t.transfer.inside(
+              existingDestination.name,
+              formatFill(existingDestination.contentLiters, existingDestination.volumeLiters),
+            )}
+          </AppText>
+        ) : null}
 
         {destinationId === NEW_TANK ? (
           <>
@@ -318,21 +353,33 @@ function TransferEditor({
             <AppText muted variant="caption">
               {t.transfer.giveGrapeHint(source.name)}
             </AppText>
-            <ChoiceChips
-              label={t.transfer.emptyQuestion(source.name)}
-              choices={yesNo}
-              selected={markEmpty ? 'yes' : 'no'}
-              onSelect={(value) => setEmptyAnswer(value === 'yes')}
-              disabled={saving}
-            />
-            <AppText
-              muted={!suggestedEmpty}
-              variant="caption"
-              style={suggestedEmpty ? { color: colors.primary, fontFamily: fonts.bodySemi } : undefined}
-            >
-              {suggestedEmpty && left !== null ? t.transfer.emptyHintYes(Math.max(0, left)) : t.transfer.emptyHintNo}
-            </AppText>
           </>
+        ) : null}
+        <ChoiceChips
+          label={t.transfer.emptyQuestion(source.name)}
+          choices={yesNo}
+          selected={markEmpty ? 'yes' : 'no'}
+          onSelect={(value) => setEmptyAnswer(value === 'yes')}
+          disabled={saving}
+        />
+        <AppText
+          muted={!suggestedEmpty}
+          variant="caption"
+          style={suggestedEmpty ? { color: colors.primary, fontFamily: fonts.bodySemi } : undefined}
+        >
+          {suggestedEmpty && left !== null ? t.transfer.emptyHintYes(Math.max(0, left)) : t.transfer.emptyHintNo}
+        </AppText>
+        {markEmpty ? (
+          <ChoiceChips
+            label={t.transfer.emptyAction}
+            choices={[
+              { value: 'delete', label: t.transfer.deleteVessel },
+              { value: 'keep', label: t.transfer.keepVessel },
+            ]}
+            selected={emptyAction}
+            onSelect={setEmptyAction}
+            disabled={saving}
+          />
         ) : null}
       </Screen>
     </KeyboardAvoidingView>

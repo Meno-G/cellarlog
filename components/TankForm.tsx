@@ -41,6 +41,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
   const [submitting, setSubmitting] = useState(false);
 
   const volumeRef = useRef<TextInput>(null);
+  const contentRef = useRef<TextInput>(null);
   const varietyRef = useRef<TextInput>(null);
   const vintageRef = useRef<TextInput>(null);
 
@@ -109,6 +110,18 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
           onChangeText={(text) => setField('volume', text)}
           error={errors.volume}
           placeholder="5000"
+          keyboardType="decimal-pad"
+          returnKeyType="next"
+          onSubmitEditing={() => contentRef.current?.focus()}
+          editable={!submitting}
+        />
+        <TextField
+          ref={contentRef}
+          label={t.tankForm.content}
+          value={values.content}
+          onChangeText={(text) => setField('content', text)}
+          error={errors.content}
+          placeholder="3000"
           keyboardType="decimal-pad"
           returnKeyType="next"
           onSubmitEditing={() => varietyRef.current?.focus()}

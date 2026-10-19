@@ -26,6 +26,8 @@ const tankSchema = z.object({
   // Copies saved before vessel kinds existed read as plain tanks.
   kind: z.enum(VESSEL_KINDS).catch('tank'),
   volumeLiters: z.number(),
+  // Copies saved before the amount of wine was recorded have none.
+  contentLiters: z.number().nullable().catch(null),
   variety: z.string().nullable(),
   vintage: z.number().nullable(),
   createdAt: z.string(),

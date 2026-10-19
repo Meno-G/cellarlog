@@ -14,6 +14,7 @@ export type ReportVessel = {
   variety: string | null;
   vintage: number | null;
   volumeLiters: number;
+  contentLiters?: number | null;
 };
 
 /** HTML-escapes text from the records. */
@@ -63,6 +64,9 @@ export function buildReportHtml(input: {
     [t.report.vessel, `${t.vesselKinds[vessel.kind]} · ${vessel.name}`],
     [t.report.volume, formatLiters(vessel.volumeLiters)],
   ];
+  if (vessel.contentLiters !== null && vessel.contentLiters !== undefined) {
+    facts.push([t.report.content, formatLiters(vessel.contentLiters)]);
+  }
   const wine = formatWine(vessel.variety, vessel.vintage);
   if (wine) facts.push([t.report.wine, wine]);
   if (ferment) {

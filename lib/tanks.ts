@@ -14,7 +14,10 @@ export type Tank = {
   id: string;
   name: string;
   kind: VesselKind;
+  /** Capacity of the vessel. */
   volumeLiters: number;
+  /** Liters of wine in it now; null = not recorded. */
+  contentLiters: number | null;
   variety: string | null;
   vintage: number | null;
   createdAt: string;
@@ -25,11 +28,12 @@ export type TankInput = {
   name: string;
   kind: VesselKind;
   volumeLiters: number;
+  contentLiters: number | null;
   variety: string | null;
   vintage: number | null;
 };
 
-const COLUMNS = 'id, name, kind, volume_liters, variety, vintage, created_at';
+const COLUMNS = 'id, name, kind, volume_liters, content_liters, variety, vintage, created_at';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fromRow(row: TankRow): Tank {
@@ -38,6 +42,7 @@ function fromRow(row: TankRow): Tank {
     name: row.name,
     kind: row.kind,
     volumeLiters: Number(row.volume_liters),
+    contentLiters: row.content_liters === null ? null : Number(row.content_liters),
     variety: row.variety,
     vintage: row.vintage,
     createdAt: row.created_at,
@@ -49,6 +54,7 @@ function toRow(input: TankInput) {
     name: input.name,
     kind: input.kind,
     volume_liters: input.volumeLiters,
+    content_liters: input.contentLiters,
     variety: input.variety,
     vintage: input.vintage,
   };

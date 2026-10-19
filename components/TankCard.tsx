@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useT } from '@/hooks/useLanguage';
 import type { TankSummary } from '@/hooks/useTankSummaries';
-import { formatItemValue, formatLiters, formatRelative, formatWine } from '@/lib/format';
+import { formatFill, formatItemValue, formatRelative, formatWine } from '@/lib/format';
 import { itemName } from '@/lib/i18n';
 import { cardReadings } from '@/lib/latestValues';
 import type { ShownTank } from '@/lib/tankOverlay';
@@ -26,7 +26,7 @@ export function TankCard({ tank, summary, onPress }: Props) {
   const wine = [tank.kind === 'tank' ? null : t.vesselKinds[tank.kind], formatWine(tank.variety, tank.vintage)]
     .filter((part): part is string => part !== null)
     .join(' · ') || null;
-  const volume = formatLiters(tank.volumeLiters);
+  const volume = formatFill(tank.contentLiters, tank.volumeLiters);
   const failed = tank.upload?.status === 'failed';
   const lastText = last
     ? t.tankCard.last(t.entryTypes[last.type], formatRelative(last.createdAt))

@@ -30,7 +30,7 @@ import { buildReportHtml, reportTitle } from '@/lib/reportHtml';
 import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
 import { shareCsv, sharePdf } from '@/lib/shareFile';
-import { formatEntryTime, formatLiters, formatWine } from '@/lib/format';
+import { formatEntryTime, formatFill, formatWine } from '@/lib/format';
 import { latestValues } from '@/lib/latestValues';
 import { spacing, useTheme } from '@/theme';
 
@@ -141,7 +141,7 @@ export default function TankDetailScreen() {
     );
   }
 
-  const { name, volumeLiters, variety, vintage, upload } = tank.data;
+  const { name, volumeLiters, contentLiters, variety, vintage, upload } = tank.data;
   const tankItem = outbox.items.find(
     (item) =>
       (item.kind === 'tank-create' && item.localId === id) ||
@@ -182,7 +182,7 @@ export default function TankDetailScreen() {
               t.exportData.shareTitle(name),
             )
           : sharePdf(
-              buildReportHtml({ vessel: { name, kind, variety, vintage, volumeLiters }, ferment, entries: chosen, now }),
+              buildReportHtml({ vessel: { name, kind, variety, vintage, volumeLiters, contentLiters }, ferment, entries: chosen, now }),
               reportTitle(name, ferment?.name ?? null),
             );
       done.catch((err: unknown) => setActionError(errorMessage(err)));
@@ -322,7 +322,7 @@ export default function TankDetailScreen() {
       hero={
         <HeroBand
           title={name}
-          subtitle={[formatWine(variety, vintage) ?? t.tank.noWine, formatLiters(volumeLiters)].join(' · ')}
+          subtitle={[formatWine(variety, vintage) ?? t.tank.noWine, formatFill(contentLiters, volumeLiters)].join(' · ')}
         />
       }
       footer={

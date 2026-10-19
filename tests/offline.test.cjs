@@ -39,8 +39,8 @@ beforeEach(() => {
   setStoreForTests(store);
 });
 
-const tank12 = { id: 't12', name: 'Tank 12', kind: 'tank', volumeLiters: 5000, variety: 'Saperavi', vintage: 2025, createdAt: '2026-10-01T10:00:00Z' };
-const tank2 = { id: 't2', name: 'Tank 2', kind: 'tank', volumeLiters: 1000.5, variety: null, vintage: null, createdAt: '2026-10-01T11:00:00Z' };
+const tank12 = { id: 't12', name: 'Tank 12', kind: 'tank', volumeLiters: 5000, contentLiters: null, variety: 'Saperavi', vintage: 2025, createdAt: '2026-10-01T10:00:00Z' };
+const tank2 = { id: 't2', name: 'Tank 2', kind: 'tank', volumeLiters: 1000.5, contentLiters: null, variety: null, vintage: null, createdAt: '2026-10-01T11:00:00Z' };
 const parsed = { tank_name: 'Tank 12', type: 'addition', items: [{ name: 'SO2', value: 20, unit: 'g/hL' }], note: null };
 const entry = { id: 'e1', tankId: 't12', type: 'addition', rawText: 'Tank 12 added 20 g/hl SO2', parsed, createdAt: '2026-10-02T09:00:00Z' };
 const valid = { tankId: 't12', type: 'addition', rawText: 'Tank 12 added 20 g/hl SO2', parsed };
