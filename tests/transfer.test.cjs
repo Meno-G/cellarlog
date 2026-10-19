@@ -2,7 +2,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const i18n = require('../.test-build/i18n/index.js');
-const { planTransfer, moveGrape } = require('../.test-build/transfer.js');
+const { planTransfer, giveGrape } = require('../.test-build/transfer.js');
 
 beforeEach(() => i18n.setLang('en'));
 
@@ -67,16 +67,12 @@ test('errors: no destination, the same vessel, a bad volume', () => {
   }
 });
 
-test('the grape and vintage can move with the wine: the source is left empty', () => {
-  const moved = moveGrape(nine, fourteen);
-  assert.deepEqual(moved, {
-    source: { name: 'Tank 9', kind: 'tank', volumeLiters: 3000, variety: null, vintage: null },
-    destination: { name: 'Tank 14', kind: 'tank', volumeLiters: 3000, variety: 'Rkatsiteli', vintage: 2026 },
-  });
-  assert.equal(moveGrape(fourteen, nine), null, 'nothing to move from a vessel without a grape');
-  const qvevri = moveGrape(v('q', 'Qvevri 1', 'Kisi', null, 'qvevri'), fourteen);
-  assert.equal(qvevri.source.kind, 'qvevri', 'the vessel type is kept');
-  assert.equal(qvevri.destination.vintage, null);
+test('the receiving vessel can take the grape and vintage; the source keeps its own', () => {
+  assert.deepEqual(giveGrape(nine, fourteen), { name: 'Tank 14', kind: 'tank', volumeLiters: 3000, variety: 'Rkatsiteli', vintage: 2026 });
+  assert.equal(giveGrape(fourteen, nine), null, 'nothing to give from a vessel without a grape');
+  const qvevri = giveGrape(v('q', 'Qvevri 1', 'Kisi', null, 'qvevri'), v('t', 'Tank 5', null, null, 'barrel'));
+  assert.equal(qvevri.kind, 'barrel', 'the receiving vessel keeps its own type');
+  assert.equal(qvevri.vintage, null);
 });
 
 test('messages follow the language', () => {
@@ -135,4 +131,38 @@ test('choosing an existing vessel still ignores the new-vessel fields', () => {
   assert.ok(result.ok);
   assert.equal(result.plan.newTank, null);
   assert.equal(result.plan.destinationEntry.tankId, 't14');
+});
+
+const { litersLeft, isEmptyLeft } = require('../.test-build/transfer.js');
+
+const d = (iso) => new Date(iso).toISOString();
+const out = (at, volume, unit = 'L') => ({ type: 'transfer', createdAt: d(at), parsed: { items: [{ name: 'Destination', value: 'Tank 14', unit: null }, { name: 'Volume', value: volume, unit }] } });
+const into = (at, volume) => ({ type: 'transfer', createdAt: d(at), parsed: { items: [{ name: 'Source', value: 'Tank 3', unit: null }, { name: 'Volume', value: volume, unit: 'L' }] } });
+const ferment = (start) => ({ id: 'f', name: 'F', startedAt: d(start), endedAt: null });
+const five = { volumeLiters: 5000 };
+const now = new Date('2026-10-20T00:00:00Z');
+
+test('emptiness: 3 t out, then 2 t out of 5 t: the second transfer empties it', () => {
+  const entries = [out('2026-10-10T08:00:00Z', 3000)];
+  assert.equal(litersLeft(five, [], [], 3000, now), 2000, 'the first transfer leaves 2000');
+  assert.ok(!isEmptyLeft(litersLeft(five, [], [], 3000, now)));
+  assert.equal(litersLeft(five, entries, [], 2000, now), 0, 'with the 3000 already moved out, 2000 more leaves nothing');
+  assert.ok(isEmptyLeft(litersLeft(five, entries, [], 2000, now)));
+  assert.ok(!isEmptyLeft(litersLeft(five, entries, [], 1000, now)));
+});
+
+test('emptiness counts only wine moved out since the vessel was last filled', () => {
+  const before = [out('2026-09-01T08:00:00Z', 4000)];
+  assert.equal(litersLeft(five, before, [ferment('2026-10-01T00:00:00Z')], 1000, now), 4000, 'a new ferment starts a new fill');
+  assert.equal(litersLeft(five, [out('2026-10-05T08:00:00Z', 4000), into('2026-10-08T08:00:00Z', 5000)], [], 1000, now), 4000, 'wine received since resets it');
+  assert.equal(litersLeft(five, [into('2026-10-01T08:00:00Z', 5000), out('2026-10-05T08:00:00Z', 4000)], [], 1000, now), 0);
+});
+
+test('emptiness: unknown liters, hectoliters, and no volume recorded on earlier transfers', () => {
+  assert.equal(litersLeft(five, [], [], null, now), null);
+  assert.equal(litersLeft(five, [out('2026-10-10T08:00:00Z', 30, 'hL')], [], 2000, now), 0);
+  const noVolume = { type: 'transfer', createdAt: d('2026-10-10T08:00:00Z'), parsed: { items: [{ name: 'Destination', value: 'X', unit: null }] } };
+  assert.equal(litersLeft(five, [noVolume], [], 2000, now), 3000, 'an earlier transfer without liters counts as 0');
+  assert.ok(!isEmptyLeft(null));
+  assert.ok(isEmptyLeft(0.8));
 });

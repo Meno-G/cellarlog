@@ -1,7 +1,11 @@
 // Moving wine from one vessel to another: the two journal entries (one in each
-// vessel), optionally the grape and vintage moving with it, and optionally a new
-// vessel created for the wine. Pure.
+// vessel), the receiving vessel optionally taking the grape and vintage, and
+// optionally a new vessel created for the wine. Also: working out whether a
+// transfer empties the source (so the app can offer to clear its data). Pure.
 import type { ValidEntry } from './entryDraft';
+import type { EntryType } from './entryTypes';
+import type { FermentLike } from './fermentCurves';
+import type { ParsedItem } from './parser/schema';
 import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import { validateTankForm } from './tankForm';
@@ -56,8 +60,8 @@ export function planTransfer(
   source: Vessel,
   vessels: readonly Vessel[],
   values: TransferFormValues,
-  /** The grape and vintage move with the wine (a new vessel is created with them). */
-  moveContents = false,
+  /** The receiving vessel gets the same grape and vintage (a new vessel is created with them). */
+  giveContents = false,
 ):
   | { ok: true; plan: TransferPlan; destination: { id: string; name: string } }
   | { ok: false; errors: TransferErrors } {
@@ -84,8 +88,8 @@ export function planTransfer(
       else {
         newTank = {
           ...form.input,
-          variety: moveContents ? source.variety : null,
-          vintage: moveContents ? source.vintage : null,
+          variety: giveContents ? source.variety : null,
+          vintage: giveContents ? source.vintage : null,
         };
         destination = { id: '', name: form.input.name };
       }
@@ -146,18 +150,59 @@ const asInput = (vessel: Vessel, variety: string | null, vintage: number | null)
 });
 
 /**
- * The grape and vintage move with the wine: the receiving vessel takes the
- * source's, and the source is left empty. Null when the source has neither.
+ * The receiving (existing) vessel takes the grape and vintage of the wine that
+ * came in. The source keeps its own: if wine is left in it, it is the same wine.
+ * Null when the source has neither.
  */
-export function moveGrape(source: Vessel, destination: Vessel): { source: TankInput; destination: TankInput } | null {
+export function giveGrape(source: Vessel, destination: Vessel): TankInput | null {
   if (source.variety === null && source.vintage === null) return null;
-  return {
-    source: asInput(source, null, null),
-    destination: asInput(destination, source.variety, source.vintage),
-  };
+  return asInput(destination, source.variety, source.vintage);
 }
 
-/** The source emptied of grape and vintage (when they went into a new vessel). Null if it had none. */
+/** The source emptied of grape and vintage (when the transfer leaves it empty). Null if it had none. */
 export function emptied(source: Vessel): TankInput | null {
   return source.variety === null && source.vintage === null ? null : asInput(source, null, null);
 }
+
+type EntryLike = {
+  type: EntryType;
+  createdAt: string;
+  parsed: { items: readonly ParsedItem[] };
+};
+
+const hasItem = (entry: EntryLike, name: string) => entry.parsed.items.some((item) => item.name === name);
+
+/** Liters of a transfer entry's "Volume" item (L or hL); 0 when it has none. */
+function litersOf(entry: EntryLike): number {
+  const item = entry.parsed.items.find((candidate) => candidate.name === 'Volume');
+  if (!item || typeof item.value !== 'number') return 0;
+  return item.unit === 'hL' ? item.value * 100 : item.value;
+}
+
+/**
+ * How many liters are left in the source after moving `moving` liters, counting
+ * the wine already moved out since it was last filled: the last transfer into it,
+ * or the start of its latest ferment, whichever is newer. Null when the liters of
+ * this transfer are not known. This assumes the vessel's volume is what it held.
+ */
+export function litersLeft(
+  source: { volumeLiters: number },
+  entries: readonly EntryLike[],
+  ferments: readonly FermentLike[],
+  moving: number | null,
+  now: Date = new Date(),
+): number | null {
+  if (moving === null) return null;
+  const starts: string[] = [
+    ...entries.filter((entry) => entry.type === 'transfer' && hasItem(entry, 'Source')).map((entry) => entry.createdAt),
+    ...ferments.filter((ferment) => new Date(ferment.startedAt) <= now).map((ferment) => ferment.startedAt),
+  ].map((iso) => new Date(iso).toISOString());
+  const since = starts.sort().at(-1) ?? null;
+  const out = entries
+    .filter((entry) => entry.type === 'transfer' && hasItem(entry, 'Destination') && (since === null || entry.createdAt >= since))
+    .reduce((sum, entry) => sum + litersOf(entry), 0);
+  return Math.round((source.volumeLiters - out - moving) * 10) / 10;
+}
+
+/** The vessel is empty (to within a liter or so). */
+export const isEmptyLeft = (left: number | null): boolean => left !== null && left <= 1;

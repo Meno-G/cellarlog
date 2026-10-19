@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Banner } from '@/components/Banner';
@@ -11,28 +11,43 @@ import { HeroBand, Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { useDialog } from '@/hooks/useDialog';
+import { useEntries } from '@/hooks/useEntries';
 import { useFerments } from '@/hooks/useFerments';
 import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank, useTanks } from '@/hooks/useTanks';
+import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
 import { errorMessage } from '@/lib/errors';
 import { activeFerment } from '@/lib/fermentCurves';
 import { updateFerment, type Ferment } from '@/lib/ferments';
+import { parseNumber } from '@/lib/numbers';
 import type { ShownTank } from '@/lib/tankOverlay';
+import {
+  NEW_TANK,
+  emptied,
+  giveGrape,
+  isEmptyLeft,
+  litersLeft,
+  planTransfer,
+  type TransferErrors,
+} from '@/lib/transfer';
 import { VESSEL_KINDS, type VesselKind } from '@/lib/vesselKinds';
-import { NEW_TANK, emptied, moveGrape, planTransfer, type TransferErrors } from '@/lib/transfer';
-import { spacing } from '@/theme';
+import { fonts, spacing, useTheme } from '@/theme';
+
+type Step = 'vessel' | 'entries' | 'more';
 
 /**
  * Wine moves from this vessel to another (an existing one, or a new one that is
- * created on the spot): a transfer entry in each, and optionally the running
- * ferment ends and the grape and vintage move too.
+ * created on the spot): a transfer entry in each. The receiving vessel can take
+ * the grape and vintage; the source keeps its own unless it is now empty.
  */
 export default function TransferScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tank = useTank(id);
   const tanks = useTanks();
   const ferments = useFerments(id);
+  const entries = useEntries(id);
+  const outbox = useOutbox();
   const t = useT();
   const hero = <HeroBand title={t.transfer.title} subtitle={tank.data ? t.transfer.from(tank.data.name) : undefined} />;
 
@@ -58,11 +73,15 @@ export default function TransferScreen() {
     );
   }
 
+  const fermentList = ferments.data ?? [];
   return (
     <TransferEditor
       source={tank.data}
       all={tanks.data}
-      running={activeFerment(ferments.data ?? [])}
+      fermentList={fermentList}
+      running={activeFerment(fermentList)}
+      // Includes entries still waiting to upload, so wine moved a moment ago counts.
+      timeline={applyEntryChanges(entries.data ?? [], outbox.items, id)}
       hero={hero}
     />
   );
@@ -71,15 +90,20 @@ export default function TransferScreen() {
 function TransferEditor({
   source,
   all,
+  fermentList,
   running,
+  timeline,
   hero,
 }: {
   source: ShownTank;
   all: ShownTank[];
+  fermentList: Ferment[];
   running: Ferment | undefined;
+  timeline: ShownEntry[];
   hero: ReactNode;
 }) {
   const t = useT();
+  const { colors } = useTheme();
   const dialog = useDialog();
   const outbox = useOutbox();
   const others = all.filter((candidate) => candidate.id !== source.id);
@@ -92,13 +116,23 @@ function TransferEditor({
   const [newVolume, setNewVolume] = useState('');
   // The new vessel's volume follows the liters moved until it has been typed in by hand.
   const newVolumeTyped = useRef(false);
-  // Usually the wine is done fermenting when it moves, and the grape goes with it.
+  // Usually the wine is done fermenting when it moves.
   const [endFerment, setEndFerment] = useState(true);
   const hasContents = source.variety !== null || source.vintage !== null;
-  const [moveContents, setMoveContents] = useState(hasContents);
+  const [giveContents, setGiveContents] = useState(hasContents);
+  // "Is the source empty?" starts from what the recorded volumes say, until the user answers.
+  const moving = (() => {
+    const parsed = parseNumber(volume);
+    return parsed === null || Number.isNaN(parsed) || parsed <= 0 ? null : parsed;
+  })();
+  const left = litersLeft(source, timeline, fermentList, moving);
+  const suggestedEmpty = isEmptyLeft(left);
+  const [emptyAnswer, setEmptyAnswer] = useState<boolean | null>(null);
+  const markEmpty = emptyAnswer ?? suggestedEmpty;
   const [errors, setErrors] = useState<TransferErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<Step | null>(null);
   // Kept across retries, so a second tap never creates the vessel or records an entry twice.
   const done = useRef<{ tankId: string | null; source: boolean; destination: boolean }>({
     tankId: null,
@@ -118,12 +152,7 @@ function TransferEditor({
 
   async function handleSave() {
     setError(null);
-    const result = planTransfer(
-      source,
-      all,
-      { destinationId, volume, note, newName, newKind, newVolume },
-      moveContents,
-    );
+    const result = planTransfer(source, all, { destinationId, volume, note, newName, newKind, newVolume }, giveContents);
     if (!result.ok) {
       setErrors(result.errors);
       return;
@@ -134,9 +163,11 @@ function TransferEditor({
       // A new vessel is created first (it works offline: it queues), then both entries.
       let destinationTankId = result.destination.id;
       if (result.plan.newTank) {
+        setStep('vessel');
         if (done.current.tankId === null) done.current.tankId = (await outbox.createTank(result.plan.newTank)).id;
         destinationTankId = done.current.tankId;
       }
+      setStep('entries');
       if (!done.current.source) {
         await outbox.saveEntry(result.plan.sourceEntry);
         done.current.source = true;
@@ -148,46 +179,53 @@ function TransferEditor({
     } catch (err) {
       setError(errorMessage(err));
       setSaving(false);
+      setStep(null);
       return;
     }
 
-    const problems: string[] = [];
+    // The rest doesn't depend on each other, so it runs at the same time: one slow request holds up only itself.
+    setStep('more');
+    const tasks: Promise<unknown>[] = [];
     if (endFerment && running) {
-      try {
-        await updateFerment(running.id, { name: running.name, startedAt: running.startedAt, endedAt: new Date().toISOString() });
-      } catch (err) {
-        problems.push(errorMessage(err));
-      }
+      tasks.push(updateFerment(running.id, { name: running.name, startedAt: running.startedAt, endedAt: new Date().toISOString() }));
     }
-    if (moveContents) {
-      try {
-        // Both queue offline like any tank edit. A new vessel already got the grape when it was created.
-        const existing = all.find((candidate) => candidate.id === destinationId);
-        if (existing) {
-          const moved = moveGrape(source, existing);
-          if (moved) {
-            await outbox.updateTank(existing.id, moved.destination);
-            await outbox.updateTank(source.id, moved.source);
-          }
-        } else {
-          const empty = emptied(source);
-          if (empty) await outbox.updateTank(source.id, empty);
-        }
-      } catch (err) {
-        problems.push(errorMessage(err));
-      }
+    const existing = all.find((candidate) => candidate.id === destinationId);
+    if (giveContents && existing) {
+      const grape = giveGrape(source, existing);
+      if (grape) tasks.push(outbox.updateTank(existing.id, grape));
     }
+    // The source keeps its grape and vintage unless it is now empty.
+    const empty = markEmpty ? emptied(source) : null;
+    if (empty) tasks.push(outbox.updateTank(source.id, empty));
 
+    const settled = await Promise.allSettled(tasks);
+    const problems = settled.flatMap((outcome) => (outcome.status === 'rejected' ? [errorMessage(outcome.reason)] : []));
     if (problems.length > 0) {
-      dialog(t.transfer.title, t.transfer.partialFailed(problems.join(' ')), [{ text: 'OK', onPress: () => router.back() }]);
+      dialog(t.transfer.title, t.transfer.partialFailed([...new Set(problems)].join(' ')), [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     } else {
       router.back(); // the screens refetch on focus
     }
+    setSaving(false);
+    setStep(null);
   }
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen hero={hero} footer={<Button title={t.transfer.save} icon="check" onPress={handleSave} loading={saving} />}>
+      <Screen
+        hero={hero}
+        footer={
+          <View style={styles.footer}>
+            <Button title={t.transfer.save} icon="check" onPress={handleSave} loading={saving} />
+            {step ? (
+              <AppText muted variant="caption" style={styles.step}>
+                {t.transfer.steps[step === 'vessel' ? 'vessel' : step === 'entries' ? 'entries' : 'more']}
+              </AppText>
+            ) : null}
+          </View>
+        }
+      >
         <OfflineBanner message={t.transfer.offlineNote} />
         {error ? <Banner message={error} onRetry={handleSave} /> : null}
 
@@ -271,14 +309,28 @@ function TransferEditor({
         {hasContents ? (
           <>
             <ChoiceChips
-              label={t.transfer.moveGrape}
+              label={t.transfer.giveGrape}
               choices={yesNo}
-              selected={moveContents ? 'yes' : 'no'}
-              onSelect={(value) => setMoveContents(value === 'yes')}
+              selected={giveContents ? 'yes' : 'no'}
+              onSelect={(value) => setGiveContents(value === 'yes')}
               disabled={saving}
             />
             <AppText muted variant="caption">
-              {t.transfer.moveGrapeHint(source.name)}
+              {t.transfer.giveGrapeHint(source.name)}
+            </AppText>
+            <ChoiceChips
+              label={t.transfer.emptyQuestion(source.name)}
+              choices={yesNo}
+              selected={markEmpty ? 'yes' : 'no'}
+              onSelect={(value) => setEmptyAnswer(value === 'yes')}
+              disabled={saving}
+            />
+            <AppText
+              muted={!suggestedEmpty}
+              variant="caption"
+              style={suggestedEmpty ? { color: colors.primary, fontFamily: fonts.bodySemi } : undefined}
+            >
+              {suggestedEmpty && left !== null ? t.transfer.emptyHintYes(Math.max(0, left)) : t.transfer.emptyHintNo}
             </AppText>
           </>
         ) : null}
@@ -289,5 +341,7 @@ function TransferEditor({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  footer: { gap: spacing.xs },
+  step: { textAlign: 'center' },
   note: { minHeight: 96, paddingTop: spacing.sm },
 });
