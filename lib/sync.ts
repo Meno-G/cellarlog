@@ -64,8 +64,14 @@ async function sendOrQueue(
   }
 }
 
-export function saveOrQueue(userId: string, entry: ValidEntry, queueOnly: boolean): Promise<SaveResult> {
-  const meta = newMeta();
+/** `createdAt` keeps an earlier recording time (entries carried over to another vessel). */
+export function saveOrQueue(
+  userId: string,
+  entry: ValidEntry,
+  queueOnly: boolean,
+  createdAt?: string,
+): Promise<SaveResult> {
+  const meta = { ...newMeta(), ...(createdAt ? { createdAt } : {}) };
   return sendOrQueue(
     queueOnly,
     () => createEntry(entry, { id: meta.localId, createdAt: meta.createdAt }),

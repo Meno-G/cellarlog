@@ -331,6 +331,10 @@ export const en = {
     emptyQuestion: (name: string) => `Is ${name} now empty?`,
     emptyHintYes: (left: number) => `By the volumes recorded, nothing is left in it (${left} L).`,
     emptyHintNo: 'If you answer Yes, you can delete the vessel or keep it empty. If wine is left, answer No.',
+    carry: 'Copy the lab data and notes to the receiving vessel?',
+    carryHint: (count: number, name: string) =>
+      `${count} entries about this wine (analyses, additions, tastings, notes) are copied to ${name} with their original dates, so its latest values show there too.`,
+    carryHintMixed: (name: string) => `${name} already holds other wine, so nothing is copied unless you answer Yes.`,
     emptyAction: 'What happens to the empty vessel?',
     deleteVessel: 'Delete the vessel',
     keepVessel: 'Keep it empty',
@@ -342,6 +346,7 @@ export const en = {
     steps: {
       vessel: 'Creating the vessel…',
       entries: 'Recording the transfer…',
+      carry: 'Copying the lab data…',
       more: 'Updating the vessels…',
     },
     yes: 'Yes',

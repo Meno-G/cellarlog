@@ -231,6 +231,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - On save the vessel is created first (`outbox.createTank`, which queues offline), then both entries (the receiver's `tankId` is filled in with the new id; entries for a not-yet-uploaded tank wait for it).
   - If the grape is given, the new vessel is **created with** the source's grape and vintage; the source is emptied only when it is now empty.
   - A ref keeps the created id and which entries were saved, so a retry after a failure never makes a second vessel or entry.
+- **The wine's history follows it:** `entriesToCarry` takes the source's entries since it was last filled (newest incoming transfer or latest ferment start), without transfers, and copies them into the receiving vessel with their **original times** (`saveEntry(entry, { createdAt })`), so its latest values, history and exports show them. `parsed.tank_name` keeps the source's name. Default Yes for a new or empty receiver, No when it already holds other wine (the user can choose). Copies are made before the source is deleted; a ref remembers which were saved, so a retry never duplicates. Only the loaded timeline (200 entries) is copied; **ferments are not copied** (start one in the receiver for a curve).
 - There is no stored link between the two vessels: the two entries name each other by name.
 
 ## Alert rules

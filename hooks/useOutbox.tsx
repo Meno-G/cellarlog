@@ -49,7 +49,7 @@ type OutboxValue = {
   /** Goes up each time queued changes reach the server, so screens reload. */
   uploadedCount: number;
   /** Save now, or keep on the phone when offline. */
-  saveEntry: (entry: ValidEntry) => Promise<SaveResult>;
+  saveEntry: (entry: ValidEntry, options?: { createdAt?: string }) => Promise<SaveResult>;
   /** Save an edit now, or on this phone when offline (or while earlier changes to it wait). */
   updateEntry: (saved: Pick<Entry, 'id' | 'createdAt'>, entry: ValidEntry) => Promise<SaveResult>;
   /** Delete an entry now, or on this phone when offline. */
@@ -134,8 +134,8 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
   );
 
   const saveEntry = useCallback(
-    async (entry: ValidEntry): Promise<SaveResult> => {
-      const result = await saveOrQueue(userId, entry, await mustQueue(entry.tankId));
+    async (entry: ValidEntry, options: { createdAt?: string } = {}): Promise<SaveResult> => {
+      const result = await saveOrQueue(userId, entry, await mustQueue(entry.tankId), options.createdAt);
       reload();
       if (result === 'queued') void upload(); // sends it right away if the tank just became uploadable
       return result;

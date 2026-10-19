@@ -212,3 +212,23 @@ test('emptiness: unknown liters, hectoliters, and no volume recorded on earlier 
   assert.ok(!isEmptyLeft(null));
   assert.ok(isEmptyLeft(0.8));
 });
+
+const { entriesToCarry } = require('../.test-build/transfer.js');
+
+const note = (at, type = 'lab_analysis') => ({ type, rawText: '', createdAt: d(at), parsed: { tank_name: 'Tank 12', type, items: [{ name: 'pH', value: 3.4, unit: null }], note: null } });
+
+test('the wine history that follows it: everything since the vessel was filled, except transfers', () => {
+  const list = [
+    note('2026-09-01T08:00:00Z'),
+    note('2026-10-05T08:00:00Z', 'addition'),
+    out('2026-10-06T08:00:00Z', 1000),
+    note('2026-10-02T08:00:00Z', 'tasting'),
+  ].map((e) => ({ rawText: '', ...e }));
+  const all = entriesToCarry(list, [], now);
+  assert.deepEqual(all.map((e) => e.type), ['lab_analysis', 'tasting', 'addition'], 'oldest first, no transfers');
+  const since = entriesToCarry(list, [ferment('2026-10-01T00:00:00Z')], now);
+  assert.deepEqual(since.map((e) => e.type), ['tasting', 'addition'], 'only since the latest ferment started');
+  const received = entriesToCarry([...list, { ...into('2026-10-04T00:00:00Z', 5000), rawText: '' }], [], now);
+  assert.deepEqual(received.map((e) => e.type), ['addition'], 'only since the wine last came in');
+  assert.deepEqual(entriesToCarry([], [], now), []);
+});

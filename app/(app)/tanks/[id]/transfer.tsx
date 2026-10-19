@@ -25,6 +25,8 @@ import { parseNumber } from '@/lib/numbers';
 import type { ShownTank } from '@/lib/tankOverlay';
 import {
   NEW_TANK,
+  contentBefore,
+  entriesToCarry,
   isEmptyLeft,
   litersLeft,
   planTransfer,
@@ -36,7 +38,7 @@ import {
 import { VESSEL_KINDS, type VesselKind } from '@/lib/vesselKinds';
 import { fonts, spacing, useTheme } from '@/theme';
 
-type Step = 'vessel' | 'entries' | 'more';
+type Step = 'vessel' | 'entries' | 'carry' | 'more';
 
 /**
  * Wine moves from this vessel to another (an existing one, or a new one that is
@@ -132,6 +134,9 @@ function TransferEditor({
   const suggestedEmpty = isEmptyLeft(left);
   const [emptyAnswer, setEmptyAnswer] = useState<boolean | null>(null);
   const markEmpty = emptyAnswer ?? suggestedEmpty;
+  // The wine's own history (analyses, additions, notes) can follow it into the receiving vessel.
+  const carried = entriesToCarry(timeline, fermentList);
+  const [carryAnswer, setCarryAnswer] = useState<boolean | null>(null);
   const [emptyAction, setEmptyAction] = useState<'delete' | 'keep'>('delete');
   const deleting = markEmpty && emptyAction === 'delete';
   const [errors, setErrors] = useState<TransferErrors>({});
@@ -139,13 +144,17 @@ function TransferEditor({
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<Step | null>(null);
   // Kept across retries, so a second tap never creates the vessel or records an entry twice.
-  const done = useRef<{ tankId: string | null; source: boolean; destination: boolean }>({
+  const done = useRef<{ tankId: string | null; source: boolean; destination: boolean; carried: Set<number> }>({
     tankId: null,
     source: false,
     destination: false,
+    carried: new Set(),
   });
 
   const existingDestination = others.find((candidate) => candidate.id === destinationId);
+  // A new or empty vessel gets the history by default; one that already holds other wine only if asked.
+  const receiverHoldsWine = existingDestination !== undefined && contentBefore(existingDestination) !== 0;
+  const carry = (carryAnswer ?? !receiverHoldsWine) && carried.length > 0;
 
   const yesNo = [
     { value: 'yes', label: t.transfer.yes },
@@ -193,6 +202,22 @@ function TransferEditor({
       if (!done.current.destination) {
         await outbox.saveEntry({ ...plan.destinationEntry, tankId: destinationTankId });
         done.current.destination = true;
+      }
+      if (carry) {
+        setStep('carry');
+        // Same time stamps as the originals; saved at the same time, each marked done so a retry doesn't copy twice.
+        const results = await Promise.allSettled(
+          carried.map(async (entry, index) => {
+            if (done.current.carried.has(index)) return;
+            await outbox.saveEntry(
+              { tankId: destinationTankId, type: entry.type, rawText: entry.rawText, parsed: entry.parsed },
+              { createdAt: entry.createdAt },
+            );
+            done.current.carried.add(index);
+          }),
+        );
+        const failed = results.find((outcome) => outcome.status === 'rejected');
+        if (failed && failed.status === 'rejected') throw failed.reason;
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -243,7 +268,7 @@ function TransferEditor({
             <Button title={t.transfer.save} icon="check" onPress={handleSave} loading={saving} />
             {step ? (
               <AppText muted variant="caption" style={styles.step}>
-                {t.transfer.steps[step === 'vessel' ? 'vessel' : step === 'entries' ? 'entries' : 'more']}
+                {t.transfer.steps[step]}
               </AppText>
             ) : null}
           </View>
@@ -321,6 +346,22 @@ function TransferEditor({
           placeholder="2000"
           editable={!saving}
         />
+        {carried.length > 0 && destinationId !== null ? (
+          <>
+            <ChoiceChips
+              label={t.transfer.carry}
+              choices={yesNo}
+              selected={carry ? 'yes' : 'no'}
+              onSelect={(value) => setCarryAnswer(value === 'yes')}
+              disabled={saving}
+            />
+            <AppText muted variant="caption">
+              {receiverHoldsWine && carryAnswer === null
+                ? t.transfer.carryHintMixed(existingDestination?.name ?? '')
+                : t.transfer.carryHint(carried.length, existingDestination?.name ?? (newName.trim() || t.transfer.newTank))}
+            </AppText>
+          </>
+        ) : null}
         <TextField
           label={t.common.noteOptional}
           value={note}

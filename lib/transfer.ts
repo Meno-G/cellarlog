@@ -7,7 +7,7 @@ import type { ValidEntry } from './entryDraft';
 import type { EntryType } from './entryTypes';
 import type { FermentLike } from './fermentCurves';
 import { formatLiters } from './format';
-import type { ParsedItem } from './parser/schema';
+import type { ParsedEntry, ParsedItem } from './parser/schema';
 import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import { validateTankForm } from './tankForm';
@@ -225,6 +225,34 @@ type EntryLike = {
   parsed: { items: readonly ParsedItem[] };
 };
 
+/**
+ * When the wine in a vessel was last filled: its newest incoming transfer or the
+ * start of its latest ferment, whichever is later. Null when neither is known.
+ */
+function filledSince(entries: readonly EntryLike[], ferments: readonly FermentLike[], now: Date): string | null {
+  const starts: string[] = [
+    ...entries.filter((entry) => entry.type === 'transfer' && hasItem(entry, 'Source')).map((entry) => entry.createdAt),
+    ...ferments.filter((ferment) => new Date(ferment.startedAt) <= now).map((ferment) => ferment.startedAt),
+  ].map((iso) => new Date(iso).toISOString());
+  return starts.sort().at(-1) ?? null;
+}
+
+/**
+ * The source's lab analyses, additions, tastings, notes and the rest that belong to
+ * the wine now moving (recorded since the vessel was last filled), oldest first, with
+ * their original times. Transfers are left out: those are about the vessels, not the wine.
+ */
+export function entriesToCarry<T extends EntryLike & { rawText: string; parsed: ParsedEntry }>(
+  entries: readonly T[],
+  ferments: readonly FermentLike[],
+  now: Date = new Date(),
+): T[] {
+  const since = filledSince(entries, ferments, now);
+  return entries
+    .filter((entry) => entry.type !== 'transfer' && (since === null || entry.createdAt >= since))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
 const hasItem = (entry: EntryLike, name: string) => entry.parsed.items.some((item) => item.name === name);
 
 /** Liters of a transfer entry's "Volume" item (L or hL); 0 when it has none. */
@@ -250,11 +278,7 @@ export function litersLeft(
 ): number | null {
   if (moving === null) return null;
   if (source.contentLiters !== null) return round1(source.contentLiters - moving);
-  const starts: string[] = [
-    ...entries.filter((entry) => entry.type === 'transfer' && hasItem(entry, 'Source')).map((entry) => entry.createdAt),
-    ...ferments.filter((ferment) => new Date(ferment.startedAt) <= now).map((ferment) => ferment.startedAt),
-  ].map((iso) => new Date(iso).toISOString());
-  const since = starts.sort().at(-1) ?? null;
+  const since = filledSince(entries, ferments, now);
   const out = entries
     .filter((entry) => entry.type === 'transfer' && hasItem(entry, 'Destination') && (since === null || entry.createdAt >= since))
     .reduce((sum, entry) => sum + litersOf(entry), 0);
