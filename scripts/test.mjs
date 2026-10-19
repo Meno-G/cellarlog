@@ -36,6 +36,7 @@ const PURE_MODULES = [
   'lib/transfer.ts',
   'lib/format.ts',
   'lib/blend.ts',
+  'lib/so2.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

@@ -111,6 +111,25 @@ export const en = {
     deleteFailed: (failed: number, total: number, error: string) => `${failed} of ${total} could not be deleted: ${error}`,
   },
 
+  so2: {
+    title: 'SO2 calculator',
+    button: 'SO2 calculator',
+    hint:
+      'Works out the free SO2 a wine needs at its pH, and how much potassium metabisulfite (KMBS) that takes. It is a calculation only: bound SO2 and other factors change the real result, so measure again after adding.',
+    filled: "Filled in from this tank's latest readings.",
+    ph: 'pH',
+    free: 'Free SO2 now (mg/L)',
+    target: 'Target molecular SO2 (mg/L)',
+    targetNote: 'Often cited targets run from 0.5 to 0.8 mg/L. The target is your choice.',
+    volume: 'Wine volume (liters, optional)',
+    molecularNow: 'Molecular SO2 now',
+    needed: 'Free SO2 needed',
+    toAdd: 'Free SO2 to add',
+    kmbs: 'KMBS to add',
+    enough: 'The free SO2 already reaches the target.',
+    formula: 'Molecular share = 1 / (1 + 10^(pH − 1.81)). KMBS is about 57% SO2. 1 mg/L = 0.1 g/hL.',
+  },
+
   tankCard: {
     noWine: 'No wine set',
     noEntries: 'No entries yet',
@@ -622,6 +641,9 @@ export const en = {
     volumeNumbersOnly: 'Use numbers only, e.g. 5000.',
     volumePositive: 'Volume must be more than 0 L.',
     volumeTooLarge: 'That volume is too large.',
+    so2PhRange: 'Enter a pH from 2.5 to 4.5.',
+    so2FreeRange: 'Enter free SO2 as a number from 0 to 500.',
+    so2TargetRange: 'Enter a target from 0.1 to 2.',
     contentTooLarge: "The wine in it can't be more than the capacity of the vessel.",
     transferMoreThanHas: (name: string, liters: string) => `${name} holds only ${liters} of wine.`,
     transferDoesNotFit: (name: string, free: string) => `${name} has room for only ${free} more.`,

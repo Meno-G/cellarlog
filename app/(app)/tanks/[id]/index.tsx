@@ -298,6 +298,12 @@ export default function TankDetailScreen() {
         values={latest}
         onSelect={(valueName) => router.push({ pathname: '/tanks/[id]/history', params: { id, name: valueName } })}
       />
+      <Button
+        variant="secondary"
+        title={t.so2.button}
+        icon="calculator-variant-outline"
+        onPress={() => router.push({ pathname: '/tanks/[id]/so2', params: { id } })}
+      />
       <Button variant="secondary" title={t.exportData.pdfButton} icon="file-pdf-box" onPress={() => exportData('pdf')} />
       <Button variant="secondary" title={t.exportData.button} icon="file-delimited-outline" onPress={() => exportData('csv')} />
       <View style={styles.timelineHeading}>

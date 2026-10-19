@@ -236,6 +236,11 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **The wine's history follows it:** `entriesToCarry` takes the source's entries since it was last filled (newest incoming transfer or latest ferment start), without transfers, and copies them into the receiving vessel with their **original times** (`saveEntry(entry, { createdAt })`), so its latest values, history and exports show them. `parsed.tank_name` keeps the source's name. Default Yes for a new or empty receiver, No when it already holds other wine (the user can choose). Copies are made before the source is deleted; a ref remembers which were saved, so a retry never duplicates. Only the loaded timeline (200 entries) is copied; **ferments are not copied** (start one in the receiver for a curve).
 - There is no stored link between the two vessels: the two entries name each other by name.
 
+## SO2 calculator and fill level
+
+- **Tank screen → "SO2 calculator"** (`tanks/[id]/so2.tsx`, pure logic in `lib/so2.ts`, tested): from the pH, the free SO2 and a target molecular SO2 it shows the molecular SO2 now, the free SO2 needed, what to add (mg/L and g/hL) and the grams of KMBS for the volume. pH, free SO2 and the volume start from the tank's latest readings and the wine in it, and every field can be changed. Molecular share = 1 / (1 + 10^(pH − 1.81)); KMBS is taken as 57% SO2. The target (default 0.8, often cited range 0.5–0.8) is the winemaker's choice; the screen states it is a calculation only and bound SO2 changes the real result. Never turn it into a recommendation.
+- **Fill level:** a tank card shows a bar of wine in it / capacity when the wine in it is recorded (`TankCard`).
+
 ## Alert rules
 
 - **Two rules per vessel, set by the winemaker** (`alert_rules` table, migration `20261017120000_alert_rules.sql`, one row per kind per vessel):

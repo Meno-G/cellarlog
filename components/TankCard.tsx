@@ -32,6 +32,10 @@ export function TankCard({ tank, summary, onPress, selecting = false, selected =
     .filter((part): part is string => part !== null)
     .join(' · ') || null;
   const volume = formatFill(tank.contentLiters, tank.volumeLiters);
+  const fill =
+    tank.contentLiters !== null && tank.volumeLiters > 0
+      ? Math.max(0, Math.min(100, Math.round((tank.contentLiters / tank.volumeLiters) * 100)))
+      : null;
   const failed = tank.upload?.status === 'failed';
   const lastText = last
     ? t.tankCard.last(t.entryTypes[last.type], formatRelative(last.createdAt))
@@ -86,6 +90,12 @@ export function TankCard({ tank, summary, onPress, selecting = false, selected =
         <AppText muted numberOfLines={1} style={styles.wine}>
           {wine ?? t.tankCard.noWine}
         </AppText>
+        {fill !== null ? (
+          // How full the vessel is, at a glance down the list (the numbers are in the title row).
+          <View style={[styles.fillTrack, { backgroundColor: colors.border }]}>
+            <View style={[styles.fillBar, { backgroundColor: colors.primary, width: `${fill}%` }]} />
+          </View>
+        ) : null}
         {readings.length > 0 ? (
           <View style={styles.readings}>
             {readings.map(({ item }) => (
@@ -140,6 +150,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   check: { justifyContent: 'center' },
+  fillTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginVertical: spacing.xs },
+  fillBar: { height: 8, borderRadius: 4 },
   edge: { width: 8, borderRadius: 4, alignSelf: 'stretch' },
   text: { flex: 1, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
