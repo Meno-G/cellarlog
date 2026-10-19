@@ -111,6 +111,18 @@ export const en = {
     deleteFailed: (failed: number, total: number, error: string) => `${failed} of ${total} could not be deleted: ${error}`,
   },
 
+  lineage: {
+    title: 'Where the wine came from',
+    button: 'Where this wine came from',
+    hint: 'Followed through the transfers recorded. The vessels are matched by name, so a vessel that was deleted or renamed ends the chain.',
+    cameFrom: 'Came from',
+    wentTo: 'Went to',
+    noneCame: 'No transfer into this vessel is recorded.',
+    noneWent: 'No transfer out of this vessel is recorded.',
+    from: (vessel: string) => `From ${vessel}`,
+    to: (vessel: string) => `To ${vessel}`,
+  },
+
   so2: {
     title: 'SO2 calculator',
     button: 'SO2 calculator',
@@ -175,6 +187,9 @@ export const en = {
   },
 
   history: {
+    potentialTitle: 'Potential alcohol (estimate)',
+    potentialText: (reading: string, when: string, low: number, high: number) =>
+      `From the first reading (${reading}, ${when}): about ${low}–${high} % vol. An estimate of 0.55–0.60 % vol per °Brix; the real figure depends on the yeast and the fermentation.`,
     title: 'History',
     titleFor: (tank: string) => `History · ${tank}`,
     loading: 'Loading readings…',

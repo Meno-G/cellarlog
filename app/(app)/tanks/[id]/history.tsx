@@ -10,6 +10,7 @@ import { useEntries } from '@/hooks/useEntries';
 import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
+import { estimateFromReading } from '@/lib/alcohol';
 import { applyEntryChanges } from '@/lib/entryOverlay';
 import { formatChange, formatEntryTime, formatItemValue, formatRelative } from '@/lib/format';
 import { itemName } from '@/lib/i18n';
@@ -58,6 +59,10 @@ export default function ValueHistoryScreen() {
   const values = points.map((point) => point.value);
   const show = (point: Pick<HistoryPoint, 'value' | 'unit'>) => formatItemValue({ name, ...point });
 
+  // A must's first Brix or density says what alcohol it could reach (an estimate).
+  const first = points[0];
+  const potential = first ? estimateFromReading(name, first.value) : null;
+
   const summary = latest ? (
     <View style={styles.summary}>
       <Stat label={t.history.latest} value={show(latest)} detail={formatRelative(latest.createdAt)} />
@@ -97,6 +102,16 @@ export default function ValueHistoryScreen() {
             <CachedNote cachedAt={entries.cachedAt} error={entries.error} onRetry={entries.refresh} />
             {summary}
             <HistoryChart name={name} points={points} />
+            {potential && first ? (
+              <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'column', alignItems: 'flex-start' }]}>
+                <AppText variant="title" style={{ color: colors.heading }}>
+                  {t.history.potentialTitle}
+                </AppText>
+                <AppText muted>
+                  {t.history.potentialText(show(first), formatEntryTime(first.createdAt), potential.low, potential.high)}
+                </AppText>
+              </View>
+            ) : null}
             {skipped > 0 ? (
               <AppText muted variant="caption">
                 {t.history.skipped(skipped)}

@@ -109,6 +109,18 @@ export const ka: Strings = {
     deleteFailed: (failed, total, error) => `${total}-დან ${failed} ვერ წაიშალა: ${error}`,
   },
 
+  lineage: {
+    title: 'საიდან მოვიდა ღვინო',
+    button: 'საიდან მოვიდა ეს ღვინო',
+    hint: 'მიკვლეულია ჩაწერილი გადატანებით. ცისტერნები სახელით ერთიანდება, ამიტომ წაშლილი ან გადარქმეული ცისტერნა ჯაჭვს წყვეტს.',
+    cameFrom: 'საიდან მოვიდა',
+    wentTo: 'სად წავიდა',
+    noneCame: 'ამ ცისტერნაში გადატანა ჩაწერილი არ არის.',
+    noneWent: 'ამ ცისტერნიდან გადატანა ჩაწერილი არ არის.',
+    from: (vessel) => `${vessel}-დან`,
+    to: (vessel) => `${vessel}-ში`,
+  },
+
   so2: {
     title: 'SO2 კალკულატორი',
     button: 'SO2 კალკულატორი',
@@ -173,6 +185,9 @@ export const ka: Strings = {
   },
 
   history: {
+    potentialTitle: 'პოტენციური სპირტი (შეფასება)',
+    potentialText: (reading, when, low, high) =>
+      `პირველი ჩანაწერიდან (${reading}, ${when}): დაახლოებით ${low}–${high} % მოც. შეფასებაა: 0,55–0,60 % მოც. თითო °Brix-ზე; რეალური მაჩვენებელი საფუარსა და დუღილზეა დამოკიდებული.`,
     title: 'ისტორია',
     titleFor: (tank) => `ისტორია · ${tank}`,
     loading: 'გაზომვები იტვირთება…',

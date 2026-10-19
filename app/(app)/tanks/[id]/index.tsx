@@ -300,6 +300,12 @@ export default function TankDetailScreen() {
       />
       <Button
         variant="secondary"
+        title={t.lineage.button}
+        icon="source-branch"
+        onPress={() => router.push({ pathname: '/tanks/[id]/lineage', params: { id } })}
+      />
+      <Button
+        variant="secondary"
         title={t.so2.button}
         icon="calculator-variant-outline"
         onPress={() => router.push({ pathname: '/tanks/[id]/so2', params: { id } })}

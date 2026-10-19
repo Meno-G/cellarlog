@@ -37,6 +37,8 @@ const PURE_MODULES = [
   'lib/format.ts',
   'lib/blend.ts',
   'lib/so2.ts',
+  'lib/alcohol.ts',
+  'lib/lineage.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });
