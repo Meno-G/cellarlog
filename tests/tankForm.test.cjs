@@ -13,7 +13,7 @@ test('parseNumber', () => {
   for (const bad of ['abc', '5L', '1e5', '5..0', '5,0,0']) assert.ok(Number.isNaN(parseNumber(bad)), bad);
 });
 
-const base = { name: 'Tank 12', kind: 'tank', volume: '5000', content: '', variety: 'Saperavi', vintage: '2025' };
+const base = { name: 'Tank 12', kind: 'tank', volume: '5000', content: '', blend: [], variety: 'Saperavi', vintage: '2025' };
 const errs = (values) => {
   const result = validateTankForm({ ...base, ...values });
   assert.ok(!result.ok);
@@ -43,6 +43,22 @@ test('the wine in the vessel is optional and can not exceed its capacity', () =>
   assert.ok(errs({ content: '5001' }).content, 'more than fits');
   assert.ok(errs({ content: '-1' }).content);
   assert.ok(errs({ content: 'lots' }).content);
+});
+
+test('a blend: parts decide the grape and vintage; one part alone or a bad part is an error', () => {
+  const row = (variety, vintage, liters = '') => ({ variety, vintage, liters });
+  const ok = validateTankForm({ ...base, blend: [row('Saperavi', '2025', '3000'), row('Ojaleshi', '2025', '2000'), row('', '', '')] });
+  assert.ok(ok.ok);
+  assert.equal(ok.input.variety, 'Saperavi + Ojaleshi', 'the field is filled from the parts');
+  assert.equal(ok.input.vintage, 2025);
+  assert.deepEqual(ok.input.blend.map((p) => p.liters), [3000, 2000]);
+  const years = validateTankForm({ ...base, blend: [row('Saperavi', '2024'), row('Saperavi', '2025')] });
+  assert.equal(years.input.vintage, null, 'different years');
+  assert.equal(validateTankForm({ ...base }).input.blend, null, 'no rows: one wine');
+  assert.ok(errs({ blend: [row('Saperavi', '2025')] }).blend, 'one part alone');
+  assert.ok(errs({ blend: [row('A', '2025'), row('', '', '500')] }).blend, 'a part without grape or vintage');
+  assert.ok(errs({ blend: [row('A', '1800'), row('B', '2025')] }).blend, 'bad vintage');
+  assert.ok(errs({ blend: [row('A', '2025', 'lots'), row('B', '2025')] }).blend, 'bad liters');
 });
 
 test('invalid tank form', () => {

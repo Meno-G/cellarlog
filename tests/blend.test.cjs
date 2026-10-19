@@ -2,7 +2,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const i18n = require('../.test-build/i18n/index.js');
-const { partsOf, mergeParts, resize, summary, formatBlend, describeWine, withBlend } = require('../.test-build/blend.js');
+const { partsOf, mergeParts, resize, summary, formatBlend, describeWine } = require('../.test-build/blend.js');
 const { receive, sendOut, planTransfer, NEW_TANK } = require('../.test-build/transfer.js');
 
 beforeEach(() => i18n.setLang('en'));
@@ -96,11 +96,4 @@ test('the source keeps its blend, in a smaller amount, or loses it when empty', 
   assert.deepEqual(left.blend.map((p) => p.liters), [1500, 500]);
   const empty = sendOut(source, 4000, true);
   assert.deepEqual([empty.variety, empty.vintage, empty.blend, empty.contentLiters], [null, null, null, 0]);
-});
-
-test('editing a vessel keeps its blend unless the grape or year was typed anew', () => {
-  const blend = [{ variety: 'A', vintage: 1, liters: 1 }, { variety: 'B', vintage: 1, liters: 1 }];
-  const existing = { variety: 'A + B', vintage: 1, blend };
-  assert.equal(withBlend(existing, { variety: 'A + B', vintage: 1, blend: null }).blend, blend);
-  assert.equal(withBlend(existing, { variety: 'Kisi', vintage: 1, blend: null }).blend, null);
 });

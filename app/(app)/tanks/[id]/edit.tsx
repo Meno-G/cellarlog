@@ -18,7 +18,6 @@ import { AppError, errorMessage } from '@/lib/errors';
 import { strings } from '@/lib/i18n';
 import { tankToForm } from '@/lib/tankForm';
 import { findDuplicateName } from '@/lib/tankOverlay';
-import { withBlend } from '@/lib/blend';
 import type { TankInput } from '@/lib/tanks';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -42,8 +41,7 @@ export default function EditTankScreen() {
       });
     }
     // Online it's saved now; offline (or for a tank not uploaded yet) it waits on this phone.
-    // The blend stays unless the grape or vintage was typed anew.
-    await outbox.updateTank(id, tank.data ? withBlend(tank.data, input) : input);
+    await outbox.updateTank(id, input);
     router.back();
   }
 

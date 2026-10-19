@@ -1,19 +1,22 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, type TextInput } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View, type TextInput } from 'react-native';
 
 import { useT } from '@/hooks/useLanguage';
 import { AppError, errorMessage } from '@/lib/errors';
 import {
   TANK_FORM_FIELDS,
+  type BlendRowValues,
   validateTankForm,
   type TankFormErrors,
   type TankFormValues,
 } from '@/lib/tankForm';
 import { VESSEL_KINDS, type TankInput } from '@/lib/tanks';
+import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { Banner } from './Banner';
 import { ChoiceChips } from './ChoiceChips';
 import { OfflineBanner } from './OfflineBanner';
+import { AppText } from './AppText';
 import { Button } from './Button';
 import { Screen } from './Screen';
 import { TextField } from './TextField';
@@ -35,6 +38,7 @@ function isFormField(field: string | undefined): field is keyof TankFormValues {
 
 export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage, footerExtra }: Props) {
   const t = useT();
+  const { colors } = useTheme();
   const [values, setValues] = useState<TankFormValues>(initialValues);
   const [errors, setErrors] = useState<TankFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -49,6 +53,22 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
     setValues((current) => ({ ...current, [field]: text }));
     // Clear the error for a field as soon as the user edits it.
     if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }));
+  }
+
+  function setRow(index: number, field: keyof BlendRowValues, text: string) {
+    setValues((current) => ({
+      ...current,
+      blend: current.blend.map((row, at) => (at === index ? { ...row, [field]: text } : row)),
+    }));
+    if (errors.blend) setErrors((current) => ({ ...current, blend: undefined }));
+  }
+
+  function addRow() {
+    setValues((current) => ({ ...current, blend: [...current.blend, { variety: '', vintage: '', liters: '' }] }));
+  }
+
+  function removeRow(index: number) {
+    setValues((current) => ({ ...current, blend: current.blend.filter((_, at) => at !== index) }));
   }
 
   async function handleSubmit() {
@@ -152,6 +172,48 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
           onSubmitEditing={handleSubmit}
           editable={!submitting}
         />
+        <AppText variant="heading" style={{ color: colors.heading }}>
+          {t.tankForm.blendTitle}
+        </AppText>
+        <AppText muted variant="caption">
+          {t.tankForm.blendHint}
+        </AppText>
+        {values.blend.map((row, index) => (
+          <View key={index} style={[styles.part, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <AppText style={{ fontFamily: fonts.bodySemi }}>{t.tankForm.blendPart(index + 1)}</AppText>
+            <TextField
+              label={t.tankForm.blendVariety}
+              value={row.variety}
+              onChangeText={(text) => setRow(index, 'variety', text)}
+              autoCapitalize="words"
+              editable={!submitting}
+            />
+            <View style={styles.pair}>
+              <View style={styles.half}>
+                <TextField
+                  label={t.tankForm.blendVintage}
+                  value={row.vintage}
+                  onChangeText={(text) => setRow(index, 'vintage', text)}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  editable={!submitting}
+                />
+              </View>
+              <View style={styles.half}>
+                <TextField
+                  label={t.tankForm.blendLiters}
+                  value={row.liters}
+                  onChangeText={(text) => setRow(index, 'liters', text)}
+                  keyboardType="decimal-pad"
+                  editable={!submitting}
+                />
+              </View>
+            </View>
+            <Button variant="secondary" title={t.tankForm.blendRemove} icon="close" onPress={() => removeRow(index)} disabled={submitting} />
+          </View>
+        ))}
+        {errors.blend ? <Banner message={errors.blend} /> : null}
+        <Button variant="secondary" title={t.tankForm.blendAdd} onPress={addRow} disabled={submitting} />
         {footerExtra}
       </Screen>
     </KeyboardAvoidingView>
@@ -160,4 +222,7 @@ export function TankForm({ initialValues, submitLabel, onSubmit, offlineMessage,
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  part: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
+  pair: { flexDirection: 'row', gap: spacing.sm },
+  half: { flex: 1 },
 });

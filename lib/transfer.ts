@@ -111,6 +111,7 @@ export function planTransfer(
       content: '',
       variety: '',
       vintage: '',
+      blend: [],
     });
     if (!form.ok) {
       if (form.errors.name) errors.newName = form.errors.name;

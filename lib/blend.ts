@@ -94,15 +94,3 @@ export function describeWine(vessel: Pick<Wine, 'variety' | 'vintage' | 'blend'>
   if (vessel.blend && vessel.blend.length > 1) return formatBlend(vessel.blend);
   return formatWine(vessel.variety, vessel.vintage);
 }
-
-/**
- * An edited vessel keeps its blend while its grape and vintage are left as they
- * were. Typing a new grape or vintage replaces the blend with that one wine.
- */
-export function withBlend<T extends { variety: string | null; vintage: number | null; blend: BlendPart[] | null }>(
-  existing: { variety: string | null; vintage: number | null; blend?: BlendPart[] | null },
-  input: T,
-): T {
-  const unchanged = input.variety === existing.variety && input.vintage === existing.vintage;
-  return { ...input, blend: unchanged ? (existing.blend ?? null) : null };
-}

@@ -1,8 +1,12 @@
 // Pure form logic for the tank form (no network), so it can be unit-tested.
+import { summary, type BlendPart } from './blend';
 import { strings } from './i18n';
 import { parseNumber } from './numbers';
 import type { Tank, TankInput } from './tanks';
 import type { VesselKind } from './vesselKinds';
+
+/** One part of a blend as typed. */
+export type BlendRowValues = { variety: string; vintage: string; liters: string };
 
 /** Raw text from the form inputs. */
 export type TankFormValues = {
@@ -13,6 +17,8 @@ export type TankFormValues = {
   content: string;
   variety: string;
   vintage: string;
+  /** The parts when the wine is a blend (at least two), else empty. */
+  blend: BlendRowValues[];
 };
 
 export type TankFormErrors = Partial<Record<Exclude<keyof TankFormValues, 'kind'>, string>>;
@@ -23,6 +29,7 @@ export const TANK_FORM_FIELDS: readonly (keyof TankFormErrors)[] = [
   'content',
   'variety',
   'vintage',
+  'blend',
 ];
 
 // Limits mirror the CHECK constraints in supabase/migrations.
@@ -32,7 +39,7 @@ const MAX_VOLUME = 999_999_999.9; // numeric(10, 1)
 const MIN_VINTAGE = 1900;
 const MAX_VINTAGE = 2100;
 
-export const emptyTankForm: TankFormValues = { name: '', kind: 'tank', volume: '', content: '', variety: '', vintage: '' };
+export const emptyTankForm: TankFormValues = { name: '', kind: 'tank', volume: '', content: '', variety: '', vintage: '', blend: [] };
 
 export function tankToForm(tank: Tank): TankFormValues {
   return {
@@ -42,6 +49,11 @@ export function tankToForm(tank: Tank): TankFormValues {
     content: tank.contentLiters === null ? '' : String(tank.contentLiters),
     variety: tank.variety ?? '',
     vintage: tank.vintage === null ? '' : String(tank.vintage),
+    blend: (tank.blend ?? []).map((part) => ({
+      variety: part.variety ?? '',
+      vintage: part.vintage === null ? '' : String(part.vintage),
+      liters: part.liters === null ? '' : String(part.liters),
+    })),
   };
 }
 
@@ -88,10 +100,31 @@ export function validateTankForm(
     }
   }
 
+  // A blend: its parts decide the grape and vintage (the fields above are then filled from them).
+  const rows = values.blend.filter((row) => row.variety.trim() !== '' || row.vintage.trim() !== '' || row.liters.trim() !== '');
+  const parts: BlendPart[] = [];
+  if (rows.length === 1) errors.blend = m.blendNeedsTwo;
+  else {
+    rows.forEach((row, index) => {
+      const partVariety = row.variety.trim();
+      const vintageOk = row.vintage.trim() === '' || (/^\d{4}$/.test(row.vintage.trim()) && Number(row.vintage) >= MIN_VINTAGE && Number(row.vintage) <= MAX_VINTAGE);
+      const partVintage = row.vintage.trim() === '' ? null : Number(row.vintage);
+      const parsedLiters = row.liters.trim() === '' ? null : parseNumber(row.liters);
+      const litersOk = parsedLiters === null || (!Number.isNaN(parsedLiters) && parsedLiters >= 0 && parsedLiters <= MAX_VOLUME);
+      if (!vintageOk || !litersOk || (partVariety === '' && partVintage === null)) {
+        errors.blend ??= m.blendPartInvalid(index + 1);
+        return;
+      }
+      parts.push({ variety: partVariety === '' ? null : partVariety, vintage: partVintage, liters: parsedLiters === null ? null : Math.round(parsedLiters * 10) / 10 });
+    });
+  }
+
   if (Object.keys(errors).length > 0 || volume === null) return { ok: false, errors };
 
+  const wine =
+    parts.length >= 2 ? summary(parts) : { variety: variety === '' ? null : variety, vintage, blend: null };
   return {
     ok: true,
-    input: { name, kind: values.kind, volumeLiters: volume, contentLiters: content, blend: null, variety: variety === '' ? null : variety, vintage },
+    input: { name, kind: values.kind, volumeLiters: volume, contentLiters: content, ...wine },
   };
 }
