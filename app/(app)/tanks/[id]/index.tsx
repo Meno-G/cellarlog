@@ -9,6 +9,7 @@ import { CachedNote } from '@/components/CachedNote';
 import { EntryCard } from '@/components/EntryCard';
 import { AlertPanel } from '@/components/AlertPanel';
 import { FermentPanel } from '@/components/FermentPanel';
+import { ReminderPanel } from '@/components/ReminderPanel';
 import { HeaderButton } from '@/components/HeaderButton';
 import { LatestValues } from '@/components/LatestValues';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -282,6 +283,7 @@ export default function TankDetailScreen() {
         onList={() => router.push({ pathname: '/tanks/[id]/ferments', params: { id } })}
         onChart={() => router.push({ pathname: '/tanks/[id]/curve', params: { id } })}
       />
+      {activeFerment(ferments.data ?? []) ? <ReminderPanel tankId={id} /> : null}
       <Button
         variant="secondary"
         title={t.transfer.button}

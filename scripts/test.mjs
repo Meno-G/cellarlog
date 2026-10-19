@@ -39,6 +39,7 @@ const PURE_MODULES = [
   'lib/so2.ts',
   'lib/alcohol.ts',
   'lib/lineage.ts',
+  'lib/reminders.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

@@ -2,9 +2,16 @@ import { Stack } from 'expo-router';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { OutboxProvider } from '@/hooks/useOutbox';
+import { useReminderSync } from '@/hooks/useReminders';
 import { useSession } from '@/hooks/useSession';
 import { BrandMark } from '@/components/BrandMark';
 import { fonts, georgianFamily, useTheme } from '@/theme';
+
+/** Plans the measurement reminders (renders nothing). */
+function ReminderSync() {
+  useReminderSync();
+  return null;
+}
 
 export default function AppLayout() {
   const { colors } = useTheme();
@@ -18,6 +25,7 @@ export default function AppLayout() {
   return (
     // Keyed by user: a different account on the same phone gets its own outbox.
     <OutboxProvider key={session.user.id} userId={session.user.id}>
+      <ReminderSync />
       <Stack
         screenOptions={{
           // The cellar-burgundy band at the top of every screen.

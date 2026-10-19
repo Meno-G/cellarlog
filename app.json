@@ -36,6 +36,13 @@
       "expo-status-bar",
       "expo-sqlite",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#6B1F33"
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "CellarLog uses the microphone so you can speak your cellar notes.",

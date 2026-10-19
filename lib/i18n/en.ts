@@ -111,6 +111,17 @@ export const en = {
     deleteFailed: (failed: number, total: number, error: string) => `${failed} of ${total} could not be deleted: ${error}`,
   },
 
+  reminders: {
+    channel: 'Measurement reminders',
+    title: 'Measurement reminder',
+    hint:
+      'While this ferment is running, this phone reminds you to measure again, counted from the last reading you recorded. Reminders are not sent at night. They stay on this phone.',
+    off: 'Off',
+    every: (hours: number) => `Every ${hours} h`,
+    body: 'Time for a reading: density and temperature.',
+    blocked: 'Notifications are blocked for CellarLog. Allow them in the phone settings, then try again.',
+  },
+
   lineage: {
     title: 'Where the wine came from',
     button: 'Where this wine came from',

@@ -246,6 +246,12 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Tank screen → "Where this wine came from"** (`tanks/[id]/lineage.tsx`, `lib/lineage.ts`, pure, tested): follows the transfer entries the vessels keep about each other (`Source` / `Destination` items) back through the vessels (up to 4 steps, each step only before the one after it, so it can't loop) and lists where wine went. Vessels are matched **by name** using every vessel's saved timeline, so a deleted or renamed vessel ends the chain.
 - **Potential alcohol** (`lib/alcohol.ts`, pure, tested): on the history screen of Brix or Density, the first reading gives an estimated range of % vol (0.55–0.60 per °Brix; density is converted with a cubic fit). It is an estimate and says so.
 
+## Measurement reminders (local notifications)
+
+- **Tank screen → "Measurement reminder"** (`components/ReminderPanel.tsx`, shown only while the vessel has a running ferment and only where notifications exist): Off / every 6 / 12 / 24 / 48 h. The setting is kept **on the phone** per user (`lib/reminders.ts`, localStorage), not in the database. Turning one on asks for the notification permission once; if refused, a banner says to allow it in the phone settings.
+- **Planning** (`planReminders`, `reminderTimes`, `lastMeasuredAt`, `daytime`: pure, tested): the next 6 reminders, every N hours counted from the **last reading** recorded since the ferment started (a note is not a reading), only ahead of now, and never at night (before 7:00 or from 21:00 they move to 7:00). `hooks/useReminders.ts` `useReminderSync` (mounted in `app/(app)/_layout.tsx`) plans again from the saved copy plus queued entries whenever the app starts, comes to the foreground, an entry is saved or a setting changes, so it works offline and a new reading pushes the next reminder back.
+- **Scheduling** (`lib/notifications.ts`): `expo-notifications` local notifications (DATE triggers, Android channel `reminders`), with the monochrome icon set in the plugin in `app.json`. It is loaded with a guarded `require`, so a build without the native module (older builds) and the browser simply show no reminder panel and nothing breaks. **Needs a new native build**; there is no remote push and no server.
+
 ## Alert rules
 
 - **Two rules per vessel, set by the winemaker** (`alert_rules` table, migration `20261017120000_alert_rules.sql`, one row per kind per vessel):
@@ -255,7 +261,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Density comparison:** the newest reading is compared with the newest reading that is at least `hours` old. No such reading ("too-early") or nothing newer ("no-new-reading") is reported as "cannot check yet", never as an alert.
 - **Wording:** an alert says only what was **observed** and which **rule** tripped. Never a diagnosis or advice. A "Record my decision" button opens a new entry (type "My decision").
 - **UI:** `AlertPanel` on the tank screen, a badge on the tank card (`useTankSummaries`), and the rules screen `tanks/[id]/alerts.tsx`. Saving rules needs a connection; reading them works offline (`rulesCache`).
-- **No push notifications yet:** that needs a native module (expo-notifications) and a rebuild.
+- **Alerts are not pushed** (a rule is only checked when the app is open). The phone does send **measurement reminders** (next section).
 - **Numbers:** `parseNumber` reads "0,003" as a decimal (a comma after a leading 0 is never a thousands separator).
 
 ## Exports (CSV and PDF report)
