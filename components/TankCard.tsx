@@ -10,14 +10,18 @@ import type { ShownTank } from '@/lib/tankOverlay';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { Icon } from './Icon';
 
 type Props = {
   tank: ShownTank;
   summary?: TankSummary;
   onPress: () => void;
+  /** Selection mode: a checkbox is shown and a tap selects instead of opening. */
+  selecting?: boolean;
+  selected?: boolean;
 };
 
-export function TankCard({ tank, summary, onPress }: Props) {
+export function TankCard({ tank, summary, onPress, selecting = false, selected = false }: Props) {
   const last = summary?.last;
   // A few latest readings, so the cellar can be checked without opening each tank.
   const readings = cardReadings(summary?.latest ?? []);
@@ -36,7 +40,8 @@ export function TankCard({ tank, summary, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      accessibilityRole={selecting ? 'checkbox' : 'button'}
+      accessibilityState={selecting ? { checked: selected } : undefined}
       accessibilityLabel={[
         tank.name,
         wine,
@@ -51,13 +56,24 @@ export function TankCard({ tank, summary, onPress }: Props) {
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: failed ? colors.danger : tank.upload ? colors.warningBorder : colors.border,
-          borderStyle: tank.upload ? 'dashed' : 'solid',
-          borderWidth: tank.upload ? 1.5 : 1,
+          borderColor: selected
+            ? colors.primary
+            : failed
+              ? colors.danger
+              : tank.upload
+                ? colors.warningBorder
+                : colors.border,
+          borderStyle: tank.upload && !selected ? 'dashed' : 'solid',
+          borderWidth: selected ? 2.5 : tank.upload ? 1.5 : 1,
           opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
+      {selecting ? (
+        <View style={styles.check}>
+          <Icon name={selected ? 'checkbox-marked' : 'checkbox-blank-outline'} size={30} color={colors.primary} />
+        </View>
+      ) : null}
       {/* Wine-coloured edge; gold while the tank waits to upload. */}
       <View style={[styles.edge, { backgroundColor: tank.upload ? colors.accent : colors.primary }]} />
       <View style={styles.text}>
@@ -123,6 +139,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
   },
+  check: { justifyContent: 'center' },
   edge: { width: 8, borderRadius: 4, alignSelf: 'stretch' },
   text: { flex: 1, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },

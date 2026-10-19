@@ -92,6 +92,23 @@ export const en = {
     noTanksTitle: 'No tanks yet',
     noTanksText: 'Add your first tank to start logging additions, temperatures and tastings.',
     newTank: 'New tank',
+    select: 'Select',
+    cancelSelect: 'Cancel',
+    selectAll: 'Select all',
+    selectedCount: (n: number) => `${n} selected`,
+    selectHint: 'Tap the tanks you want to delete.',
+    deleteAll: 'Delete all',
+    deleteSelected: (n: number) => `Delete selected (${n})`,
+    deleteTitle: (n: number) => (n === 1 ? 'Delete 1 tank?' : `Delete ${n} tanks?`),
+    deleteText: (names: string) =>
+      `${names} and everything recorded in them (entries, ferments, alert rules) will be deleted. This can't be undone.`,
+    andMore: (n: number) => `and ${n} more`,
+    sureTitle: 'Delete for good?',
+    sureText: (n: number) => `${plural(n, 'tank', 'tanks')} and all their records will be gone and cannot be recovered.`,
+    deleteContinue: 'Continue…',
+    deleteForever: 'Delete forever',
+    deleteFailedTitle: 'Some tanks were not deleted',
+    deleteFailed: (failed: number, total: number, error: string) => `${failed} of ${total} could not be deleted: ${error}`,
   },
 
   tankCard: {

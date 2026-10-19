@@ -197,6 +197,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
     - A value whose name or unit doesn't fit a field (ppm, °F, a second pH) becomes an added field, so nothing is lost.
     - A spoken entry keeps its transcript as `raw_text`.
 - **Tank list**: each card shows up to three latest readings (`cardReadings`: temperature, Brix, density, free SO2…) from the saved timelines plus queued changes (`useTankSummaries`), so it works offline.
+  - **Delete several or all** (tanks screen): above the list, **Select** turns on selection mode (a checkbox on each card, "Select all", "Delete selected (N)" in the footer) and **Delete all** deletes every tank. Both ask twice (the names, then "Delete for good?") because the entries, ferments and alert rules go with the tanks. Each tank is deleted through `outbox.deleteTank` at the same time (offline they disappear at once and the deletions upload later); a failure is reported with how many failed.
   - A search box ("Find a tank") appears from 6 tanks (`searchTanks`: name incl. "t12", grape, vintage; every word must match).
 - **Value history** (`app/(app)/tanks/[id]/history.tsx`, opened by tapping a latest value): every reading of that value with latest / change / lowest / highest and a bar chart (`HistoryChart`, plain Views, no chart library).
   - `valueHistory` uses the same "what counts as a reading" rule as latest values. It compares only the most common unit; others (°F among °C, text) are counted and mentioned.
