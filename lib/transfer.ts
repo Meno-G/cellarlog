@@ -7,6 +7,7 @@ import { mergeParts, partsOf, resize, summary, type BlendPart } from './blend';
 import type { ValidEntry } from './entryDraft';
 import type { EntryType } from './entryTypes';
 import type { FermentLike } from './fermentCurves';
+import type { FermentInput } from './fermentForm';
 import { formatLiters } from './format';
 import type { ParsedEntry, ParsedItem } from './parser/schema';
 import { strings } from './i18n';
@@ -287,6 +288,43 @@ export function litersLeft(
     .filter((entry) => entry.type === 'transfer' && hasItem(entry, 'Destination') && (since === null || entry.createdAt >= since))
     .reduce((sum, entry) => sum + litersOf(entry), 0);
   return round1(source.volumeLiters - out - moving);
+}
+
+/**
+ * The ferment the carried entries belong to: the source's latest ferment, unless
+ * wine came into the vessel after it began (then its history is not that ferment's).
+ */
+export function fermentToCarry<T extends FermentLike>(
+  ferments: readonly T[],
+  entries: readonly EntryLike[],
+  now: Date = new Date(),
+): T | null {
+  const latest = [...ferments]
+    .filter((ferment) => new Date(ferment.startedAt) <= now)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  if (!latest) return null;
+  const incoming = filledSince(entries, [], now);
+  return incoming !== null && incoming > new Date(latest.startedAt).toISOString() ? null : latest;
+}
+
+/** The ferment as it is copied into the receiving vessel: same name and start; running unless it ends with this transfer. */
+export function carriedFerment(ferment: FermentLike, endNow: boolean, now: Date = new Date()): FermentInput {
+  return {
+    name: ferment.name,
+    startedAt: ferment.startedAt,
+    endedAt: ferment.endedAt ?? (endNow ? now.toISOString() : null),
+  };
+}
+
+/** Two ferments in one vessel can't overlap (the entries between the dates belong to exactly one). */
+export function fermentFits(existing: readonly FermentLike[], candidate: FermentInput): boolean {
+  const from = new Date(candidate.startedAt).getTime();
+  const to = candidate.endedAt === null ? Infinity : new Date(candidate.endedAt).getTime();
+  return !existing.some((other) => {
+    const otherFrom = new Date(other.startedAt).getTime();
+    const otherTo = other.endedAt === null ? Infinity : new Date(other.endedAt).getTime();
+    return from < otherTo && otherFrom < to;
+  });
 }
 
 /** The vessel is empty (to within a liter or so). */

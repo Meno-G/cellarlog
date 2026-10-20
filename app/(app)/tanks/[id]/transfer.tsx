@@ -15,19 +15,24 @@ import { useEntries } from '@/hooks/useEntries';
 import { useFerments } from '@/hooks/useFerments';
 import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
+import { useUser } from '@/hooks/useSession';
 import { useTank, useTanks } from '@/hooks/useTanks';
 import { applyEntryChanges, type ShownEntry } from '@/lib/entryOverlay';
-import { errorMessage } from '@/lib/errors';
+import { fermentsCache } from '@/lib/cache';
+import { AppError, errorMessage } from '@/lib/errors';
 import { activeFerment } from '@/lib/fermentCurves';
-import { updateFerment, type Ferment } from '@/lib/ferments';
+import { createFerment, updateFerment, type Ferment } from '@/lib/ferments';
 import { describeWine, partsOf } from '@/lib/blend';
 import { formatFill } from '@/lib/format';
 import { parseNumber } from '@/lib/numbers';
 import type { ShownTank } from '@/lib/tankOverlay';
 import {
   NEW_TANK,
+  carriedFerment,
   contentBefore,
   entriesToCarry,
+  fermentFits,
+  fermentToCarry,
   isEmptyLeft,
   litersLeft,
   planTransfer,
@@ -112,6 +117,7 @@ function TransferEditor({
   const { colors } = useTheme();
   const dialog = useDialog();
   const outbox = useOutbox();
+  const { id: userId } = useUser();
   const others = all.filter((candidate) => candidate.id !== source.id);
   // With no other vessel yet, the only choice is a new one.
   const [destinationId, setDestinationId] = useState<string | null>(others.length === 0 ? NEW_TANK : null);
@@ -145,8 +151,9 @@ function TransferEditor({
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<Step | null>(null);
   // Kept across retries, so a second tap never creates the vessel or records an entry twice.
-  const done = useRef<{ tankId: string | null; source: boolean; destination: boolean; carried: Set<number> }>({
+  const done = useRef<{ tankId: string | null; tankQueued: boolean; source: boolean; destination: boolean; carried: Set<number> }>({
     tankId: null,
+    tankQueued: false,
     source: false,
     destination: false,
     carried: new Set(),
@@ -163,6 +170,8 @@ function TransferEditor({
       ? describeWine(receive(source, existingDestination, moving, true) ?? existingDestination)
       : describeWine(source);
   const carry = (carryAnswer ?? !receiverHoldsWine) && carried.length > 0;
+  // The ferment goes with the history, so the receiving vessel's chart continues.
+  const fermentCopy = carry ? fermentToCarry(fermentList, timeline) : null;
 
   const yesNo = [
     { value: 'yes', label: t.transfer.yes },
@@ -193,12 +202,16 @@ function TransferEditor({
 
   async function save(plan: TransferPlan) {
     setSaving(true);
+    let destinationTankId = destinationId ?? '';
     try {
       // A new vessel is created first (it works offline: it queues), then both entries.
-      let destinationTankId = destinationId ?? '';
       if (plan.newTank) {
         setStep('vessel');
-        if (done.current.tankId === null) done.current.tankId = (await outbox.createTank(plan.newTank)).id;
+        if (done.current.tankId === null) {
+          const created = await outbox.createTank(plan.newTank);
+          done.current.tankId = created.id;
+          done.current.tankQueued = created.result === 'queued';
+        }
         destinationTankId = done.current.tankId;
       }
       setStep('entries');
@@ -239,6 +252,19 @@ function TransferEditor({
     const tasks: Promise<unknown>[] = [];
     if (endFerment && running && !deleting) {
       tasks.push(updateFerment(running.id, { name: running.name, startedAt: running.startedAt, endedAt: new Date().toISOString() }));
+    }
+    if (fermentCopy) {
+      const copy = carriedFerment(fermentCopy, endFerment);
+      tasks.push(
+        (async () => {
+          // A vessel still waiting to be created has no server id yet, so the ferment can't be added to it.
+          const there = fermentsCache(userId, destinationTankId).read()?.data ?? [];
+          if (done.current.tankQueued || !fermentFits(there, copy)) {
+            throw new AppError('validation', t.transfer.fermentNotCopied);
+          }
+          await createFerment(destinationTankId, copy);
+        })(),
+      );
     }
     const existing = all.find((candidate) => candidate.id === destinationId);
     if (existing) {
@@ -368,6 +394,11 @@ function TransferEditor({
                 ? t.transfer.carryHintMixed(existingDestination?.name ?? '')
                 : t.transfer.carryHint(carried.length, existingDestination?.name ?? (newName.trim() || t.transfer.newTank))}
             </AppText>
+            {fermentCopy ? (
+              <AppText muted variant="caption">
+                {t.transfer.carryFermentHint(fermentCopy.name)}
+              </AppText>
+            ) : null}
           </>
         ) : null}
         <TextField

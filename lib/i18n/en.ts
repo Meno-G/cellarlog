@@ -409,6 +409,9 @@ export const en = {
     carry: 'Copy the lab data and notes to the receiving vessel?',
     carryHint: (count: number, name: string) =>
       `${count} entries about this wine (analyses, additions, tastings, notes) are copied to ${name} with their original dates, so its latest values show there too.`,
+    carryFermentHint: (name: string) => `The ferment "${name}" is copied too, so its chart continues in the receiving vessel.`,
+    fermentNotCopied:
+      'The ferment could not be copied: it needs a connection, and the receiving vessel must have no ferment overlapping it.',
     carryHintMixed: (name: string) => `${name} already holds other wine, so nothing is copied unless you answer Yes.`,
     emptyAction: 'What happens to the empty vessel?',
     deleteVessel: 'Delete the vessel',

@@ -213,7 +213,7 @@ test('emptiness: unknown liters, hectoliters, and no volume recorded on earlier 
   assert.ok(isEmptyLeft(0.8));
 });
 
-const { entriesToCarry } = require('../.test-build/transfer.js');
+const { entriesToCarry, fermentToCarry, carriedFerment, fermentFits } = require('../.test-build/transfer.js');
 
 const note = (at, type = 'lab_analysis') => ({ type, rawText: '', createdAt: d(at), parsed: { tank_name: 'Tank 12', type, items: [{ name: 'pH', value: 3.4, unit: null }], note: null } });
 
@@ -231,4 +231,30 @@ test('the wine history that follows it: everything since the vessel was filled, 
   const received = entriesToCarry([...list, { ...into('2026-10-04T00:00:00Z', 5000), rawText: '' }], [], now);
   assert.deepEqual(received.map((e) => e.type), ['addition'], 'only since the wine last came in');
   assert.deepEqual(entriesToCarry([], [], now), []);
+});
+
+test('the ferment that follows the wine: the latest, unless wine came in after it began', () => {
+  const f1 = ferment('2026-09-01T00:00:00Z');
+  const f2 = { ...ferment('2026-10-01T00:00:00Z'), id: 'f2', name: 'Harvest 2026' };
+  assert.equal(fermentToCarry([f1, f2], [], now).name, 'Harvest 2026');
+  assert.equal(fermentToCarry([], [], now), null);
+  assert.equal(fermentToCarry([f2], [{ ...into('2026-10-05T00:00:00Z', 5000), rawText: '' }], now), null, 'wine came in after the ferment began');
+  assert.equal(fermentToCarry([f2], [{ ...into('2026-09-20T00:00:00Z', 5000), rawText: '' }], now).name, 'Harvest 2026');
+  assert.equal(fermentToCarry([{ ...f2, startedAt: '2027-01-01T00:00:00.000Z' }], [], now), null, 'not started yet');
+});
+
+test('the copy: same name and start; running unless this transfer ends it', () => {
+  const running = { id: 'f', name: 'Harvest', startedAt: '2026-10-01T00:00:00.000Z', endedAt: null };
+  assert.deepEqual(carriedFerment(running, false, now), { name: 'Harvest', startedAt: '2026-10-01T00:00:00.000Z', endedAt: null });
+  assert.equal(carriedFerment(running, true, now).endedAt, now.toISOString());
+  const ended = { ...running, endedAt: '2026-10-10T00:00:00.000Z' };
+  assert.equal(carriedFerment(ended, false, now).endedAt, '2026-10-10T00:00:00.000Z', 'its own end is kept');
+});
+
+test('the copy must not overlap a ferment already in the receiving vessel', () => {
+  const candidate = { name: 'Harvest', startedAt: '2026-10-01T00:00:00.000Z', endedAt: null };
+  assert.ok(fermentFits([], candidate));
+  assert.ok(fermentFits([{ id: 'a', name: 'Old', startedAt: '2025-10-01T00:00:00.000Z', endedAt: '2025-11-01T00:00:00.000Z' }], candidate), 'an earlier one is fine');
+  assert.ok(!fermentFits([{ id: 'b', name: 'Running', startedAt: '2026-09-01T00:00:00.000Z', endedAt: null }], candidate), 'a running one blocks it');
+  assert.ok(!fermentFits([{ id: 'c', name: 'Cur', startedAt: '2026-10-05T00:00:00.000Z', endedAt: '2026-10-20T00:00:00.000Z' }], candidate));
 });
