@@ -12,9 +12,10 @@ import { TextField } from '@/components/TextField';
 import { useDialog } from '@/hooks/useDialog';
 import { useFerments } from '@/hooks/useFerments';
 import { useT } from '@/hooks/useLanguage';
+import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { errorMessage } from '@/lib/errors';
-import { createFerment, deleteFerment, updateFerment, type Ferment } from '@/lib/ferments';
+import type { Ferment } from '@/lib/ferments';
 import {
   dayString,
   fermentToForm,
@@ -88,6 +89,7 @@ function FermentEditor({
   const t = useT();
   const { colors } = useTheme();
   const dialog = useDialog();
+  const outbox = useOutbox();
   const [values, setValues] = useState(initial);
   const [errors, setErrors] = useState<FermentFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -120,7 +122,8 @@ function FermentEditor({
       return;
     }
     setErrors({});
-    await run(() => (existing ? updateFerment(existing.id, result.input) : createFerment(tankId, result.input)));
+    // Online it is saved now; offline it waits on this phone and uploads later.
+    await run(() => outbox.saveFerment(tankId, existing?.id ?? null, result.input));
   }
 
   function confirmEndNow() {
@@ -136,7 +139,7 @@ function FermentEditor({
             setErrors(result.errors);
             return;
           }
-          void run(() => updateFerment(existing.id, result.input));
+          void run(() => outbox.saveFerment(tankId, existing.id, result.input));
         },
       },
     ]);
@@ -146,7 +149,7 @@ function FermentEditor({
     if (!existing) return;
     dialog(t.ferment.deleteTitle(existing.name), t.ferment.deleteText, [
       { text: t.common.cancel, style: 'cancel' },
-      { text: t.ferment.deleteButton, style: 'destructive', onPress: () => void run(() => deleteFerment(existing.id)) },
+      { text: t.ferment.deleteButton, style: 'destructive', onPress: () => void run(() => outbox.deleteFerment(tankId, existing.id)) },
     ]);
   }
 
@@ -163,7 +166,7 @@ function FermentEditor({
           />
         }
       >
-        <OfflineBanner message={t.ferment.needsInternet} />
+        <OfflineBanner message={t.ferment.offlineNote} />
         {submitError ? <Banner message={submitError} /> : null}
         {errors.form ? <Banner message={errors.form} /> : null}
 

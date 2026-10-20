@@ -29,7 +29,7 @@ import { evaluateRules } from '@/lib/alertRules';
 import { csvFilename, entriesForScope, entriesToCsv } from '@/lib/exportCsv';
 import { buildReportHtml, reportTitle } from '@/lib/reportHtml';
 import { activeFerment } from '@/lib/fermentCurves';
-import { updateFerment, type Ferment } from '@/lib/ferments';
+import type { Ferment } from '@/lib/ferments';
 import { shareCsv, sharePdf } from '@/lib/shareFile';
 import { describeWine } from '@/lib/blend';
 import { formatEntryTime, formatFill } from '@/lib/format';
@@ -159,7 +159,9 @@ export default function TankDetailScreen() {
         onPress: () => {
           setActionError(null);
           // Ends now; the entries recorded so far still belong to it.
-          updateFerment(ferment.id, { name: ferment.name, startedAt: ferment.startedAt, endedAt: new Date().toISOString() })
+          // Online it ends now; offline the change waits on this phone.
+          outbox
+            .saveFerment(id, ferment.id, { name: ferment.name, startedAt: ferment.startedAt, endedAt: new Date().toISOString() })
             .catch((err: unknown) => setActionError(errorMessage(err)))
             .finally(ferments.refresh);
         },

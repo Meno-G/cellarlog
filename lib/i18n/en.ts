@@ -410,8 +410,7 @@ export const en = {
     carryHint: (count: number, name: string) =>
       `${count} entries about this wine (analyses, additions, tastings, notes) are copied to ${name} with their original dates, so its latest values show there too.`,
     carryFermentHint: (name: string) => `The ferment "${name}" is copied too, so its chart continues in the receiving vessel.`,
-    fermentNotCopied:
-      'The ferment could not be copied: it needs a connection, and the receiving vessel must have no ferment overlapping it.',
+    fermentNotCopied: 'The ferment was not copied: the receiving vessel already has a ferment that overlaps it.',
     carryHintMixed: (name: string) => `${name} already holds other wine, so nothing is copied unless you answer Yes.`,
     emptyAction: 'What happens to the empty vessel?',
     deleteVessel: 'Delete the vessel',
@@ -435,7 +434,7 @@ export const en = {
     newName: 'Name of the new vessel',
     newVolume: 'Capacity of the new vessel (liters)',
     offlineNote:
-      "You're offline. The new vessel and the transfer entries are saved on this phone. Ending a ferment needs a connection.",
+      "You're offline. The new vessel, the transfer entries and the ferment changes are saved on this phone and upload when you're back online.",
     partialFailed: (error: string) => `The transfer is recorded, but one step failed: ${error}`,
   },
 
@@ -582,7 +581,7 @@ export const en = {
     deleteButton: 'Delete ferment',
     deleteTitle: (name: string) => `Delete ${name}?`,
     deleteText: 'Only the ferment is deleted. Its entries stay on the timeline.',
-    needsInternet: 'Starting or changing a ferment needs an internet connection.',
+    offlineNote: "You're offline. The change is saved on this phone and uploads when you're back online.",
     loadingList: 'Loading ferments…',
     chartTitle: 'Fermentation chart',
     chartFor: (tank: string) => `Chart · ${tank}`,

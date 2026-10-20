@@ -80,6 +80,23 @@ const tankUpdateItemSchema = z.object({
 
 const tankDeleteItemSchema = z.object({ kind: z.literal('tank-delete'), tankId: z.string(), ...common });
 
+/** Starting or changing a ferment. `fermentId` is chosen on the phone for a new one; `isNew`: not on the server yet. */
+const fermentSaveItemSchema = z.object({
+  kind: z.literal('ferment-save'),
+  tankId: z.string(),
+  fermentId: z.string(),
+  isNew: z.boolean(),
+  input: z.object({ name: z.string(), startedAt: z.string(), endedAt: z.string().nullable() }),
+  ...common,
+});
+
+const fermentDeleteItemSchema = z.object({
+  kind: z.literal('ferment-delete'),
+  tankId: z.string(),
+  fermentId: z.string(),
+  ...common,
+});
+
 const outboxItemSchema = z.preprocess(
   // Items saved before tanks could be queued have no `kind`: they are entries.
   (value) =>
@@ -91,6 +108,8 @@ const outboxItemSchema = z.preprocess(
     tankCreateItemSchema,
     tankUpdateItemSchema,
     tankDeleteItemSchema,
+    fermentSaveItemSchema,
+    fermentDeleteItemSchema,
   ]),
 );
 
@@ -101,6 +120,8 @@ export type EntryDeleteItem = z.infer<typeof entryDeleteItemSchema>;
 export type TankCreateItem = z.infer<typeof tankCreateItemSchema>;
 export type TankUpdateItem = z.infer<typeof tankUpdateItemSchema>;
 export type TankDeleteItem = z.infer<typeof tankDeleteItemSchema>;
+export type FermentSaveItem = z.infer<typeof fermentSaveItemSchema>;
+export type FermentDeleteItem = z.infer<typeof fermentDeleteItemSchema>;
 
 const outboxKey = (userId: string) => userKey(userId, 'outbox');
 
@@ -277,6 +298,55 @@ export function enqueueTankDelete(userId: string, tankId: string, meta: Meta): T
   }
   const others = items.filter((item) => item.kind === 'tank-create' || item.tankId !== tankId);
   const item: TankDeleteItem = { kind: 'tank-delete', tankId, ...meta, status: 'pending', error: null };
+  save(userId, [...others, item]);
+  return item;
+}
+
+/** True when changes to this ferment are still queued: new ones must wait behind them. */
+export function hasQueuedFermentChanges(items: readonly OutboxItem[], fermentId: string): boolean {
+  return items.some((item) => (item.kind === 'ferment-save' || item.kind === 'ferment-delete') && item.fermentId === fermentId);
+}
+
+/**
+ * Queues starting or changing a ferment. A second change of the same ferment replaces the
+ * first (a ferment that never uploaded stays new).
+ */
+export function enqueueFermentSave(
+  userId: string,
+  tankId: string,
+  fermentId: string,
+  input: FermentSaveItem['input'],
+  isNew: boolean,
+  meta: Meta,
+): FermentSaveItem {
+  const items = listOutbox(userId);
+  const earlier = items.find((item): item is FermentSaveItem => item.kind === 'ferment-save' && item.fermentId === fermentId);
+  const others = items.filter((item) => !((item.kind === 'ferment-save' || item.kind === 'ferment-delete') && item.fermentId === fermentId));
+  const item: FermentSaveItem = {
+    kind: 'ferment-save',
+    tankId,
+    fermentId,
+    isNew: earlier?.isNew ?? isNew,
+    input,
+    localId: earlier?.localId ?? meta.localId,
+    createdAt: earlier?.createdAt ?? meta.createdAt,
+    status: 'pending',
+    error: null,
+  };
+  save(userId, [...others, item]);
+  return item;
+}
+
+/** Queues deleting a ferment. One that never uploaded is just removed from the queue: returns null. */
+export function enqueueFermentDelete(userId: string, tankId: string, fermentId: string, meta: Meta): FermentDeleteItem | null {
+  const items = listOutbox(userId);
+  const earlier = items.find((item): item is FermentSaveItem => item.kind === 'ferment-save' && item.fermentId === fermentId);
+  const others = items.filter((item) => !((item.kind === 'ferment-save' || item.kind === 'ferment-delete') && item.fermentId === fermentId));
+  if (earlier?.isNew) {
+    save(userId, others);
+    return null;
+  }
+  const item: FermentDeleteItem = { kind: 'ferment-delete', tankId, fermentId, ...meta, status: 'pending', error: null };
   save(userId, [...others, item]);
   return item;
 }

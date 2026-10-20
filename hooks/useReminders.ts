@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import { entriesCache, fermentsCache, tanksCache } from '@/lib/cache';
 import { applyEntryChanges } from '@/lib/entryOverlay';
 import { activeFerment } from '@/lib/fermentCurves';
+import { applyFermentChanges } from '@/lib/fermentOverlay';
 import { notifications, reminderPermission, scheduleReminders } from '@/lib/notifications';
 import { planReminders, readReminders, setReminder } from '@/lib/reminders';
 
@@ -47,7 +48,8 @@ export function useReminderSync(): void {
       const planned = planReminders({
         settings: readReminders(userId),
         tanks,
-        runningSince: (tankId) => activeFerment(fermentsCache(userId, tankId).read()?.data ?? [])?.startedAt ?? null,
+        runningSince: (tankId) =>
+          activeFerment(applyFermentChanges(fermentsCache(userId, tankId).read()?.data ?? [], items, tankId))?.startedAt ?? null,
         timeline: (tankId) => applyEntryChanges(entriesCache(userId, tankId).read()?.data ?? [], items, tankId),
         now: new Date(),
       });

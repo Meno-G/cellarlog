@@ -67,15 +67,31 @@ export async function listAllFerments(): Promise<Ferment[]> {
   }
 }
 
-export async function createFerment(tankId: string, input: FermentInput): Promise<Ferment> {
+/**
+ * Starts a ferment. `id` and `createdAt` come from the phone for ferments started offline: a
+ * retried upload must not make a second one (the same id means "already there": it is updated).
+ */
+export async function createFerment(
+  tankId: string,
+  input: FermentInput,
+  options: { id?: string; createdAt?: string } = {},
+): Promise<Ferment> {
   if (!UUID.test(tankId)) throw new AppError('not_found', strings().messages.tankGone);
   try {
     const { data, error } = await getSupabase()
       .from('ferments')
-      .insert({ tank_id: tankId, ...toRow(input) })
+      .insert({
+        tank_id: tankId,
+        ...toRow(input),
+        ...(options.id ? { id: options.id } : {}),
+        ...(options.createdAt ? { created_at: options.createdAt } : {}),
+      })
       .select(COLUMNS)
       .single();
-    if (error) throw fromDbError(error, strings().messages.saveFermentFailed);
+    if (error) {
+      if (error.code === '23505' && options.id) return await updateFerment(options.id, input);
+      throw fromDbError(error, strings().messages.saveFermentFailed);
+    }
     return fromRow(data);
   } catch (error) {
     throw toAppError(error, strings().messages.saveFermentFailed);

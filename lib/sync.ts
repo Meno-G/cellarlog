@@ -20,6 +20,8 @@ import {
   enqueueEntryDelete,
   enqueueEntryUpdate,
   enqueueTankCreate,
+  enqueueFermentDelete,
+  enqueueFermentSave,
   enqueueTankDelete,
   enqueueTankUpdate,
   flushQueue,
@@ -31,8 +33,9 @@ import {
   type OutboxItem,
 } from './outbox';
 import { listAllRules } from './alerts';
-import { listAllFerments } from './ferments';
+import { createFerment, deleteFerment, listAllFerments, updateFerment } from './ferments';
 import { createTank, deleteTank, listTanks, updateTank, type TankInput } from './tanks';
+import type { FermentInput } from './fermentForm';
 
 export type SaveResult = 'saved' | 'queued';
 export type { FlushResult };
@@ -182,6 +185,46 @@ export async function deleteTankOrQueue(
 }
 
 /**
+ * Starts or changes a ferment now, or queues it. `fermentId` null = a new one (its id is chosen
+ * here, so it's known either way). Queued when offline, when its tank only exists on this phone,
+ * and when earlier changes to it are still waiting.
+ */
+export async function saveFermentOrQueue(
+  userId: string,
+  tankId: string,
+  fermentId: string | null,
+  input: FermentInput,
+  queueOnly: boolean,
+): Promise<{ id: string; result: SaveResult }> {
+  const meta = newMeta();
+  const id = fermentId ?? meta.localId;
+  const result = await sendOrQueue(
+    queueOnly,
+    () => (fermentId === null ? createFerment(tankId, input, { id, createdAt: meta.createdAt }) : updateFerment(id, input)),
+    () => enqueueFermentSave(userId, tankId, id, input, fermentId === null, meta),
+  );
+  return { id, result };
+}
+
+/** Already gone counts as deleted, so a retried upload is safe. */
+async function deleteFermentIfThere(id: string): Promise<void> {
+  try {
+    await deleteFerment(id);
+  } catch (error) {
+    if (!(error instanceof AppError && error.kind === 'not_found')) throw error;
+  }
+}
+
+/** Deletes a ferment (its entries stay on the timeline) now, or queues it. */
+export function deleteFermentOrQueue(userId: string, tankId: string, fermentId: string, queueOnly: boolean): Promise<SaveResult> {
+  return sendOrQueue(
+    queueOnly,
+    () => deleteFermentIfThere(fermentId),
+    () => enqueueFermentDelete(userId, tankId, fermentId, newMeta()),
+  );
+}
+
+/**
  * Downloads the tank list, every timeline, ferment and alert rule and saves them on
  * the phone. Four requests, whatever the number of tanks. Throws on failure (offline).
  */
@@ -223,6 +266,12 @@ async function uploadItem(item: OutboxItem): Promise<void> {
       return;
     case 'tank-delete':
       await deleteTank(item.tankId);
+      return;
+    case 'ferment-save':
+      await createFerment(item.tankId, item.input, { id: item.fermentId, createdAt: item.createdAt });
+      return;
+    case 'ferment-delete':
+      await deleteFermentIfThere(item.fermentId);
       return;
   }
 }

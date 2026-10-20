@@ -40,6 +40,7 @@ const PURE_MODULES = [
   'lib/alcohol.ts',
   'lib/lineage.ts',
   'lib/reminders.ts',
+  'lib/fermentOverlay.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

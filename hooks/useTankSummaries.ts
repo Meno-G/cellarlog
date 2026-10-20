@@ -5,6 +5,7 @@ import { evaluateRules, trippedAlerts } from '@/lib/alertRules';
 import { entriesCache, fermentsCache, rulesCache } from '@/lib/cache';
 import { applyEntryChanges } from '@/lib/entryOverlay';
 import { activeFerment, fermentDay } from '@/lib/fermentCurves';
+import { applyFermentChanges } from '@/lib/fermentOverlay';
 import type { EntryType } from '@/lib/entryTypes';
 import { latestValues, type LatestValue } from '@/lib/latestValues';
 
@@ -45,7 +46,7 @@ export function useTankSummaries(tankIds: readonly string[]): Map<string, TankSu
       const saved = entriesCache(userId, tankId).read()?.data ?? [];
       const timeline = applyEntryChanges(saved, items, tankId);
       const newest = timeline[0];
-      const ferments = fermentsCache(userId, tankId).read()?.data ?? [];
+      const ferments = applyFermentChanges(fermentsCache(userId, tankId).read()?.data ?? [], items, tankId);
       const running = activeFerment(ferments);
       const alerts = trippedAlerts(evaluateRules(rulesCache(userId, tankId).read()?.data ?? [], timeline, ferments)).length;
       summaries.set(tankId, {

@@ -18,6 +18,7 @@ import { strings } from '@/lib/i18n';
 import {
   discardLocalTank,
   hasQueuedEntryChanges,
+  hasQueuedFermentChanges,
   isLocalTank,
   listOutbox,
   markPending,
@@ -27,14 +28,17 @@ import {
 import {
   createTankOrQueue,
   deleteEntryOrQueue,
+  deleteFermentOrQueue,
   deleteTankOrQueue,
   flushOutbox,
   refreshOfflineCopy,
+  saveFermentOrQueue,
   saveOrQueue,
   updateEntryOrQueue,
   updateTankOrQueue,
   type SaveResult,
 } from '@/lib/sync';
+import type { FermentInput } from '@/lib/fermentForm';
 import type { TankInput } from '@/lib/tanks';
 
 type OutboxValue = {
@@ -59,6 +63,10 @@ type OutboxValue = {
   updateTank: (tankId: string, tank: TankInput) => Promise<SaveResult>;
   /** Delete a tank (and its entries) now, or on this phone when offline. */
   deleteTank: (tankId: string) => Promise<SaveResult>;
+  /** Start (fermentId null) or change a ferment now, or on this phone when offline. Returns its id either way. */
+  saveFerment: (tankId: string, fermentId: string | null, input: FermentInput) => Promise<{ id: string; result: SaveResult }>;
+  /** Delete a ferment (its entries stay) now, or on this phone when offline. */
+  deleteFerment: (tankId: string, fermentId: string) => Promise<SaveResult>;
   uploadNow: () => void;
   retry: (localId: string) => void;
   discard: (localId: string) => void;
@@ -202,6 +210,28 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
     [userId, reload, mustQueue],
   );
 
+  const saveFerment = useCallback(
+    async (tankId: string, fermentId: string | null, input: FermentInput) => {
+      const waiting = fermentId !== null && hasQueuedFermentChanges(listOutbox(userId), fermentId);
+      const saved = await saveFermentOrQueue(userId, tankId, fermentId, input, waiting || (await mustQueue(tankId)));
+      reload();
+      if (saved.result === 'queued') void upload();
+      return saved;
+    },
+    [userId, reload, mustQueue, upload],
+  );
+
+  const deleteFerment = useCallback(
+    async (tankId: string, fermentId: string): Promise<SaveResult> => {
+      const waiting = hasQueuedFermentChanges(listOutbox(userId), fermentId);
+      const result = await deleteFermentOrQueue(userId, tankId, fermentId, waiting || (await mustQueue(tankId)));
+      reload();
+      if (result === 'queued') void upload();
+      return result;
+    },
+    [userId, reload, mustQueue, upload],
+  );
+
   const discard = useCallback(
     (localId: string) => {
       removeFromOutbox(userId, localId);
@@ -232,12 +262,14 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
       createTank,
       updateTank,
       deleteTank,
+      saveFerment,
+      deleteFerment,
       uploadNow: () => void upload(),
       retry,
       discard,
       discardTank,
     }),
-    [items, uploading, lastError, uploadedCount, saveEntry, updateEntry, deleteEntry, createTank, updateTank, deleteTank, upload, retry, discard, discardTank],
+    [items, uploading, lastError, uploadedCount, saveEntry, updateEntry, deleteEntry, createTank, updateTank, deleteTank, saveFerment, deleteFerment, upload, retry, discard, discardTank],
   );
 
   return <OutboxContext.Provider value={value}>{children}</OutboxContext.Provider>;
