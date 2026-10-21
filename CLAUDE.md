@@ -7,7 +7,6 @@ Stack: Expo SDK 57 (React Native 0.86), TypeScript (strict), Expo Router, Supaba
 ## Name
 
 The app is called **EnoLog** (Play Store title "EnoLog: Winery Notes"; it was CellarLog until 21 Oct 2026). What deliberately kept the old name, because changing it would break something installed or linked:
-- the web address **cellarlog.vercel.app** (rename the Vercel project in its dashboard to get another; then update `lib/links.ts`, `public/privacy.html`, `docs/play-store/listing.md` and the GitHub "About" website),
 - the GitHub repo name, the EAS slug `cellarlog` (the EAS project is matched by it), and the Supabase project name,
 - the development and preview Android ids `com.cellarlog.app.dev` / `.preview` and the schemes `cellarlog*` (they are installed on the phone with their own signing keys),
 - the storage keys `cellarlog:v1:…` and the reminder ids `cellarlog-reminder:…` (renaming them would orphan the saved copy and the queued changes on every phone).
@@ -58,14 +57,14 @@ Speech recognition is a native module that Expo Go doesn't include, so EnoLog ru
 - **Store material:** `docs/play-store/` has the listing texts (English and Georgian), the Data safety and content-rating answers, the release steps, `icon-512.png` and `feature-graphic.png`.
 - **Build:** `npx eas-cli@latest build --profile production --platform android` makes an `.aab`, with EAS-managed signing and `autoIncrement` versionCode.
   - It needs the Supabase variables in the EAS environment `production`.
-- **Privacy policy:** `public/privacy.html`, static and bilingual, served at https://cellarlog.vercel.app/privacy. The app links to it from sign-in and Account (`lib/links.ts`).
+- **Privacy policy:** `public/privacy.html`, static and bilingual, served at https://enolog.vercel.app/privacy. The app links to it from sign-in and Account (`lib/links.ts`).
 - **Account deletion** (Google requires it): Account screen (`app/(app)/account.tsx`) → `deleteAccount()` in `lib/auth.ts` → RPC `delete_my_account()` (migration `20261009120000_delete_my_account.sql`).
   - The RPC is a security-definer function that deletes only `auth.uid()`'s login; tanks and entries go by cascade. The phone's outbox is cleared, then the user is signed out locally.
   - **Warning:** in a shared Supabase project, every other table with a cascading foreign key to `auth.users` loses that user's rows too.
 
 ## Web version (browser)
 
-The same app runs in a browser (`react-native-web`, `web.output` "single" = single-page app). It's live at **https://cellarlog.vercel.app**, the Vercel project `cellarlog` on account menognishviligiorgi-7173.
+The same app runs in a browser (`react-native-web`, `web.output` "single" = single-page app). It's live at **https://enolog.vercel.app** (the Vercel project is `enolog`, renamed from `cellarlog`; the old address cellarlog.vercel.app still answers), on account menognishviligiorgi-7173.
 - `npm run build:web` exports to `dist/` (gitignored).
   - Test the real build locally with `npx expo serve --port 8090` (`.claude/launch.json` "web-build").
 - `npm run deploy:web` (`vercel deploy --prod`) uploads the source and Vercel builds it with `vercel.json` (`expo export -p web` → `dist`, every path rewritten to `/`).

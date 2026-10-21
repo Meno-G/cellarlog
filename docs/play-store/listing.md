@@ -6,8 +6,8 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 - **Package name**: `com.enolog.app` (permanent once uploaded)
 - **Category**: Business. Tags: productivity, wine.
 - **Contact email**: menognishviligiorgi@gmail.com
-- **Website**: https://cellarlog.vercel.app
-- **Privacy policy URL**: https://cellarlog.vercel.app/privacy
+- **Website**: https://enolog.vercel.app
+- **Privacy policy URL**: https://enolog.vercel.app/privacy
 
 ---
 
@@ -40,7 +40,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 > Every screen in English or Georgian, switched with one tap.
 >
 > ALSO IN YOUR BROWSER
-> Open cellarlog.vercel.app on any computer and see the same tanks and entries.
+> Open enolog.vercel.app on any computer and see the same tanks and entries.
 >
 > PRIVATE BY DESIGN
 > No ads, no tracking. Your data is yours: you can delete single entries, tanks or your whole account at any time.
@@ -80,7 +80,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 > ყველა ეკრანი ქართულად ან ინგლისურად — ერთი შეხებით.
 >
 > ბრაუზერშიც
-> გახსენით cellarlog.vercel.app ნებისმიერ კომპიუტერზე და ნახეთ იგივე ცისტერნები და ჩანაწერები.
+> გახსენით enolog.vercel.app ნებისმიერ კომპიუტერზე და ნახეთ იგივე ცისტერნები და ჩანაწერები.
 >
 > კონფიდენციალურობა
 > არც რეკლამა, არც თვალთვალი. მონაცემები თქვენია: ნებისმიერ დროს შეგიძლიათ წაშალოთ ჩანაწერი, ცისტერნა ან მთელი ანგარიში.
@@ -103,7 +103,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 
 ## App content forms (Policy → App content)
 
-**Privacy policy**: https://cellarlog.vercel.app/privacy
+**Privacy policy**: https://enolog.vercel.app/privacy
 
 **Ads**: No, the app contains no ads.
 
@@ -121,7 +121,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 - Does the app collect or share user data? **Yes, collects; does not share.**
 - Is data encrypted in transit? **Yes.**
 - Can users request deletion? **Yes**: in-app (Account → Delete my account) and on the web.
-  - Delete-account URL for the form: https://cellarlog.vercel.app/privacy#delete
+  - Delete-account URL for the form: https://enolog.vercel.app/privacy#delete
 - Data types collected:
   | Type | Collected | Shared | Optional | Purpose |
   |---|---|---|---|---|
