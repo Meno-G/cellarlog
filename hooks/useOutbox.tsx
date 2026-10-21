@@ -19,6 +19,7 @@ import {
   discardLocalTank,
   hasQueuedEntryChanges,
   hasQueuedFermentChanges,
+  hasQueuedRuleChanges,
   isLocalTank,
   listOutbox,
   markPending,
@@ -33,11 +34,13 @@ import {
   flushOutbox,
   refreshOfflineCopy,
   saveFermentOrQueue,
+  saveRuleOrQueue,
   saveOrQueue,
   updateEntryOrQueue,
   updateTankOrQueue,
   type SaveResult,
 } from '@/lib/sync';
+import type { AlertRule } from '@/lib/alertRules';
 import type { FermentInput } from '@/lib/fermentForm';
 import type { TankInput } from '@/lib/tanks';
 
@@ -67,6 +70,8 @@ type OutboxValue = {
   saveFerment: (tankId: string, fermentId: string | null, input: FermentInput) => Promise<{ id: string; result: SaveResult }>;
   /** Delete a ferment (its entries stay) now, or on this phone when offline. */
   deleteFerment: (tankId: string, fermentId: string) => Promise<SaveResult>;
+  /** Save an alert rule now, or on this phone when offline. */
+  saveRule: (tankId: string, rule: AlertRule) => Promise<SaveResult>;
   uploadNow: () => void;
   retry: (localId: string) => void;
   discard: (localId: string) => void;
@@ -232,6 +237,17 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
     [userId, reload, mustQueue, upload],
   );
 
+  const saveRule = useCallback(
+    async (tankId: string, rule: AlertRule): Promise<SaveResult> => {
+      const waiting = hasQueuedRuleChanges(listOutbox(userId), tankId, rule.kind);
+      const result = await saveRuleOrQueue(userId, tankId, rule, waiting || (await mustQueue(tankId)));
+      reload();
+      if (result === 'queued') void upload();
+      return result;
+    },
+    [userId, reload, mustQueue, upload],
+  );
+
   const discard = useCallback(
     (localId: string) => {
       removeFromOutbox(userId, localId);
@@ -264,12 +280,13 @@ export function OutboxProvider({ userId, children }: { userId: string; children:
       deleteTank,
       saveFerment,
       deleteFerment,
+      saveRule,
       uploadNow: () => void upload(),
       retry,
       discard,
       discardTank,
     }),
-    [items, uploading, lastError, uploadedCount, saveEntry, updateEntry, deleteEntry, createTank, updateTank, deleteTank, saveFerment, deleteFerment, upload, retry, discard, discardTank],
+    [items, uploading, lastError, uploadedCount, saveEntry, updateEntry, deleteEntry, createTank, updateTank, deleteTank, saveFerment, deleteFerment, saveRule, upload, retry, discard, discardTank],
   );
 
   return <OutboxContext.Provider value={value}>{children}</OutboxContext.Provider>;

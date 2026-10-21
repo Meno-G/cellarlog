@@ -71,3 +71,33 @@ test('deleting a vessel drops the ferment changes queued for it', () => {
   outbox.enqueueTankDelete('u', 't1', meta(2));
   assert.deepEqual(outbox.listOutbox('u').map((i) => i.kind), ['tank-delete']);
 });
+
+const { applyRuleChanges } = require('../.test-build/ruleOverlay.js');
+
+test('alert rules saved offline: shown at once, one per kind, the newest wins', () => {
+  const server = [{ id: 'r1', tankId: 't1', kind: 'density_stall', enabled: false, params: { hours: 48, minDrop: 0.002, dryBelow: 0.998 } }];
+  outbox.enqueueRuleSave('u', 't1', { kind: 'density_stall', enabled: true, params: { hours: 24, minDrop: 0.003, dryBelow: 0.998 } }, meta(1));
+  outbox.enqueueRuleSave('u', 't1', { kind: 'density_stall', enabled: true, params: { hours: 12, minDrop: 0.003, dryBelow: 0.998 } }, meta(2));
+  outbox.enqueueRuleSave('u', 't1', { kind: 'temperature_range', enabled: true, params: { minC: 15, maxC: 28 } }, meta(3));
+  const items = outbox.listOutbox('u');
+  assert.equal(items.length, 2, 'one per kind');
+  assert.ok(outbox.hasQueuedRuleChanges(items, 't1', 'density_stall'));
+  assert.ok(!outbox.hasQueuedRuleChanges(items, 't2', 'density_stall'));
+  const shown = applyRuleChanges(server, items, 't1');
+  const density = shown.find((r) => r.kind === 'density_stall');
+  assert.equal(density.params.hours, 12, 'the latest values');
+  assert.equal(density.enabled, true);
+  assert.equal(density.id, 'r1', 'keeps the saved rule id');
+  assert.deepEqual(shown.find((r) => r.kind === 'temperature_range').params, { minC: 15, maxC: 28 });
+  assert.deepEqual(applyRuleChanges(server, items, 'other'), [], 'only this vessel');
+});
+
+test('a rule save waits for a vessel created offline and goes after it', async () => {
+  outbox.enqueueTankCreate('u', { name: 'T', kind: 'tank', volumeLiters: 100, contentLiters: null, variety: null, vintage: null, blend: null }, { localId: 'tank-new', createdAt: '2026-10-01T09:00:00.000Z' });
+  outbox.enqueueRuleSave('u', 'tank-new', { kind: 'temperature_range', enabled: true, params: { minC: 15, maxC: 28 } }, meta(2));
+  const sent = [];
+  await outbox.flushQueue('u', async (item) => {
+    sent.push(item.kind);
+  });
+  assert.deepEqual(sent, ['tank-create', 'rule-save']);
+});

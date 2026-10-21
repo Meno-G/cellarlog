@@ -97,6 +97,16 @@ const fermentDeleteItemSchema = z.object({
   ...common,
 });
 
+/** Saving an alert rule (one per kind per vessel); the newest one wins. */
+const ruleSaveItemSchema = z.object({
+  kind: z.literal('rule-save'),
+  tankId: z.string(),
+  ruleKind: z.enum(['density_stall', 'temperature_range']),
+  enabled: z.boolean(),
+  params: z.record(z.string(), z.number()),
+  ...common,
+});
+
 const outboxItemSchema = z.preprocess(
   // Items saved before tanks could be queued have no `kind`: they are entries.
   (value) =>
@@ -110,6 +120,7 @@ const outboxItemSchema = z.preprocess(
     tankDeleteItemSchema,
     fermentSaveItemSchema,
     fermentDeleteItemSchema,
+    ruleSaveItemSchema,
   ]),
 );
 
@@ -122,6 +133,7 @@ export type TankUpdateItem = z.infer<typeof tankUpdateItemSchema>;
 export type TankDeleteItem = z.infer<typeof tankDeleteItemSchema>;
 export type FermentSaveItem = z.infer<typeof fermentSaveItemSchema>;
 export type FermentDeleteItem = z.infer<typeof fermentDeleteItemSchema>;
+export type RuleSaveItem = z.infer<typeof ruleSaveItemSchema>;
 
 const outboxKey = (userId: string) => userKey(userId, 'outbox');
 
@@ -347,6 +359,36 @@ export function enqueueFermentDelete(userId: string, tankId: string, fermentId: 
     return null;
   }
   const item: FermentDeleteItem = { kind: 'ferment-delete', tankId, fermentId, ...meta, status: 'pending', error: null };
+  save(userId, [...others, item]);
+  return item;
+}
+
+/** True when a change to this rule is still queued: a new one must wait behind it. */
+export function hasQueuedRuleChanges(items: readonly OutboxItem[], tankId: string, ruleKind: string): boolean {
+  return items.some((item) => item.kind === 'rule-save' && item.tankId === tankId && item.ruleKind === ruleKind);
+}
+
+/** Queues saving a rule; a second save of the same rule replaces the first. */
+export function enqueueRuleSave(
+  userId: string,
+  tankId: string,
+  rule: { kind: 'density_stall' | 'temperature_range'; enabled: boolean; params: Record<string, number> },
+  meta: Meta,
+): RuleSaveItem {
+  const items = listOutbox(userId);
+  const earlier = items.find((item): item is RuleSaveItem => item.kind === 'rule-save' && item.tankId === tankId && item.ruleKind === rule.kind);
+  const others = items.filter((item) => item !== earlier);
+  const item: RuleSaveItem = {
+    kind: 'rule-save',
+    tankId,
+    ruleKind: rule.kind,
+    enabled: rule.enabled,
+    params: { ...rule.params },
+    localId: earlier?.localId ?? meta.localId,
+    createdAt: earlier?.createdAt ?? meta.createdAt,
+    status: 'pending',
+    error: null,
+  };
   save(userId, [...others, item]);
   return item;
 }

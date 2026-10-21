@@ -148,7 +148,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - `OutboxProvider` (in `app/(app)/_layout.tsx`) uploads when the connection returns, when the app comes to the foreground, and on "Upload now".
   - Each queued entry carries its own UUID and recording time. The upload sends them as `id` / `created_at`, so retries are idempotent: `23505` means "already uploaded". The timeline also keeps the moment the entry was recorded.
   - Losing the connection or an expired login pauses the upload. Any other error flags only that entry, which the user can retry or delete.
-- **Tanks offline**: the outbox holds eight kinds of change: `entry`, `entry-update`, `entry-delete`, `tank-create`, `tank-update`, `tank-delete`, `ferment-save` and `ferment-delete` (`lib/outbox.ts`).
+- **Tanks offline**: the outbox holds nine kinds of change: `entry`, `entry-update`, `entry-delete`, `tank-create`, `tank-update`, `tank-delete`, `ferment-save`, `ferment-delete` and `rule-save` (`lib/outbox.ts`).
   - A tank created offline gets its database id on the phone, so entries queued for it already point at the right tank. Upload is oldest first: the tank goes before its entries.
   - Entries and edits for a tank that hasn't been created on the server yet *wait*; they are not marked failed.
   - Editing a tank that is still waiting to be created changes the queued tank. A second edit of the same tank replaces the first.
@@ -261,7 +261,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Checked on the phone** (`lib/alertRules.ts`, `evaluateRules`, pure) against the **running ferment's** readings, from the saved copy plus changes waiting to upload, so alerts work offline. No running ferment: nothing is checked. Rules start switched off; defaults are labelled as defaults, not winemaking advice (`densityDefaults` follows the user's density scale: 1.060 or 1060).
 - **Density comparison:** the newest reading is compared with the newest reading that is at least `hours` old. No such reading ("too-early") or nothing newer ("no-new-reading") is reported as "cannot check yet", never as an alert.
 - **Wording:** an alert says only what was **observed** and which **rule** tripped. Never a diagnosis or advice. A "Record my decision" button opens a new entry (type "My decision").
-- **UI:** `AlertPanel` on the tank screen, a badge on the tank card (`useTankSummaries`), and the rules screen `tanks/[id]/alerts.tsx`. Saving rules needs a connection; reading them works offline (`rulesCache`).
+- **UI:** `AlertPanel` on the tank screen, a badge on the tank card (`useTankSummaries`), and the rules screen `tanks/[id]/alerts.tsx`. Saving rules works offline too (`useOutbox().saveRule` → `saveRuleOrQueue`): one queued `rule-save` per kind per vessel (the newest wins; it waits for a vessel that isn't uploaded yet), shown at once by `lib/ruleOverlay.ts` (`applyRuleChanges`) in `useRules` and on the tank cards; upload is the same upsert. Reading works offline (`rulesCache`).
 - **Alerts are not pushed** (a rule is only checked when the app is open). The phone does send **measurement reminders** (next section).
 - **Numbers:** `parseNumber` reads "0,003" as a decimal (a comma after a leading 0 is never a thousands separator).
 

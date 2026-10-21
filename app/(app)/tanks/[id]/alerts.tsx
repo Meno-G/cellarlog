@@ -29,7 +29,7 @@ import {
   type DensityFormValues,
   type TemperatureFormValues,
 } from '@/lib/alertRules';
-import { saveRule, type SavedRule } from '@/lib/alerts';
+import type { SavedRule } from '@/lib/alerts';
 import { errorMessage } from '@/lib/errors';
 import { applyEntryChanges } from '@/lib/entryOverlay';
 import { radius, spacing, useTheme } from '@/theme';
@@ -109,6 +109,7 @@ function RulesEditor({
   sample: number | undefined;
 }) {
   const t = useT();
+  const outbox = useOutbox();
   const { colors } = useTheme();
   const density = rules.find((rule) => rule.kind === 'density_stall');
   const temperature = rules.find((rule) => rule.kind === 'temperature_range');
@@ -141,8 +142,9 @@ function RulesEditor({
     if (!d.ok || !tm.ok) return;
     setSaving(true);
     try {
-      await saveRule(tankId, { kind: 'density_stall', enabled: densityOn, params: d.params });
-      await saveRule(tankId, { kind: 'temperature_range', enabled: tempOn, params: tm.params });
+      // Online they are saved now; offline they wait on this phone and upload later.
+      await outbox.saveRule(tankId, { kind: 'density_stall', enabled: densityOn, params: d.params });
+      await outbox.saveRule(tankId, { kind: 'temperature_range', enabled: tempOn, params: tm.params });
       router.back(); // the screens refetch on focus
     } catch (err) {
       setError(errorMessage(err));
@@ -165,7 +167,7 @@ function RulesEditor({
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen hero={hero} footer={<Button title={t.alerts.save} icon="check" onPress={handleSave} loading={saving} />}>
-        <OfflineBanner message={t.alerts.needsInternet} />
+        <OfflineBanner message={t.alerts.offlineNote} />
         {error ? <Banner message={error} /> : null}
         <AppText muted>{t.alerts.intro}</AppText>
         <Banner tone="info" message={t.alerts.defaultsNote} />

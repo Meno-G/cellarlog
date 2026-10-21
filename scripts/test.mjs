@@ -41,6 +41,7 @@ const PURE_MODULES = [
   'lib/lineage.ts',
   'lib/reminders.ts',
   'lib/fermentOverlay.ts',
+  'lib/ruleOverlay.ts',
 ];
 
 rmSync(OUT, { recursive: true, force: true });

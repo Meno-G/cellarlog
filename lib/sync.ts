@@ -21,6 +21,7 @@ import {
   enqueueEntryUpdate,
   enqueueTankCreate,
   enqueueFermentDelete,
+  enqueueRuleSave,
   enqueueFermentSave,
   enqueueTankDelete,
   enqueueTankUpdate,
@@ -32,7 +33,8 @@ import {
   type FlushResult,
   type OutboxItem,
 } from './outbox';
-import { listAllRules } from './alerts';
+import { listAllRules, saveRule } from './alerts';
+import { parseRule, type AlertRule } from './alertRules';
 import { createFerment, deleteFerment, listAllFerments, updateFerment } from './ferments';
 import { createTank, deleteTank, listTanks, updateTank, type TankInput } from './tanks';
 import type { FermentInput } from './fermentForm';
@@ -206,6 +208,15 @@ export async function saveFermentOrQueue(
   return { id, result };
 }
 
+/** Saves an alert rule now, or queues it (offline, a vessel not uploaded yet, or an earlier change waiting). */
+export async function saveRuleOrQueue(userId: string, tankId: string, rule: AlertRule, queueOnly: boolean): Promise<SaveResult> {
+  return sendOrQueue(
+    queueOnly,
+    () => saveRule(tankId, rule),
+    () => enqueueRuleSave(userId, tankId, rule, newMeta()),
+  );
+}
+
 /** Already gone counts as deleted, so a retried upload is safe. */
 async function deleteFermentIfThere(id: string): Promise<void> {
   try {
@@ -273,6 +284,11 @@ async function uploadItem(item: OutboxItem): Promise<void> {
     case 'ferment-delete':
       await deleteFermentIfThere(item.fermentId);
       return;
+    case 'rule-save': {
+      const rule = parseRule(item.ruleKind, item.enabled, item.params);
+      if (rule) await saveRule(item.tankId, rule);
+      return;
+    }
   }
 }
 

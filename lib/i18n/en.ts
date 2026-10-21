@@ -546,7 +546,7 @@ export const en = {
     temperatureMax: 'Highest temperature (°C)',
     currentCheck: 'Right now',
     save: 'Save rules',
-    needsInternet: 'Saving rules needs an internet connection.',
+    offlineNote: "You're offline. The rules are saved on this phone and upload when you're back online.",
     loading: 'Loading rules…',
   },
 
