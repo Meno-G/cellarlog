@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { CachedNote } from '@/components/CachedNote';
-import { ChoiceChips } from '@/components/ChoiceChips';
+import { Dropdown } from '@/components/Dropdown';
 import { CurveChart, seriesColor } from '@/components/CurveChart';
 import { HeroBand } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
@@ -17,17 +17,12 @@ import { useT } from '@/hooks/useLanguage';
 import { useOutbox } from '@/hooks/useOutbox';
 import { useTank } from '@/hooks/useTanks';
 import { applyEntryChanges } from '@/lib/entryOverlay';
-import { compareAtDay, fermentCurves, type Curves } from '@/lib/fermentCurves';
-import type { Ferment } from '@/lib/ferments';
+import { chartableMeasures, compareAtDay, fermentCurves } from '@/lib/fermentCurves';
 import { formatItemValue } from '@/lib/format';
 import { itemName } from '@/lib/i18n';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
-/** The values worth following through a fermentation, as stored. */
-const MEASURES = ['Density', 'Temperature'] as const;
-type Measure = (typeof MEASURES)[number];
-
-/** Density and temperature against days since the ferment started, with earlier ferments laid over it. */
+/** Any measured value (density, Brix, alcohol, residual sugar, VA, pH…) against days since the ferment started, with earlier ferments laid over it. */
 export default function CurveScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const tank = useTank(id);
@@ -36,7 +31,7 @@ export default function CurveScreen() {
   const outbox = useOutbox();
   const { colors } = useTheme();
   const t = useT();
-  const [chosen, setChosen] = useState<Measure | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
 
   const hero = <HeroBand title={t.ferment.chartTitle} subtitle={tank.data?.name} />;
   const frame = (children: ReactNode) => (
@@ -62,12 +57,10 @@ export default function CurveScreen() {
 
   const timeline = applyEntryChanges(entries.data, outbox.items, id);
   const now = new Date();
-  const byMeasure = Object.fromEntries(
-    MEASURES.map((measure) => [measure, fermentCurves(timeline, ferments.data ?? [], measure, now)]),
-  ) as Record<Measure, Curves<Ferment>>;
-  // Open on density if it has readings (the fermentation curve), else on temperature.
-  const measure: Measure = chosen ?? (byMeasure.Density.series.length > 0 ? 'Density' : 'Temperature');
-  const curves = byMeasure[measure];
+  // Every value with numbers in some ferment; it opens on the first (density if there is any).
+  const measures = chartableMeasures(timeline, ferments.data, now);
+  const measure = measures.find((m) => m.name === chosen)?.name ?? measures[0]?.name ?? 'Density';
+  const curves = fermentCurves(timeline, ferments.data, measure, now);
   const comparison = compareAtDay(curves);
   const show = (value: number) => formatItemValue({ name: measure, value, unit: curves.unit });
 
@@ -102,12 +95,14 @@ export default function CurveScreen() {
         </View>
       ) : (
         <>
-          <ChoiceChips
-            label={t.ferment.measureLabel}
-            choices={MEASURES.map((value) => ({ value, label: itemName(value) }))}
-            selected={measure}
-            onSelect={setChosen}
-          />
+          {measures.length > 0 ? (
+            <Dropdown
+              label={t.ferment.measureLabel}
+              options={measures.map((m) => ({ value: m.name, label: `${itemName(m.name)} (${m.count})` }))}
+              selected={measure}
+              onSelect={setChosen}
+            />
+          ) : null}
 
           {curves.series.length === 0 ? (
             <AppText muted>{t.ferment.noReadings}</AppText>

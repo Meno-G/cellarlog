@@ -14,6 +14,7 @@ const {
 const { validateFermentForm, parseDay, dayString, newFermentForm, fermentToForm } = require('../.test-build/fermentForm.js');
 const { fermentsCache, saveOfflineCopy, clearCache, removeTankFromCache } = require('../.test-build/cache.js');
 const { validateTankForm, emptyTankForm } = require('../.test-build/tankForm.js');
+const { chartableMeasures } = require('../.test-build/fermentCurves.js');
 
 beforeEach(() => {
   const map = new Map();
@@ -218,4 +219,18 @@ test('a saved copy or queued tank from before vessel types still loads, as a pla
   );
   assert.equal(listOutbox('u1')[0].tank.kind, 'tank');
   void enqueueTankCreate;
+});
+
+test('chartableMeasures lists every numeric value in a ferment, density and Brix first', () => {
+  const f = { id: 'f', name: 'F', startedAt: '2026-10-01T00:00:00.000Z', endedAt: null };
+  const entry = (at, type, items) => ({ type, createdAt: at, parsed: { items } });
+  const entries = [
+    entry('2026-10-02T08:00:00.000Z', 'lab_analysis', [{ name: 'Residual sugar', value: 120, unit: 'g/L' }, { name: 'Density', value: 1.05, unit: null }, { name: 'Note', value: 'sweet', unit: null }]),
+    entry('2026-10-03T08:00:00.000Z', 'lab_analysis', [{ name: 'Density', value: 1.04, unit: null }, { name: 'VA', value: 0.3, unit: 'g/L' }, { name: 'My own value', value: 7, unit: null }]),
+    entry('2026-09-01T08:00:00.000Z', 'lab_analysis', [{ name: 'Alcohol', value: 5, unit: '%' }]),
+    entry('2026-10-04T08:00:00.000Z', 'addition', [{ name: 'SO2', value: 20, unit: 'g/hL' }]),
+  ];
+  const list = chartableMeasures(entries, [f], new Date('2026-10-10T00:00:00Z'));
+  assert.deepEqual(list.map((m) => [m.name, m.count]), [['Density', 2], ['Residual sugar', 1], ['VA', 1], ['My own value', 1]]);
+  assert.deepEqual(chartableMeasures([], [f]), []);
 });

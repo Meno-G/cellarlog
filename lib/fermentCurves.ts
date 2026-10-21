@@ -143,6 +143,38 @@ export function fermentCurves<T extends FermentLike>(
   };
 }
 
+/** The order the measures are listed in; any others follow alphabetically. */
+const MEASURE_ORDER = ['density', 'brix', 'temperature', 'alcohol', 'residual sugar', 'va', 'ph', 'ta', 'free so2', 'total so2'];
+
+/**
+ * Every measured value that has at least one number in some ferment, with how many readings
+ * it has, in a sensible order (density and Brix first). These are the values a curve can be drawn for.
+ */
+export function chartableMeasures(
+  entries: readonly EntryLike[],
+  ferments: readonly FermentLike[],
+  now: Date = new Date(),
+): { name: string; count: number }[] {
+  const found = new Map<string, { name: string; count: number }>();
+  for (const ferment of ferments) {
+    for (const entry of entriesInFerment(entries, ferment, now)) {
+      for (const item of entry.parsed.items) {
+        if (!isReading(entry.type, item.name) || typeof item.value !== 'number' || !Number.isFinite(item.value)) continue;
+        const key = item.name.trim().toLowerCase();
+        if (key === '') continue;
+        const have = found.get(key);
+        if (have) have.count++;
+        else found.set(key, { name: item.name.trim(), count: 1 });
+      }
+    }
+  }
+  const rank = (name: string) => {
+    const index = MEASURE_ORDER.indexOf(name.toLowerCase());
+    return index === -1 ? MEASURE_ORDER.length : index;
+  };
+  return [...found.values()].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
+}
+
 export type DayComparison<T extends FermentLike> = {
   /** Display day ("day 5") of the current ferment's newest reading. */
   day: number;

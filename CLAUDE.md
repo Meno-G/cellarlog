@@ -215,6 +215,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
   - The end date includes its whole day (end of the local day).
 - **Pure logic:** `lib/fermentCurves.ts` (active ferment, day counting, entries in a ferment, `fermentCurves`, `compareAtDay`) and `lib/fermentForm.ts`. Data access: `lib/ferments.ts`.
   - A curve is one value (Density or Temperature) against **days since that ferment's start**, so ferments of different years line up. Only the most common unit is drawn; the rest is counted as skipped. "What counts as a reading" is `isReading` from `lib/latestValues.ts`.
+- **Any value can be charted:** the chart screen (`curve.tsx`) has a **drop-down list** (`components/Dropdown.tsx`: a field that opens a sheet of large rows) of every value that has numbers in some ferment (`chartableMeasures`: Density and Brix first, then temperature, alcohol, residual sugar, VA, pH, TA, SO2, then any others; each with its reading count). It opens on the first one.
 - **Screens:** the tank screen's `FermentPanel` (running ferment and day, End, Chart, All ferments), `tanks/[id]/ferments.tsx` (list), `ferment-form.tsx` (start/edit/end/delete) and `curve.tsx`.
   - The chart (`components/CurveChart.tsx`) draws with plain Views and rotated Views for lines, with no chart library and no native module. It estimates its width from the window until measured, because a hidden browser pane never delivers layout events.
   - Below the chart, "On day N" puts this ferment's newest reading beside each earlier ferment's reading within a day of it.
