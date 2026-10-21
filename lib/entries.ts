@@ -15,7 +15,11 @@ export type Entry = {
 };
 
 const COLUMNS = 'id, tank_id, type, raw_text, parsed, created_at';
-export const TIMELINE_LIMIT = 200;
+/** Entries kept per tank on the screen and on the phone (Supabase answers at most 1000 rows per request). */
+export const TIMELINE_LIMIT = 1000;
+/** Entries across all tanks kept on the phone for offline use. */
+const OFFLINE_ENTRIES = 10_000;
+const PAGE = 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type EntryRow = {
@@ -62,17 +66,25 @@ export async function listEntries(tankId: string): Promise<Entry[]> {
 
 /**
  * The user's most recent entries across all tanks (RLS limits it to theirs),
- * newest first. Used to save every timeline on the phone for offline use.
+ * newest first. Used to save every timeline on the phone for offline use. The
+ * server answers at most 1000 rows at a time, so it reads page after page.
  */
-export async function listRecentEntries(limit = 2000): Promise<Entry[]> {
+export async function listRecentEntries(limit = OFFLINE_ENTRIES): Promise<Entry[]> {
   try {
-    const { data, error } = await getSupabase()
-      .from('entries')
-      .select(COLUMNS)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (error) throw fromDbError(error, strings().messages.loadEntriesFailed);
-    return data.map(fromRow);
+    const entries: Entry[] = [];
+    while (entries.length < limit) {
+      const from = entries.length;
+      const { data, error } = await getSupabase()
+        .from('entries')
+        .select(COLUMNS)
+        .order('created_at', { ascending: false })
+        .order('id') // a stable order, so no entry is skipped or repeated between pages
+        .range(from, Math.min(from + PAGE, limit) - 1);
+      if (error) throw fromDbError(error, strings().messages.loadEntriesFailed);
+      entries.push(...data.map(fromRow));
+      if (data.length < PAGE) break;
+    }
+    return entries;
   } catch (error) {
     throw toAppError(error, strings().messages.loadEntriesFailed);
   }
