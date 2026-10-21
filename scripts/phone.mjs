@@ -1,5 +1,5 @@
 // npm run phone: connect the Android phone to Metro over the USB cable and open
-// the CellarLog development build. Run it after `npx expo start --clear`.
+// the EnoLog development build. Run it after `npx expo start --clear`.
 //
 // Why the cable: this network isolates devices, so the phone can't reach the PC
 // over Wi-Fi. `adb reverse` makes the phone's 127.0.0.1:8081 lead to Metro on
@@ -116,7 +116,7 @@ async function main() {
   const PACKAGE = DEV_PACKAGES.find((id) => installed.includes(id));
   if (!PACKAGE) {
     fail(
-      "The CellarLog development build (com.cellarlog.app.dev) isn't installed on the phone.\n" +
+      "The EnoLog development build (com.cellarlog.app.dev) isn't installed on the phone.\n" +
         '  Build it with: npx eas-cli@latest build --profile development --platform android',
     );
   }
@@ -137,7 +137,7 @@ async function main() {
     `exp+${SCHEME}://expo-development-client/?url=${url}`,
     PACKAGE,
   ]);
-  console.log('✔ CellarLog opened. The first load builds the app in Metro (about a minute).\n');
+  console.log('✔ EnoLog opened. The first load builds the app in Metro (about a minute).\n');
 }
 
 main().catch((error) => fail(error instanceof Error ? error.message : String(error)));

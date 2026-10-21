@@ -14,7 +14,7 @@ type Variant = 'display' | 'heading' | 'title' | 'body' | 'label' | 'caption' | 
 type Props = TextProps & {
   variant?: Variant;
   muted?: boolean;
-  /** Force the script's fonts, e.g. 'en' for a Latin-only label like "EN" or "CellarLog". */
+  /** Force the script's fonts, e.g. 'en' for a Latin-only label like "EN" or "EnoLog". */
   lang?: Lang;
 };
 

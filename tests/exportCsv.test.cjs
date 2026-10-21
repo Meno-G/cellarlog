@@ -124,8 +124,8 @@ test('scope: the whole vessel, or only the entries of one ferment', () => {
 
 test('file names keep letters of any script', () => {
   const now = new Date(2026, 9, 18, 12);
-  assert.equal(csvFilename('Tank 12', null, now), 'cellarlog-tank-12-2026-10-18.csv');
-  assert.equal(csvFilename('Tank 12', 'Saperavi 2026', now), 'cellarlog-tank-12-saperavi-2026-2026-10-18.csv');
-  assert.equal(csvFilename('ქვევრი 3', null, now), 'cellarlog-ქვევრი-3-2026-10-18.csv');
-  assert.equal(csvFilename('!!!', null, now), 'cellarlog-vessel-2026-10-18.csv');
+  assert.equal(csvFilename('Tank 12', null, now), 'enolog-tank-12-2026-10-18.csv');
+  assert.equal(csvFilename('Tank 12', 'Saperavi 2026', now), 'enolog-tank-12-saperavi-2026-2026-10-18.csv');
+  assert.equal(csvFilename('ქვევრი 3', null, now), 'enolog-ქვევრი-3-2026-10-18.csv');
+  assert.equal(csvFilename('!!!', null, now), 'enolog-vessel-2026-10-18.csv');
 });

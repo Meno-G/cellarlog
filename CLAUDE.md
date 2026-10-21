@@ -1,14 +1,23 @@
-# CellarLog
+# EnoLog
 
 A winemaker's cellar log. The user speaks or types a short note ("Tank 12, added 20 g/hl SO2, temp 22°C"). The phone turns speech into text and a rule-based parser turns the text into structured data, all on the device: no n8n, no AI service. The user confirms or corrects it, and it is saved as an entry on that tank.
 
 Stack: Expo SDK 57 (React Native 0.86), TypeScript (strict), Expo Router, Supabase (Postgres + email/password auth), expo-speech-recognition (the phone's own speech recognizer), EAS Build (development build).
 
+## Name
+
+The app is called **EnoLog** (Play Store title "EnoLog: Winery Notes"; it was CellarLog until 21 Oct 2026). What deliberately kept the old name, because changing it would break something installed or linked:
+- the web address **cellarlog.vercel.app** (rename the Vercel project in its dashboard to get another; then update `lib/links.ts`, `public/privacy.html`, `docs/play-store/listing.md` and the GitHub "About" website),
+- the GitHub repo name, the EAS slug `cellarlog` (the EAS project is matched by it), and the Supabase project name,
+- the development and preview Android ids `com.cellarlog.app.dev` / `.preview` and the schemes `cellarlog*` (they are installed on the phone with their own signing keys),
+- the storage keys `cellarlog:v1:…` and the reminder ids `cellarlog-reminder:…` (renaming them would orphan the saved copy and the queued changes on every phone).
+The **production** id is `com.enolog.app` (not uploaded to Play yet, so it could still change).
+
 ## Commands
 
 ```bash
 npm install                 # install dependencies
-npx expo start --clear      # dev server (Metro); the CellarLog dev build loads the app from it
+npx expo start --clear      # dev server (Metro); the EnoLog dev build loads the app from it
 npm run phone               # then: connect the phone over USB (adb reverse) and open the dev build on Metro
 npm test                    # unit tests for lib/ (parser, normaliser, validation, tank matching, offline cache + outbox)
 npm run typecheck           # tsc --noEmit
@@ -24,12 +33,12 @@ Run `npm test`, `npm run typecheck` and `npm run lint` before declaring any task
 
 ## Development build (not Expo Go)
 
-Speech recognition is a native module that Expo Go doesn't include, so CellarLog runs as its own **development build** (`eas.json` profile `development`, Android package `com.cellarlog.app.dev`, name "CellarLog Dev").
+Speech recognition is a native module that Expo Go doesn't include, so EnoLog runs as its own **development build** (`eas.json` profile `development`, Android package `com.cellarlog.app.dev`, name "EnoLog Dev").
 - **App ids** (`app.config.ts`): development `com.cellarlog.app.dev`, preview `com.cellarlog.app.preview`, and production (Play Store) `com.cellarlog.app`, which is permanent once uploaded. All three install side by side.
   - Dev builds made before the Play Store setup still carry `com.cellarlog.app`; `npm run phone` accepts either until the Dev app is rebuilt.
 - JavaScript/TypeScript changes reload instantly from Metro. No rebuild needed.
 - **Rebuild only after native changes**: adding or removing a package with native code, or editing plugins or permissions in `app.json`.
-- In Expo Go the app still runs; the voice button is replaced by a "needs the CellarLog app build" note (`SPEECH_AVAILABLE` in `hooks/useSpeechToText.ts`).
+- In Expo Go the app still runs; the voice button is replaced by a "needs the EnoLog app build" note (`SPEECH_AVAILABLE` in `hooks/useSpeechToText.ts`).
 - Metro picks up newly installed packages only after a restart (`npx expo start --clear`).
 - **Connecting the phone**: the dev network isolates devices (no LAN, ngrok unreliable), so the phone reaches Metro over USB.
   - `npm run phone` (`scripts/phone.mjs`) checks Metro and the phone, waits for "Allow USB debugging", runs `adb reverse tcp:8081 tcp:8081`, and reopens the dev build on `http://127.0.0.1:8081`.
@@ -133,7 +142,7 @@ scripts/        test.mjs: compiles the pure lib/ modules and runs tests/
 - **Dates:** `lib/format.ts` uses the language's words and Georgian month abbreviations (`time.months`).
 - **Fonts:** Cormorant and Source Sans have no Georgian letters.
   - In Georgian, `AppText` maps each family to Noto Serif / Noto Sans Georgian (`georgianFamily`). It scales serif sizes by 0.8 and keeps line height at least 1.35×.
-  - `TextField` and the Analysis inputs do the same. Pass `lang="en"` for Latin-only labels ("CellarLog", "EN").
+  - `TextField` and the Analysis inputs do the same. Pass `lang="en"` for Latin-only labels ("EnoLog", "EN").
 - **Voice and typed notes are English only** (the user's decision: Georgian speech recognition isn't reliable enough). In Georgian, the record tab says so and points to the Analysis tab.
   - `tankKey` understands "ცისტერნა 12" / "ც12", so an English "tank 12" finds a Georgian-named tank.
 

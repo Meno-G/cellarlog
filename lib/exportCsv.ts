@@ -115,13 +115,13 @@ export function entriesToCsv(input: {
     .join('\r\n') + '\r\n';
 }
 
-/** "cellarlog-tank-12-saperavi-2026-2026-10-18.csv" (letters of any script are kept). */
+/** "enolog-tank-12-saperavi-2026-2026-10-18.csv" (letters of any script are kept). */
 export function csvFilename(vesselName: string, fermentName: string | null, now: Date = new Date()): string {
   const slug = (text: string) =>
     text
       .toLowerCase()
       .replace(/[^\p{L}\p{N}]+/gu, '-')
       .replace(/^-+|-+$/g, '');
-  const parts = ['cellarlog', slug(vesselName) || 'vessel', fermentName ? slug(fermentName) : '', dayString(now)];
+  const parts = ['enolog', slug(vesselName) || 'vessel', fermentName ? slug(fermentName) : '', dayString(now)];
   return `${parts.filter((part) => part !== '').join('-')}.csv`;
 }

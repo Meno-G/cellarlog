@@ -11,7 +11,7 @@ import { strings } from '@/lib/i18n';
 /** Messages in the current language. */
 const m = () => strings().messages;
 
-// Loaded optionally: the native module only exists in CellarLog's own build,
+// Loaded optionally: the native module only exists in EnoLog's own build,
 // not in Expo Go, and importing 'expo-speech-recognition' directly would crash there.
 type SpeechModule = (typeof import('expo-speech-recognition'))['ExpoSpeechRecognitionModule'];
 const speech = requireOptionalNativeModule<SpeechModule>('ExpoSpeechRecognition');

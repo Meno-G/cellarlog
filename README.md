@@ -1,7 +1,7 @@
-# CellarLog
+# EnoLog
 
 A winemaker's cellar log for Android (and iOS). Speak or type a note like
-"Tank 12, added 20 g/hl SO2, temp 22°C" and CellarLog saves it as a structured
+"Tank 12, added 20 g/hl SO2, temp 22°C" and EnoLog saves it as a structured
 entry on that tank. Speech recognition and parsing run on the phone: no AI
 service or extra backend, and voice works offline once English is downloaded.
 
@@ -25,8 +25,8 @@ Built with Expo (React Native), TypeScript, Expo Router and Supabase.
 4. **Environment variables.** Copy `.env.example` to `.env` and fill in the
    project URL and publishable key from **Project Settings -> API Keys**.
 
-5. **Install the CellarLog development build on your phone** (once, and again only after native changes).
-   Speech recognition isn't part of Expo Go, so CellarLog runs as its own app:
+5. **Install the EnoLog development build on your phone** (once, and again only after native changes).
+   Speech recognition isn't part of Expo Go, so EnoLog runs as its own app:
 
    ```bash
    npx eas-cli@latest login
@@ -50,7 +50,7 @@ Built with Expo (React Native), TypeScript, Expo Router and Supabase.
    npm run phone
    ```
 
-   It connects the phone to Metro over the cable and opens CellarLog. Run it again after
+   It connects the phone to Metro over the cable and opens EnoLog. Run it again after
    replugging the phone. It needs Android platform-tools (adb) in
    `%LOCALAPPDATA%\Android\Sdk\platform-tools` or `ANDROID_HOME`.
 

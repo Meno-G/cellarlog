@@ -119,7 +119,7 @@ export const en = {
     off: 'Off',
     every: (hours: number) => `Every ${hours} h`,
     body: 'Time for a reading: density and temperature.',
-    blocked: 'Notifications are blocked for CellarLog. Allow them in the phone settings, then try again.',
+    blocked: 'Notifications are blocked for EnoLog. Allow them in the phone settings, then try again.',
   },
 
   lineage: {
@@ -276,11 +276,11 @@ export const en = {
     reviewNote: 'Review note',
     forTank: (name: string) => `For ${name}`,
     voiceNeedsBuild:
-      "Voice notes need the CellarLog app build. Expo Go doesn't include speech recognition. You can type your note below.",
-    voiceInApp: 'Voice notes work in the CellarLog Android app. Here, type your note below or use the Analysis tab.',
-    micBlocked: 'Microphone access is turned off for CellarLog. Turn it on in Settings, or type your note below.',
+      "Voice notes need the EnoLog app build. Expo Go doesn't include speech recognition. You can type your note below.",
+    voiceInApp: 'Voice notes work in the EnoLog Android app. Here, type your note below or use the Analysis tab.',
+    micBlocked: 'Microphone access is turned off for EnoLog. Turn it on in Settings, or type your note below.',
     openSettings: 'Open settings',
-    micDenied: 'CellarLog needs the microphone to hear your notes. Tap the button and choose Allow, or type below.',
+    micDenied: 'EnoLog needs the microphone to hear your notes. Tap the button and choose Allow, or type below.',
     downloadText:
       'Voice uses the internet right now. Download English once (on Wi-Fi) to speak notes in the cellar without signal.',
     downloadEnglish: 'Download English for offline',
@@ -489,7 +489,7 @@ export const en = {
     colNote: 'Note',
     empty: 'No entries.',
     dayShort: (n: number) => `day ${n}`,
-    footer: (when: string) => `Prepared with CellarLog on ${when}. The records are shown as the winemaker entered them.`,
+    footer: (when: string) => `Prepared with EnoLog on ${when}. The records are shown as the winemaker entered them.`,
   },
 
   exportData: {
@@ -499,7 +499,7 @@ export const en = {
     text: 'Which data should the file contain?',
     wholeVessel: 'Whole vessel',
     nothing: 'There is nothing to export yet.',
-    shareTitle: (tank: string) => `CellarLog · ${tank}`,
+    shareTitle: (tank: string) => `EnoLog · ${tank}`,
   },
 
   alerts: {

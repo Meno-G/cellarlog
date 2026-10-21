@@ -51,7 +51,7 @@ export default function VoiceTestScreen() {
   async function share() {
     setShareError(null);
     try {
-      await shareCsv(`cellarlog-georgian-voice-test-${dayString(new Date())}.csv`, resultsToCsv(all), t.voiceTest.title);
+      await shareCsv(`enolog-georgian-voice-test-${dayString(new Date())}.csv`, resultsToCsv(all), t.voiceTest.title);
     } catch (err) {
       setShareError(errorMessage(err));
     }

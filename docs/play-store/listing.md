@@ -2,8 +2,8 @@
 
 Everything to paste into Play Console (https://play.google.com/console). The English text is the default listing; Georgian goes in as a translation (Store presence → Main store listing → Manage translations → Georgian – ka-GE).
 
-- **App name** (max 30): `CellarLog`
-- **Package name**: `com.cellarlog.app` (permanent once uploaded)
+- **App name** (max 30): `EnoLog: Winery Notes`
+- **Package name**: `com.enolog.app` (permanent once uploaded)
 - **Category**: Business. Tags: productivity, wine.
 - **Contact email**: menognishviligiorgi@gmail.com
 - **Website**: https://cellarlog.vercel.app
@@ -19,10 +19,10 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 
 **Full description** (max 4000):
 
-> CellarLog is a cellar log for winemakers, built for wet hands, gloves and cellars without signal.
+> EnoLog is a cellar log for winemakers, built for wet hands, gloves and cellars without signal.
 >
 > SPEAK IT, DON'T TYPE IT
-> Tap the big button and say "Tank 12, added 20 grams per hectolitre SO2, temperature 22 degrees". CellarLog turns it into a structured entry on the right tank: the addition, the amount, the unit, the temperature. Check it, correct anything, save. Voice recognition runs on your phone.
+> Tap the big button and say "Tank 12, added 20 grams per hectolitre SO2, temperature 22 degrees". EnoLog turns it into a structured entry on the right tank: the addition, the amount, the unit, the temperature. Check it, correct anything, save. Voice recognition runs on your phone.
 >
 > LAB ANALYSES IN SECONDS
 > The Analysis tab has a field for every common value: free and total SO2, temperature, pH, titratable and volatile acidity, alcohol, Brix, residual sugar, density and volume. Add your own fields for anything else.
@@ -34,7 +34,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 > • Search tanks by name, grape or vintage
 >
 > WORKS WITHOUT SIGNAL
-> Cellars rarely have reception. CellarLog keeps your tanks and timelines on the phone, and everything you record, edit or delete offline is saved and uploads by itself when you're back online.
+> Cellars rarely have reception. EnoLog keeps your tanks and timelines on the phone, and everything you record, edit or delete offline is saved and uploads by itself when you're back online.
 >
 > ENGLISH AND GEORGIAN
 > Every screen in English or Georgian, switched with one tap.
@@ -59,10 +59,10 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 
 **სრული აღწერა** (max 4000):
 
-> CellarLog მეღვინის მარნის ჟურნალია — შექმნილი სველი ხელებისთვის, ხელთათმანებისთვის და მარნებისთვის, სადაც ინტერნეტი არ არის.
+> EnoLog მეღვინის მარნის ჟურნალია — შექმნილი სველი ხელებისთვის, ხელთათმანებისთვის და მარნებისთვის, სადაც ინტერნეტი არ არის.
 >
 > თქვით, ნუ აკრეფთ
-> შეეხეთ დიდ ღილაკს და თქვით (ინგლისურად): „Tank 12, added 20 grams per hectolitre SO2, temperature 22 degrees". CellarLog მას სწორ ცისტერნაზე სტრუქტურირებულ ჩანაწერად აქცევს: დამატება, რაოდენობა, ერთეული, ტემპერატურა. შეამოწმეთ, გაასწორეთ და შეინახეთ.
+> შეეხეთ დიდ ღილაკს და თქვით (ინგლისურად): „Tank 12, added 20 grams per hectolitre SO2, temperature 22 degrees". EnoLog მას სწორ ცისტერნაზე სტრუქტურირებულ ჩანაწერად აქცევს: დამატება, რაოდენობა, ერთეული, ტემპერატურა. შეამოწმეთ, გაასწორეთ და შეინახეთ.
 >
 > ლაბორატორიული ანალიზი წამებში
 > „ანალიზის“ ჩანართში ყველა ძირითადი მაჩვენებლის ველია: თავისუფალი და საერთო SO2, ტემპერატურა, pH, ტიტრული და აქროლადი მჟავიანობა, სპირტი, ბრიქსი, ნარჩენი შაქარი, სიმკვრივე და მოცულობა. დანარჩენისთვის საკუთარი ველები დაამატეთ.
@@ -74,7 +74,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 > • ცისტერნების ძებნა სახელით, ჯიშით ან მოსავლის წლით
 >
 > მუშაობს ინტერნეტის გარეშე
-> მარანში კავშირი იშვიათია. CellarLog ცისტერნებს და ჟურნალებს ტელეფონზე ინახავს, ხოლო ოფლაინ ჩაწერილი, შეცვლილი ან წაშლილი ყველაფერი ინახება და თავისით აიტვირთება, როცა ინტერნეტი დაბრუნდება.
+> მარანში კავშირი იშვიათია. EnoLog ცისტერნებს და ჟურნალებს ტელეფონზე ინახავს, ხოლო ოფლაინ ჩაწერილი, შეცვლილი ან წაშლილი ყველაფერი ინახება და თავისით აიტვირთება, როცა ინტერნეტი დაბრუნდება.
 >
 > ქართული და ინგლისური
 > ყველა ეკრანი ქართულად ან ინგლისურად — ერთი შეხებით.
@@ -127,7 +127,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
   |---|---|---|---|---|
   | Personal info → Email address | Yes | No | Required | Account management |
   | App activity → Other user-generated content (tanks, notes, analyses) | Yes | No | Required | App functionality |
-  | Audio → Voice or sound recordings | **No**: speech is converted to text on the phone by Google's recognizer; CellarLog never receives audio |  |  |  |
+  | Audio → Voice or sound recordings | **No**: speech is converted to text on the phone by Google's recognizer; EnoLog never receives audio |  |  |  |
 - Location, contacts, photos, files, financial info, health, device IDs: not collected.
 
 **Permissions**: RECORD_AUDIO, only while the user taps record, for voice notes.
@@ -137,7 +137,7 @@ Everything to paste into Play Console (https://play.google.com/console). The Eng
 ## Release steps
 
 1. Create the Play Console developer account (personal, $25, ID verification).
-2. Create the app: name CellarLog, default language English (United States), App, Free.
+2. Create the app: name EnoLog, default language English (United States), App, Free.
 3. Fill in Store listing (texts and graphics above) and App content (forms above).
 4. **Closed testing** (required for new personal accounts):
    - Create a track, add **at least 12 testers** (their Google account emails), and upload the first `.aab` by hand.

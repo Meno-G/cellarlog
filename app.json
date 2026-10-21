@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CellarLog",
+    "name": "EnoLog",
     "slug": "cellarlog",
     "scheme": "cellarlog",
     "version": "1.0.0",
@@ -8,15 +8,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.cellarlog.app",
+      "bundleIdentifier": "com.enolog.app",
       "supportsTablet": true,
       "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "CellarLog turns your spoken notes into text on this phone.",
-        "NSMicrophoneUsageDescription": "CellarLog uses the microphone so you can speak your cellar notes."
+        "NSSpeechRecognitionUsageDescription": "EnoLog turns your spoken notes into text on this phone.",
+        "NSMicrophoneUsageDescription": "EnoLog uses the microphone so you can speak your cellar notes."
       }
     },
     "android": {
-      "package": "com.cellarlog.app",
+      "package": "com.enolog.app",
       "adaptiveIcon": {
         "backgroundColor": "#4A1322",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -45,8 +45,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "CellarLog uses the microphone so you can speak your cellar notes.",
-          "speechRecognitionPermission": "CellarLog turns your spoken notes into text on this phone.",
+          "microphonePermission": "EnoLog uses the microphone so you can speak your cellar notes.",
+          "speechRecognitionPermission": "EnoLog turns your spoken notes into text on this phone.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox",
             "com.google.android.as",
